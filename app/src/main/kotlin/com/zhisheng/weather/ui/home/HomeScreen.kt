@@ -54,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -1336,7 +1337,7 @@ private fun BootState() {
         "MAGI LINK ... ESTABLISHED",
         "SYNC ATMOSPHERIC DATA ...",
     )
-    var count by remember { mutableStateOf(0) }
+    var count by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         lines.indices.forEach { i ->
             kotlinx.coroutines.delay(260)
@@ -1371,8 +1372,8 @@ private fun EmptyState(onSearchClick: () -> Unit) {
         "SEARCH ANY CITY // 输入任意城市名",
         "AWAITING INPUT ...",
     )
-    var doneCount by remember { mutableStateOf(0) }
-    var chars by remember { mutableStateOf(0) }
+    var doneCount by remember { mutableIntStateOf(0) }
+    var chars by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         lines.forEachIndexed { i, l ->
             chars = 0

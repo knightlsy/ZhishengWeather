@@ -15,7 +15,7 @@
 
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3BFF8C?style=flat-square"/>
-  <img alt="版本 0.0.2" src="https://img.shields.io/badge/版本-0.0.2-FF6F1E?style=flat-square"/>
+  <img alt="开发版本 0.0.3" src="https://img.shields.io/badge/开发版本-0.0.3-FF6F1E?style=flat-square"/>
   <img alt="没有广告" src="https://img.shields.io/badge/广告-没有-3BFF8C?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/License-MIT-3BFF8C?style=flat-square"/>
 </p>
@@ -95,6 +95,12 @@ GitHub Release 里提供的是公共版。它不是试用包：实况、24 小�
 APK 目前只在 GitHub 发布，所以 Android 会提示允许“未知来源应用”。这是安装渠道提示，不是 App 额外申请的权限。首次打开会先显示北京，之后可以搜索并保存自己的城市。
 
 上面的 APK 是公共版，不附带和风天气密钥。想接入自己的和风天气账号，可以按后面的步骤构建满血版。
+
+## 0.0.3 稳定性周期
+
+`main` 已进入 0.0.3 开发周期，当前可下载的稳定版本仍是 0.0.2。0.0.3 不增加新功能，工作只围绕测试、Bug 修复、兼容性、运行稳定性和现有效果优化展开。
+
+测试范围、修复记录和发布门槛统一记在 [STABILITY_0.0.3.md](STABILITY_0.0.3.md)。没有通过这份清单之前，不发布 0.0.3 Release。
 
 ## 0.0.2 改了什么
 
