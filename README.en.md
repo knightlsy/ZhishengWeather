@@ -15,7 +15,7 @@
 
 <p align="center">
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-3BFF8C?style=flat-square"/>
-  <img alt="Version 0.0.2" src="https://img.shields.io/badge/version-0.0.2-FF6F1E?style=flat-square"/>
+  <img alt="Development version 0.0.3" src="https://img.shields.io/badge/development-0.0.3-FF6F1E?style=flat-square"/>
   <img alt="No ads" src="https://img.shields.io/badge/ads-none-3BFF8C?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-3BFF8C?style=flat-square"/>
 </p>
@@ -95,6 +95,12 @@ If you only want to use the app, download the public build. The full build canno
 The APK is distributed on GitHub rather than through an app store, so Android will ask you to allow installation from an unknown source. That is an install-channel warning, not an extra permission requested by the app. Beijing is shown on first launch; you can then search for and save your own cities.
 
 The APK above is the public build and contains no QWeather credentials. To use your own QWeather account, follow the source-build instructions for the full edition.
+
+## The 0.0.3 stability cycle
+
+`main` is now on the 0.0.3 development line; 0.0.2 remains the current downloadable release. Version 0.0.3 adds no new features. Work is limited to tests, bug fixes, compatibility, runtime stability, and refinement of existing effects.
+
+The test scope, fixes, and release gates live in [STABILITY_0.0.3.md](STABILITY_0.0.3.md). There will be no 0.0.3 release until that checklist passes.
 
 ## What changed in 0.0.2
 

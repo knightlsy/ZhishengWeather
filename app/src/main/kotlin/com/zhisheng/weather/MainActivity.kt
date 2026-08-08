@@ -1,6 +1,8 @@
 package com.zhisheng.weather
 
 import android.os.Bundle
+import android.os.Build
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -35,10 +37,17 @@ private enum class Screen { HOME, SEARCH, SETTINGS }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 灭屏时启动 → 点亮屏幕。API 27+ 用 setShowWhenLocked/setTurnScreenOn，
-        // 旧的 SCREEN_BRIGHT_WAKE_LOCK 在 27+ 已废弃且实际无效（v0.0.2）
-        setShowWhenLocked(true)
-        setTurnScreenOn(true)
+        // 灭屏时启动 → 点亮屏幕。Android 8.0（API 26）仍需兼容旧窗口标志。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        } else {
+            @Suppress("DEPRECATION")
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+            )
+        }
 
         enableEdgeToEdge()
         setContent {
