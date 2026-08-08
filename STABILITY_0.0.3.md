@@ -85,15 +85,24 @@
 - 移除清单中 API 26 会忽略的重复 `turnScreenOn` 属性
 - 启动和空状态打字动画改用 `mutableIntStateOf`，减少高频整数状态的装箱
 - 新增单位换算、蒲福风级边界、气压格式和月相日期回归测试
+- 风向值先归一化再映射方位；数据源偶发返回负角度、超范围值或非有限数时不再有数组越界风险
 - CI 增加单元测试、Lint 和公共 Release 构建
 
 首轮自动复测：
 
-- `testDebugUnitTest`：8 项通过，0 失败
+- `testDebugUnitTest`：11 项通过，0 失败
 - `lintDebug`：0 Error、51 Warning
 - `assembleDebug`：通过
 - `assembleRelease -PpublicBuild`：通过；APK 内版本为 `0.0.3 (20260809)`，四项和风配置均为空，使用公开签名
 - `assembleRelease`：通过；使用私人签名
+
+真机冒烟（小米 2405CPX3DC，Android 16 / API 36）：
+
+- 从已安装的满血版 `0.0.2 (20260808)` 覆盖升级到 `0.0.3 (20260809)`：成功，签名一致，应用数据保留
+- 灭屏 Dozing 状态冷启动：381 ms；启动后系统进入 Awake，确认厂商 ROM 兼容回退有效
+- 连续 3 次前后台恢复：59 / 47 / 56 ms
+- 进程保持运行；Logcat 未发现 `FATAL EXCEPTION` 或应用 ANR
+- 未绕过设备锁屏，也未截取、保存或公开包含城市等私人信息的界面
 
 剩余 51 个 Lint Warning 分类：
 
@@ -109,4 +118,4 @@
 | OldTargetApi | 1 | 升级 compile/target SDK 时统一处理 |
 | ObsoleteSdkInt | 1 | 启动图标资源目录整理时处理 |
 
-当前阶段：自动基线已通过，下一步进入模拟器/真机测试和剩余 Warning 专项处理。
+当前阶段：自动基线和一台较新 Android 真机冒烟已通过。当前环境未安装 API 26 / 27 系统镜像，这两档兼容性仍是发布前必测项；其余 Warning 按上表继续专项处理。

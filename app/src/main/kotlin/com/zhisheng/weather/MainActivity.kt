@@ -37,16 +37,16 @@ private enum class Screen { HOME, SEARCH, SETTINGS }
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 灭屏时启动 → 点亮屏幕。Android 8.0（API 26）仍需兼容旧窗口标志。
+        // 部分厂商系统在新接口下仍依赖旧窗口标志；两者并用可兼容 Android 8.0 和定制 ROM。
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+        )
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-        } else {
-            @Suppress("DEPRECATION")
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
-            )
         }
 
         enableEdgeToEdge()

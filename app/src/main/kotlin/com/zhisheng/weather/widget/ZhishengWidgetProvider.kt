@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-// 终端风桌面小组件（v0.0.2）
+// 磷光终端风桌面小组件（v0.0.2）
 // 三个 Provider = 桌面选择器里三个独立条目（2x2 / 4x2 / 4x4）；
 // 每个仍可拉伸，布局按实际尺寸自适应。
 // 数据来自 WidgetCache（主 App 抓取后写入），小组件本身不发网络请求。
