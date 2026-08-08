@@ -611,9 +611,11 @@ object WeatherRepository {
 
     // 风向方位（度数 → 中文）
     fun windDirection(deg: Double?): String? {
-        if (deg == null) return null
+        if (deg == null || !deg.isFinite()) return null
         val dirs = arrayOf("北", "东北", "东", "东南", "南", "西南", "西", "西北")
-        val idx = (((deg + 22.5) / 45.0).toInt()) % 8
+        // 容忍数据源偶发返回负角度或超过 360°，避免数组下标越界拖垮天气详情页。
+        val normalized = ((deg % 360.0) + 360.0) % 360.0
+        val idx = (((normalized + 22.5) / 45.0).toInt()) % 8
         return dirs[idx]
     }
 
