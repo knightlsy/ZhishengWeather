@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.2_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.3_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="0.0.3 开发中" src="https://img.shields.io/badge/0.0.3-稳定性测试中-FF6F1E?style=flat-square"/>
+  <img alt="当前版本 0.0.3" src="https://img.shields.io/badge/当前版本-0.0.3-31C9DB?style=flat-square"/>
   <img alt="广告、账号、埋点均为零" src="https://img.shields.io/badge/广告·账号·埋点-零-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -108,17 +108,17 @@ Release 里挂的是公共版。它不是试用包：实况、24 小时预报、
 
 ## 安装
 
-1. 下载 [`zhisheng-weather-v0.0.2.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.2/zhisheng-weather-v0.0.2.apk)（约 12 MB）。
+1. 下载 [`zhisheng-weather-v0.0.3.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.3/zhisheng-weather-v0.0.3.apk)（约 12 MB）。
 2. 装到 Android 8.0 或更高版本的机器上。
 3. 第一次打开默认是北京，搜索并保存自己的城市就行。
 
 APK 只走 GitHub 发布，所以系统会提示"允许安装未知来源应用"——这是安装渠道的提示，不是 App 多申请了权限。介意的话可以照上面的步骤自己编一个，产物一样。
 
-## 0.0.3 正在做什么
+## 0.0.3 改了什么
 
-当前可下载的稳定版仍是 0.0.2，源码已经进入 0.0.3 稳定性周期。这个版本不扩天气模块，主要把真实使用中暴露出来的问题一项项修稳：月相和月出月落、桌面小组件、图标快捷操作、定位换城、数据源状态，以及“明显”氛围档的观感。
+0.0.3 没有往主界面继续塞天气卡片，主要把 0.0.2 使用中暴露出来的问题修掉：月相和月出月落、桌面小组件、图标快捷操作、定位换城、数据源状态，以及“明显”氛围档的观感。
 
-测试范围、修复记录和发布门槛都记在 [STABILITY_0.0.3.md](STABILITY_0.0.3.md)。清单没有跑完之前，不发布 0.0.3 Release。
+发布前跑过 15 项单元测试、Android Lint、Debug 构建和公共 Release 构建，也在一台 Android 16 小米手机上做了覆盖安装和快捷操作检查。具体记录在 [STABILITY_0.0.3.md](STABILITY_0.0.3.md)，安装包见 [v0.0.3 Release](https://github.com/ZhishengZZ/ZhishengWeather/releases/tag/v0.0.3)。
 
 ## 从源码构建
 
@@ -176,7 +176,7 @@ qw.private_key=<Ed25519 私钥，单行>
 ## 更新记录
 
 <details open>
-<summary><b>0.0.3 // STABILITY PASS（开发中）</b> — 不扩模块，先把现有功能跑稳</summary>
+<summary><b>0.0.3 // STABILITY PASS</b> — 不扩模块，先把现有功能跑稳</summary>
 
 - 月相按目标城市日期计算；数据源不给月出、月落时，由本机补算并正常显示
 - 修复桌面小组件布局无法被部分启动器加载的问题，并补上三种尺寸的回归检查
