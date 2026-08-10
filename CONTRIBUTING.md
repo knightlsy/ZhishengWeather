@@ -60,9 +60,9 @@ Small project, simple rules — a few notes below.*
 
 ## 05// 图标与美术 ASSETS
 
-现在这套 15 枚图标走的是"纯黑底 → 亮度转透明 → 512px → `drawable-nodpi`"的管线，单色青双色调。新图标想加进来，跟这套风格保持一致，否则会被打回去。
+启动图标使用黑底、磷光青和信号橙。应用内 15 枚天气图标以青色为主，统一放在 `drawable-nodpi`。提交新图标时请先检查 48 px 下是否仍然清楚，并附上深色背景预览。
 
-*The current set of 15 glyphs runs a fixed pipeline — pure-black origin → luminance-to-transparent → 512px → `drawable-nodpi` — in a cyan duotone. New glyphs must match that style, or they go back over the wall.*
+*The launcher icon uses black, phosphor cyan, and signal orange. The 15 in-app weather glyphs are primarily cyan and live in `drawable-nodpi`. Check new artwork at 48 px and include a dark-background preview with the PR.*
 
 ## 06// 安全红线 SECURITY
 
