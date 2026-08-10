@@ -101,7 +101,7 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
   <img src="assets/app-icon.png" width="144" alt="枳生天气应用图标"/>
 </p>
 
-启动图标使用太阳、云和降水三个直接的天气元素，四角保留终端取景框。颜色与应用界面一致：青色表示常规信息，橙色用于重点信号。
+启动图标使用太阳、云和降水三个直接的天气元素。深色底板和青橙配色与应用界面保持一致。
 
 <p align="center"><img src="assets/icons_grid.png" width="560" alt="枳生天气图标组"/></p>
 
