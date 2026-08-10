@@ -8,7 +8,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.zhisheng.weather.R
 
-// EVA · 全部数据用 JetBrains Mono（中文自动回退系统字体）
+// 磷光终端 · 全部数据用 JetBrains Mono（中文自动回退系统字体）
 private val JetbrainsMono = FontFamily(
     Font(R.font.jetbrains_mono_regular, FontWeight.Normal),
     Font(R.font.jetbrains_mono_medium, FontWeight.Medium),

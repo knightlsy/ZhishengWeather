@@ -104,18 +104,40 @@
 - 进程保持运行；Logcat 未发现 `FATAL EXCEPTION` 或应用 ANR
 - 未绕过设备锁屏，也未截取、保存或公开包含城市等私人信息的界面
 
-剩余 51 个 Lint Warning 分类：
+第二轮后剩余 37 个 Lint Warning 分类：
 
 | 类型 | 数量 | 当前处理意见 |
 |:--|--:|:--|
-| HardcodedText | 15 | 小组件占位文案，后续统一提取资源 |
 | SmallSp | 10 | 终端式小组件密排设计，结合真机可读性再定 |
 | UnusedAttribute | 9 | API 31 小组件属性在旧系统被忽略，需分版本资源评估 |
 | IconDuplicates / IconDuplicatesConfig / IconLocation | 7 | 启动图标资源专项检查 |
 | MonochromeLauncherIcon | 2 | Android 13 主题图标专项检查 |
-| UnusedResources | 2 | 确认无运行时引用后再删除 |
+| UnusedResources | 1 | 确认无运行时引用后再删除 |
 | UseCompoundDrawables / NestedWeights | 4 | 小组件布局性能项，需保持当前像素效果 |
+| TypographyDashes | 2 | 终端占位符 `--` 的文案检查，保持当前语义 |
 | OldTargetApi | 1 | 升级 compile/target SDK 时统一处理 |
 | ObsoleteSdkInt | 1 | 启动图标资源目录整理时处理 |
 
 当前阶段：自动基线和一台较新 Android 真机冒烟已通过。当前环境未安装 API 26 / 27 系统镜像，这两档兼容性仍是发布前必测项；其余 Warning 按上表继续专项处理。
+
+## 2026-08-10 第二轮记录
+
+- 修复月相长期落入“残月”兜底的问题；公共源和小米源缺少月出、月落时，改用本地天文计算补齐
+- 月出/月落以北京 2026-08-10 天文表做回归：计算值 `01:54 / 17:57`，参考值约 `01:50 / 17:43`
+- “明显”天气氛围档提高到克制档的 3.1 倍亮度系数，并增加粒子密度、运动幅度和雷暴扫描频率；克制档保持不变
+- 修复桌面小组件布局使用普通 `View`、不符合 `RemoteViews` 白名单而导致宿主无法显示的问题
+- 小组件多实例刷新改为一次广播共用一个异步任务，单个实例失败不会阻断其他尺寸，并补充错误日志
+- 新增长按图标快捷操作：刷新天气、搜索城市、设置
+- 清理借用的作品相关终端名称，统一改为枳生天气自有终端文案
+- 设置页显示当前城市实际返回数据的来源，并区分连接中、使用中、可用和未配置
+- 定位改为优先请求新位置；旧位置仅在 15 分钟内作为失败兜底。开关开启且已授权后，回到前台最多每 30 分钟自动复核一次所在城市
+
+第二轮自动复测：
+
+- `testDebugUnitTest`：15 项通过，0 失败
+- `lintDebug`：0 Error、37 Warning；小组件 15 项硬编码文案已全部提取为资源
+- `assembleDebug`：通过
+- `assembleRelease -PpublicBuild`：通过
+- `assembleRelease`：通过；使用本地满血版配置和私人签名
+- 真机（小米 2405CPX3DC，Android 16）安装、冷启动成功；三项静态快捷操作均已由系统注册，冷/热启动 Intent 均能送达，未出现崩溃或 ANR
+- 三个小组件 Provider 均已由系统正常注册，且布局已通过 `RemoteViews` 元素白名单回归测试；首次放置后的像素效果仍保留为发布前人工检查项

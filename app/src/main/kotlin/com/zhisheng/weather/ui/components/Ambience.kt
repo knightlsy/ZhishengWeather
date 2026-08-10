@@ -27,9 +27,9 @@ import kotlin.math.sin
 
 // ═══════════════════════════════════════════════════════════
 // 天气氛围层（v0.0.2）
-// 设计约束：只在**内容之下**绘制，不拦触摸，透明度上限极低。
-// 信息永远优先——氛围只是背景里的一层呼吸感，不抢读数。
-//   雨   → 数据雨（下落的 0/1 字符列，NERV 终端感）
+// 设计约束：只在**内容之下**绘制，不拦触摸；克制档轻，明显档有清楚可辨的天气动势。
+// 信息仍然优先，明显档只加强背景粒子、亮度与运动，不覆盖正文。
+//   雨   → 数据雨（下落的 0/1 字符列，磷光终端感）
 //   雪   → 飘点（缓慢横向漂移的圆点）
 //   雾   → 呼吸噪点（整体明暗缓慢起伏的稀疏点阵）
 //   雷暴 → 扫描线（偶发一道横向亮线扫过 + 极淡闪白）
@@ -78,15 +78,23 @@ fun WeatherAmbience(
 
     val density = LocalDensity.current
     val f = level.factor
-    val particles = remember(kind) { List(if (kind == AmbienceKind.SNOW) 34 else 46) { Particle(it * 7919 + 13, 22) } }
+    val vivid = level == AmbienceLevel.VIVID
+    val motion = if (vivid) 1.32f else 1f
+    val particleCount = when {
+        kind == AmbienceKind.SNOW && vivid -> 62
+        kind == AmbienceKind.SNOW -> 34
+        vivid -> 88
+        else -> 46
+    }
+    val particles = remember(kind, level) { List(particleCount) { Particle(it * 7919 + 13, 22) } }
     val monoTypeface = remember { android.graphics.Typeface.MONOSPACE }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         when (kind) {
-            AmbienceKind.RAIN -> drawDataRain(t, f, particles, density.density, monoTypeface)
-            AmbienceKind.SNOW -> drawSnow(t, f, particles)
-            AmbienceKind.FOG -> drawFogNoise(t, f)
-            AmbienceKind.STORM -> drawStormScan(t, f)
+            AmbienceKind.RAIN -> drawDataRain(t, f, motion, particles, density.density, monoTypeface)
+            AmbienceKind.SNOW -> drawSnow(t, f, motion, particles)
+            AmbienceKind.FOG -> drawFogNoise(t, f, vivid)
+            AmbienceKind.STORM -> drawStormScan(t, f, vivid)
             AmbienceKind.NONE -> Unit
         }
     }
@@ -96,6 +104,7 @@ fun WeatherAmbience(
 private fun DrawScope.drawDataRain(
     t: Float,
     f: Float,
+    motion: Float,
     particles: List<Particle>,
     densityScale: Float,
     typeface: android.graphics.Typeface,
@@ -110,7 +119,7 @@ private fun DrawScope.drawDataRain(
     val baseAlpha = 0.052f * f
     particles.forEach { p ->
         val cycle = size.height + p.len * glyph * 1.4f
-        val y = ((t * p.speed * 190f + p.phase * cycle) % cycle)
+        val y = ((t * p.speed * 190f * motion + p.phase * cycle) % cycle)
         val x = p.col * colW + colW * 0.28f
         for (i in 0 until p.len) {
             val yy = y - i * glyph * 1.4f
@@ -126,12 +135,12 @@ private fun DrawScope.drawDataRain(
 }
 
 // —— 飘雪：缓慢下落 + 正弦横向漂移 ——
-private fun DrawScope.drawSnow(t: Float, f: Float, particles: List<Particle>) {
+private fun DrawScope.drawSnow(t: Float, f: Float, motion: Float, particles: List<Particle>) {
     val colW = size.width / 22f
     particles.forEach { p ->
         val cycle = size.height + 40f
-        val y = ((t * p.speed * 42f + p.phase * cycle) % cycle)
-        val sway = sin((t * 0.55f + p.phase * 6.28f).toDouble()).toFloat() * 13f * p.drift
+        val y = ((t * p.speed * 42f * motion + p.phase * cycle) % cycle)
+        val sway = sin((t * 0.55f * motion + p.phase * 6.28f).toDouble()).toFloat() * 13f * motion * p.drift
         val x = p.col * colW + colW * 0.5f + sway
         val r = 1.15f + (p.len % 3) * 0.5f
         drawCircle(
@@ -143,7 +152,7 @@ private fun DrawScope.drawSnow(t: Float, f: Float, particles: List<Particle>) {
 }
 
 // —— 雾：稀疏点阵整体呼吸（明暗缓慢起伏） ——
-private fun DrawScope.drawFogNoise(t: Float, f: Float) {
+private fun DrawScope.drawFogNoise(t: Float, f: Float, vivid: Boolean) {
     // 呼吸周期约 7 秒
     val breathe = (sin((t * 0.9f).toDouble()).toFloat() + 1f) / 2f
     val alpha = (0.03f + 0.045f * breathe) * f
@@ -158,7 +167,7 @@ private fun DrawScope.drawFogNoise(t: Float, f: Float) {
             val jy = ((row * 13 + (x / step).toInt() * 29) % 7 - 3).toFloat()
             drawCircle(
                 color = Color.White.copy(alpha = alpha.coerceIn(0f, 1f)),
-                radius = 1.05f,
+                radius = if (vivid) 1.45f else 1.05f,
                 center = Offset(x + jx, y + jy),
             )
             x += step
@@ -169,8 +178,8 @@ private fun DrawScope.drawFogNoise(t: Float, f: Float) {
 }
 
 // —— 雷暴：一道扫描线周期性下扫，偶发极淡闪白 ——
-private fun DrawScope.drawStormScan(t: Float, f: Float) {
-    val period = 4.2f
+private fun DrawScope.drawStormScan(t: Float, f: Float, vivid: Boolean) {
+    val period = if (vivid) 3.3f else 4.2f
     val local = t % period
     // 扫描线只在周期前 1.5s 出现
     if (local < 1.5f) {

@@ -63,6 +63,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private var lastFetchedKey: String? = null
     private var lastFetchKey: String? = null
     private var lastFetchAt: Long = 0L
+    private var lastAutoLocateAt: Long = 0L
 
     // 同一时间只保留一次抓取：换城市立即取消旧任务，
     // 避免新旧城市结果乱序覆盖（v0.0.1：切城市偶发数据错乱的修复）
@@ -221,10 +222,12 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         }
 
     fun selectCity(locationKey: String) {
+        _locateMessage.value = null
         viewModelScope.launch { CityRepository.selectCity(locationKey) }
     }
 
     fun addCityAndSelect(city: City) {
+        _locateMessage.value = null
         viewModelScope.launch {
             CityRepository.addCity(city)
         }
@@ -237,24 +240,57 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // —— 定位（v0.0.2）——
-    // 只在用户主动触发时调用；权限申请由 UI 层负责，这里假定已授权。
+    // 手动触发时总是优先取新位置；权限申请由 UI 层负责，这里假定已授权。
     fun locateCurrentCity() {
+        beginLocate(automatic = false)
+    }
+
+    // 定位开关开启且已授权后，回到前台最多每 30 分钟复核一次城市；
+    // 不申请后台位置，也不会在 App 未打开时持续跟踪。
+    fun autoLocateIfEnabled() {
+        if (_locating.value) return
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            if (now - lastAutoLocateAt < AUTO_LOCATE_INTERVAL_MS) return@launch
+            if (!SettingsRepository.locationEnabled.first()) return@launch
+            if (!LocationSource.hasPermission(getApplication())) return@launch
+            lastAutoLocateAt = now
+            beginLocate(automatic = true)
+        }
+    }
+
+    private fun beginLocate(automatic: Boolean) {
         if (_locating.value) return
         viewModelScope.launch {
             _locating.value = true
-            _locateMessage.value = null
-            when (val r = LocationSource.locate(getApplication())) {
-                is LocationSource.Result.Ok -> {
-                    _locateMessage.value = "已定位：${r.city.name}"
-                    addCityAndSelect(r.city)
+            if (!automatic) _locateMessage.value = null
+            try {
+                when (val r = LocationSource.locate(getApplication())) {
+                    is LocationSource.Result.Ok -> {
+                        _locateMessage.value = if (automatic) {
+                            "已自动更新定位：${r.city.name}"
+                        } else {
+                            "已定位：${r.city.name}"
+                        }
+                        lastFetchedKey = r.city.locationKey
+                        CityRepository.addCity(r.city)
+                        refresh(r.city)
+                    }
+                    is LocationSource.Result.Failed -> {
+                        if (!automatic) _locateMessage.value = r.message
+                    }
                 }
-                is LocationSource.Result.Failed -> _locateMessage.value = r.message
+            } finally {
+                _locating.value = false
             }
-            _locating.value = false
         }
     }
 
     fun clearLocateMessage() {
         _locateMessage.value = null
+    }
+
+    private companion object {
+        const val AUTO_LOCATE_INTERVAL_MS = 30 * 60_000L
     }
 }

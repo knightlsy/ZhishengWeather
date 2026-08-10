@@ -2,6 +2,10 @@
 <resources>
     <string name="app_name">枳生天气</string>
     <string name="widget_name">枳生天气</string>
+    <string name="widget_terminal">ZHISHENG WEATHER TERMINAL</string>
+    <string name="widget_update_placeholder">UPD --</string>
+    <string name="widget_value_placeholder">--</string>
+    <string name="widget_aqi_placeholder">AQI --</string>
     <string name="widget_icon_desc">天气图标</string>
     <string name="widget_label_small">枳生天气 · 小</string>
     <string name="widget_label_medium">枳生天气 · 中</string>
@@ -9,4 +13,10 @@
     <string name="widget_desc_small">城市 · 实时温度 · 今日高低温</string>
     <string name="widget_desc_medium">实况 + 未来四小时</string>
     <string name="widget_desc_large">实况 + 逐时 + 三日预报 + 空气质量</string>
+    <string name="shortcut_refresh_short">刷新天气</string>
+    <string name="shortcut_refresh_long">立即刷新当前城市</string>
+    <string name="shortcut_search_short">搜索城市</string>
+    <string name="shortcut_search_long">搜索并切换城市</string>
+    <string name="shortcut_settings_short">设置</string>
+    <string name="shortcut_settings_long">打开枳生天气设置</string>
 </resources>

@@ -81,6 +81,9 @@ fun SettingsScreen(
     locating: Boolean,
     locateMessage: String?,
     onClearLocateMessage: () -> Unit,
+    activeSource: String?,
+    activeCityName: String?,
+    sourceLoading: Boolean,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -143,14 +146,15 @@ fun SettingsScreen(
         ) {
             // ——— 01 数据源 ———
             SectionTitle(1, "数据源", "DATA SOURCE")
-            Hint("选「自动优选」按可用性降级；装不上和风凭据的话，直接锁「Open-Meteo」就有完整体验。")
+            Hint(sourceHint(source, activeSource, activeCityName, sourceLoading))
             CardBox {
                 SourcePref.entries.forEachIndexed { i, p ->
                     if (i > 0) HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                     SourceRow(
                         pref = p,
+                        description = sourceDescription(p),
                         selected = source == p,
-                        status = sourceStatus(p),
+                        status = sourceStatus(p, source == p, activeSource, sourceLoading),
                         onClick = { scope.launch { SettingsRepository.setSourcePref(p) } },
                     )
                 }
@@ -159,13 +163,13 @@ fun SettingsScreen(
             // ——— 02 定位 ———
             SectionTitle(2, "定位", "LOCATION")
             Hint(
-                if (locationEnabled) "已开启。仅在你点下方按钮时申请一次粗略位置权限，平时不会读取位置。"
+                if (locationEnabled) "已开启。授权后会在打开 App 时自动复核所在城市；不会在后台持续定位。"
                 else "关闭状态下 App 不申请、也不读取任何位置权限。"
             )
             CardBox {
                 ToggleRow(
-                    "定位当前城市",
-                    if (locationEnabled) "开启·按需申请粗略位置" else "关闭·不申请任何位置权限",
+                    "自动跟随所在城市",
+                    if (locationEnabled) "开启·打开 App 时自动更新" else "关闭·不申请任何位置权限",
                     locationEnabled,
                 ) {
                     scope.launch {
@@ -176,7 +180,7 @@ fun SettingsScreen(
                 if (locationEnabled) {
                     HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                     ActionRow(
-                        label = if (locating) "定位中 ..." else "⌖ 定位当前城市",
+                        label = if (locating) "定位中 ..." else "⌖ 立即重新定位",
                         enabled = !locating,
                         color = ZhishengMint,
                     ) {
@@ -189,7 +193,11 @@ fun SettingsScreen(
                         Text(
                             "> $msg",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (msg.startsWith("已定位")) ZhishengMint else ZhishengOrange,
+                            color = if (msg.startsWith("已定位") || msg.startsWith("已自动更新定位")) {
+                                ZhishengMint
+                            } else {
+                                ZhishengOrange
+                            },
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                         )
                     }
@@ -295,7 +303,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(18.dp))
             Text(
-                "枳生天气 · EVA 数据终端",
+                "枳生天气 · 数据终端",
                 style = MaterialTheme.typography.labelSmall,
                 color = ZhishengTextTertiary,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -310,11 +318,62 @@ fun SettingsScreen(
     }
 }
 
-private fun sourceStatus(p: SourcePref): Pair<String, Boolean> = when (p) {
-    SourcePref.AUTO -> "READY" to true
-    SourcePref.QWEATHER -> if (QWeatherApi.enabled) "LINKED" to true else "NO KEY" to false
-    SourcePref.XIAOMI -> "READY" to true
-    SourcePref.OPEN_METEO -> "READY" to true
+private fun sourceHint(
+    selected: SourcePref,
+    activeSource: String?,
+    cityName: String?,
+    loading: Boolean,
+): String {
+    val city = cityName ?: "当前城市"
+    if (loading) return "正在为 $city 连接 ${selected.cn}，完成后这里会显示实际返回数据的来源。"
+    val active = sourceName(activeSource)
+        ?: return "$city 还没有成功返回天气数据；选择数据源后可直接看到连接结果。"
+    return if (selected == SourcePref.AUTO) {
+        "$city 当前实际使用：$active。自动优选会在首选源不可用时依次降级。"
+    } else {
+        "$city 当前实际使用：$active；设置已锁定为 ${selected.cn}。"
+    }
+}
+
+private fun sourceDescription(p: SourcePref): String = when (p) {
+    SourcePref.AUTO -> if (QWeatherApi.enabled) {
+        "和风 → 小米 → Open-Meteo，按可用性降级"
+    } else {
+        "小米 → Open-Meteo，公共版自动降级"
+    }
+    SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "当前构建未配置和风凭据"
+    SourcePref.XIAOMI -> "免配置·国内城市优先"
+    SourcePref.OPEN_METEO -> "免配置·全球覆盖"
+}
+
+private fun sourceStatus(
+    pref: SourcePref,
+    selected: Boolean,
+    activeSource: String?,
+    loading: Boolean,
+): Pair<String, Boolean> {
+    if (selected && loading) return "连接中" to true
+    if (pref != SourcePref.AUTO && sourceMatches(pref, activeSource)) return "使用中" to true
+    return when (pref) {
+        SourcePref.AUTO -> if (selected && activeSource != null) "使用中" to true else "可用" to true
+        SourcePref.QWEATHER -> if (QWeatherApi.enabled) "已配置" to true else "未配置" to false
+        SourcePref.XIAOMI -> "可用" to true
+        SourcePref.OPEN_METEO -> "可用" to true
+    }
+}
+
+private fun sourceMatches(pref: SourcePref, activeSource: String?): Boolean = when (pref) {
+    SourcePref.QWEATHER -> activeSource == "QWEATHER"
+    SourcePref.XIAOMI -> activeSource == "XIAOMI"
+    SourcePref.OPEN_METEO -> activeSource == "OPEN-METEO"
+    SourcePref.AUTO -> false
+}
+
+private fun sourceName(activeSource: String?): String? = when (activeSource) {
+    "QWEATHER" -> "和风天气"
+    "XIAOMI" -> "小米天气"
+    "OPEN-METEO" -> "Open-Meteo"
+    else -> activeSource
 }
 
 private fun openAppSettings(context: Context) {
@@ -365,6 +424,7 @@ private fun CardBox(content: @Composable () -> Unit) {
 @Composable
 private fun SourceRow(
     pref: SourcePref,
+    description: String,
     selected: Boolean,
     status: Pair<String, Boolean>,
     onClick: () -> Unit,
@@ -391,7 +451,7 @@ private fun SourceRow(
                 Spacer(Modifier.width(8.dp))
                 Text(pref.en, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary, letterSpacing = 1.sp)
             }
-            Text(pref.desc, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+            Text(description, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
         }
         Text(
             status.first,

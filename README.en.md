@@ -57,7 +57,7 @@ The look is personal too. Black backgrounds, thin rules, phosphor colors, and a 
 - **Should I open the windows?** Expand AQI for PM2.5, PM10, O₃, NO₂, SO₂, and CO readings.
 - **Is severe weather on the way?** Alerts are shown with their level and full text when the active provider supplies them. Missing fields stay missing; the app does not invent replacements.
 
-There are also saved cities, sunrise and sunset, moon phase, yesterday's weather, auxiliary typhoon data, and home-screen widgets in 2x2, 4x2, and 4x4 sizes. Rain, snow, fog, and thunderstorms have optional background effects with adjustable intensity.
+There are also saved cities, sunrise and sunset, moon phase, moonrise and moonset, yesterday's weather, auxiliary typhoon data, and home-screen widgets in 2x2, 4x2, and 4x4 sizes. Long-pressing the launcher icon exposes shortcuts for refresh, city search, and settings. Rain, snow, fog, and thunderstorms have optional background effects with adjustable intensity.
 
 Temperature, wind-speed, and pressure units are configurable. Individual sections can be hidden as well.
 
@@ -122,9 +122,9 @@ The app declares three permissions:
 |:--|:--|
 | Internet | Fetch weather data and city-search results |
 | Network state | Check whether a connection is available |
-| Approximate location | Optional; requested only after location is enabled and you tap “Locate current city” |
+| Approximate location | Optional; requested only after location is enabled and you tap “Locate now” |
 
-There is no ad SDK, analytics SDK, account system, or project-operated backend. Saved cities and preferences stay in local storage. Weather requests send the selected city's coordinates to the active provider. If you use location, coordinates are also used to resolve the city name. The relevant code is under [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data).
+There is no ad SDK, analytics SDK, account system, or project-operated backend. Saved cities and preferences stay in local storage. Weather requests send the selected city's coordinates to the active provider. Once location following is enabled and permission has been granted, the app rechecks the current city when it opens or returns to the foreground; it does not track location in the background. Coordinates are used only to resolve the city name. The relevant code is under [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data).
 
 ## Data providers
 
@@ -135,6 +135,8 @@ There is no ad SDK, analytics SDK, account system, or project-operated backend. 
 | Open-Meteo | None | Global current/hourly/daily data, AQI, 15-minute precipitation, and fallback coverage |
 
 Auto mode falls back according to availability. Coverage differs between providers: Open-Meteo does not supply Chinese official alerts or life indices, while auxiliary Xiaomi fields such as typhoons and yesterday's weather may be empty. The app leaves those gaps visible instead of manufacturing a complete-looking result.
+
+Moon phase and provider-missing moonrise or moonset times are calculated locally from the date and city coordinates, without another network request.
 
 QWeather uses an Ed25519-signed JWT. Public builds forcibly clear its credentials so a developer key cannot end up in the APK.
 
