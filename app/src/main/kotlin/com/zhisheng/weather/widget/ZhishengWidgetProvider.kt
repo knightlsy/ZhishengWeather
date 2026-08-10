@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-// 终端风桌面小组件（v0.0.2）
+// 磷光终端风桌面小组件（v0.0.2）
 // 三个 Provider = 桌面选择器里三个独立条目（2x2 / 4x2 / 4x4）；
 // 每个仍可拉伸，布局按实际尺寸自适应。
 // 数据来自 WidgetCache（主 App 抓取后写入），小组件本身不发网络请求。
@@ -28,10 +28,8 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
     // 子类固定档位；null = 按实际尺寸自适应
     protected open val forcedLayout: Int? = null
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-        ids.forEach { id -> renderAsync(context, manager, id) }
+        renderAsync(context, manager, ids)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -40,18 +38,26 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         id: Int,
         newOptions: Bundle?,
     ) {
-        renderAsync(context, manager, id)
+        renderAsync(context, manager, intArrayOf(id))
     }
 
-    private fun renderAsync(context: Context, manager: AppWidgetManager, id: Int) {
+    private fun renderAsync(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        if (ids.isEmpty()) return
         val pending = goAsync()
         scope.launch {
             try {
-                val snap = WidgetCache.load(context)
-                val views = build(context, manager, id, snap)
-                manager.updateAppWidget(id, views)
-            } catch (_: Exception) {
-                // 渲染失败就保持上一帧，不要把小组件刷成空白
+                val snap = runCatching { WidgetCache.load(context) }
+                    .onFailure { android.util.Log.e(TAG, "读取小组件缓存失败", it) }
+                    .getOrNull()
+                ids.forEach { id ->
+                    runCatching {
+                        val views = build(context, manager, id, snap)
+                        manager.updateAppWidget(id, views)
+                    }.onFailure {
+                        // 单个实例失败不阻断其他尺寸，同时留下可诊断日志。
+                        android.util.Log.e(TAG, "小组件渲染失败 id=$id", it)
+                    }
+                }
             } finally {
                 pending.finish()
             }
@@ -184,6 +190,9 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private const val TAG = "ZhishengWidget"
+        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         // 主 App 抓到新数据后调用，立即刷新所有已放置的小组件（三个规格都刷）
         fun refreshAll(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)

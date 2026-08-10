@@ -29,7 +29,7 @@ enum class SourcePref(val key: String, val cn: String, val en: String, val desc:
 enum class AmbienceLevel(val key: String, val cn: String, val factor: Float) {
     OFF("off", "关闭", 0f),
     SUBTLE("subtle", "克制", 1f),
-    VIVID("vivid", "明显", 1.9f);
+    VIVID("vivid", "明显", 3.1f);
 
     companion object {
         fun from(v: String?): AmbienceLevel = entries.firstOrNull { it.key == v } ?: SUBTLE

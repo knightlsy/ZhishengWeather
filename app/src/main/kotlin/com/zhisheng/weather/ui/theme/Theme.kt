@@ -5,7 +5,7 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-// EVA · 固定暗色
+// 枳生天气 · 固定暗色
 private val ZhishengColorScheme = darkColorScheme(
     primary = ZhishengMint,
     onPrimary = Color(0xFF001500),

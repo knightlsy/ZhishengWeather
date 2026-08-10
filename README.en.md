@@ -3,7 +3,7 @@
 <p align="center">
   <b>Weather belongs on the first screen.</b><br/>
   A phosphor-terminal weather app for Android. No ads, no account, ready the moment it installs.<br/>
-  <sub>MELCHIOR-1 · BALTHASAR-2 · CASPER-3</sub>
+  <sub>ZHISHENG CORE · SENSOR-1 · FORECAST-2 · DISPLAY-3</sub>
 </p>
 
 <p align="center">
@@ -15,6 +15,7 @@
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
+  <img alt="0.0.3 in development" src="https://img.shields.io/badge/0.0.3-stability_testing-FF6F1E?style=flat-square"/>
   <img alt="No ads, accounts, or trackers" src="https://img.shields.io/badge/ads_·_accounts_·_trackers-zero-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -44,6 +45,8 @@
   </tr>
 </table>
 
+<p align="center"><sub>Click a screenshot for the full image. Addresses, battery level, and other personal details have been removed.</sub></p>
+
 ## Why I built it
 
 Before leaving home, what I want to know is pretty specific: how cold it feels, whether rain is coming, and what the air is like.
@@ -60,7 +63,9 @@ The look is personal too: black background, thin rules, a single phosphor accent
 - **Open the windows?** Beyond AQI, you can expand PM2.5, PM10, O₃, NO₂, SO₂, and CO readings.
 - **Severe weather coming?** Alerts are colored by level with full text. Fields the provider doesn't supply stay empty — the app doesn't pad them with estimates.
 
-Further down the list: saved cities, sunrise/sunset and moon phase, yesterday's weather for comparison, auxiliary typhoon data, and home-screen widgets in 2x2, 4x2, and 4x4. Rain gets falling data-rain, snow gets drifting specks, fog gets a breathing noise layer, thunderstorms get scanlines — all four ambience effects render beneath the content, with three intensity levels and a master switch. Temperature, wind-speed, and pressure units are independently configurable, and any section you don't use can be hidden.
+Further down the list: saved cities, sunrise and sunset, moon phase with moonrise and moonset, yesterday's weather for comparison, auxiliary typhoon data, and home-screen widgets in 2x2, 4x2, and 4x4. Long-press the launcher icon to refresh, search for a city, or open settings. Rain gets falling data-rain, snow gets drifting specks, fog gets a breathing noise layer, and thunderstorms get scanlines. All four effects stay behind the content. There are three intensity levels; 0.0.3 makes Vivid noticeably stronger while leaving Subtle alone.
+
+Temperature, wind-speed, and pressure units are independently configurable, and any section you don't use can be hidden.
 
 ## Public and full builds
 
@@ -85,7 +90,9 @@ The worst thing a weather app can do is show a blank screen when a feed dies, so
 | Xiaomi Weather | None | Domestic weather, city search, yesterday's weather, typhoons, and other auxiliary fields |
 | Open-Meteo | None | Global current/hourly/daily, AQI, 15-minute precipitation, and gap-filling |
 
-Settings let you pin Auto, QWeather, Xiaomi, or Open-Meteo manually. Auto mode degrades by availability: if the primary feed returns fewer than two hourly entries, the timeline is rebuilt in the city's local timezone and topped up to 24 hours from Open-Meteo; daily forecasts are similarly extended to 15 days, so overseas cities fill out too. Coverage differs between providers, and whatever a provider can't supply is left visibly empty rather than faked into a complete-looking result.
+Settings let you pin Auto, QWeather, Xiaomi, or Open-Meteo manually, and show which provider actually served the selected city. Auto mode degrades by availability: if the primary feed returns fewer than two hourly entries, the timeline is rebuilt in the city's local timezone and topped up to 24 hours from Open-Meteo; daily forecasts are similarly extended to 15 days, so overseas cities fill out too. Coverage differs between providers, and whatever a provider can't supply is left visibly empty rather than faked into a complete-looking result.
+
+Moon phase, moonrise, and moonset are calculated on-device when a provider does not supply them. This adds no extra network request.
 
 QWeather uses Ed25519-signed JWTs, and public builds forcibly clear those credentials — no developer key can end up in the APK, and the repository carries none.
 
@@ -108,6 +115,12 @@ Clear, partly cloudy, overcast, fog, light rain, heavy rain, thunderstorm, snow,
 3. First launch shows Beijing by default; search and save your own cities from there.
 
 The APK ships only through GitHub, so Android will ask you to allow installs from unknown sources — that's a warning about the install channel, not an extra permission the app wants. If that bothers you, build it yourself with the steps above; the output is the same.
+
+## What is happening in 0.0.3
+
+The current stable download is still 0.0.2. Source development has moved to the 0.0.3 stability cycle. This release is not adding another weather section; it is working through the problems that showed up in real use: moon data, launcher widgets and shortcuts, location changes, provider status, and the Vivid ambience level.
+
+The test matrix, fixes, and release gate live in [STABILITY_0.0.3.md](STABILITY_0.0.3.md). There will be no 0.0.3 Release until that checklist is complete.
 
 ## Build from source
 
@@ -148,9 +161,9 @@ The whole app declares three permissions:
 |:--|:--|
 | Internet | Fetch weather data and city-search results |
 | Network state | Check whether a connection is available |
-| Approximate location | Optional; requested once, only after you enable location and tap "Locate current city" |
+| Approximate location | Optional; requested only after you enable location and tap “Locate again” |
 
-There is no ad SDK, no analytics, no account system, and no project-operated backend. Saved cities and settings stay in local storage. Weather requests send the selected city's coordinates to the active provider; when you use location, the coordinates are also used to resolve a city name. The relevant code lives under [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data) — go read it.
+There is no ad SDK, no analytics, no account system, and no project-operated backend. Saved cities and settings stay in local storage. Weather requests send the selected city's coordinates to the active provider; when you use location, the coordinates are also used to resolve a city name. Once location is enabled and permission has been granted, the app rechecks the city when it returns to the foreground. It does not track location in the background. The relevant code lives under [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data) — go read it.
 
 ## Known limitations
 
@@ -163,6 +176,20 @@ Laid out here so you don't discover them after installing:
 - This is still an early project. For safety decisions, follow your local meteorological authority
 
 ## Changelog
+
+<details open>
+<summary><b>0.0.3 // STABILITY PASS (in development)</b> — no new weather sections; make the current app dependable</summary>
+
+- Moon phase now follows the selected city's date; missing moonrise and moonset times are calculated on-device and displayed
+- Fixed widget layouts that some launchers could not inflate, with regression checks for all three sizes
+- Added launcher shortcuts for refresh, city search, and settings
+- Increased particle density, movement, and thunderstorm scan frequency in Vivid; Subtle is unchanged
+- Provider settings now show the source actually serving the selected city, including connecting, active, available, and not-configured states
+- Location requests a fresh position first and rechecks the city on foreground return, without background tracking
+- Replaced borrowed terminal names with Zhisheng Weather's own wording
+- Current gate: 15 unit tests pass, Lint reports zero errors, and both public and full builds compile
+
+</details>
 
 <details>
 <summary><b>0.0.2 // FEED SELECT</b> — selectable feeds, home-screen widgets, ambience effects, opt-in location</summary>
@@ -183,7 +210,7 @@ Full notes on the [Releases](https://github.com/ZhishengZZ/ZhishengWeather/relea
 ## License
 
 - Code is under the [MIT License](LICENSE). Issues and PRs are welcome ([contributing guide](CONTRIBUTING.md) · [code of conduct](CODE_OF_CONDUCT.md) · [security notes](SECURITY.md)).
-- The interface is a tribute to the EVA / NERV terminal aesthetic; a personal, non-commercial work.
+- The interface, icon set, and terminal copy are original to Zhisheng Weather. Keep attribution when reusing project artwork.
 - Weather data remains the property of [QWeather](https://www.qweather.com/), [Open-Meteo](https://open-meteo.com/), and Xiaomi Weather, and is provided for reference only.
 - Bring your own developer credentials for the QWeather feed — and please don't commit your keys to a public repository either.
 

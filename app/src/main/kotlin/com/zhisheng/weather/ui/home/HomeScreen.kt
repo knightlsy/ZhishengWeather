@@ -54,6 +54,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -113,9 +114,9 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 // ═══════════════════════════════════════════════════════════
-// 枳生天气 · EVA 数据终端 v2 主屏
+// 枳生天气 · 磷光数据终端主屏
 // 布局序：状态行 → Hero → 预警 → 逐时(曲线) → 分钟降水 → 逐日(归一化温度条)
-//        → 遥测卡格 → 空气质量 → 生活指数 → 昨日复盘 → 台风 → MAGI 页脚
+//        → 遥测卡格 → 空气质量 → 生活指数 → 昨日复盘 → 台风 → 枳生页脚
 // ═══════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -983,8 +984,12 @@ private fun TelemetryGrid(
             }
             Spacer(Modifier.height(8.dp))
         }
-        // 日出日落宽卡
-        if (today?.sunrise != null || today?.sunset != null) {
+        // 日月宽卡：公共源不提供月出月落时由本地天文计算补齐。
+        if (today != null && (
+                today.sunrise != null || today.sunset != null || today.moonPhase != null ||
+                    today.moonrise != null || today.moonset != null
+                )
+        ) {
             Box(
                 Modifier.fillMaxWidth()
                     .clip(RectangleShape)
@@ -1006,23 +1011,23 @@ private fun TelemetryGrid(
                             Text(it, style = MaterialTheme.typography.titleSmall, color = ZhishengOrange, fontWeight = FontWeight.Bold)
                         }
                     }
-                    if (today?.moonrise != null || today?.moonset != null || today?.moonPhase != null) {
-                        Spacer(Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            today.moonPhase?.let {
-                                Text(Fmt.moonPhaseZh(it) ?: it, style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
-                                Spacer(Modifier.width(18.dp))
-                            }
-                            today.moonrise?.let {
-                                Text("月出 ", style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
-                                Text(it, style = MaterialTheme.typography.titleSmall, color = ZhishengCyan, fontWeight = FontWeight.Bold)
-                                Spacer(Modifier.width(18.dp))
-                            }
-                            today.moonset?.let {
-                                Text("月落 ", style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
-                                Text(it, style = MaterialTheme.typography.titleSmall, color = ZhishengCyan, fontWeight = FontWeight.Bold)
-                            }
-                        }
+                    Spacer(Modifier.height(7.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("月相 ", style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
+                        Text(
+                            Fmt.moonPhaseZh(today.moonPhase) ?: "--",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = ZhishengCyan,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Spacer(Modifier.height(5.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("月出 ", style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
+                        Text(today.moonrise ?: "--", style = MaterialTheme.typography.titleSmall, color = ZhishengCyan, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.width(18.dp))
+                        Text("月落 ", style = MaterialTheme.typography.labelMedium, color = ZhishengTextSecondary)
+                        Text(today.moonset ?: "--", style = MaterialTheme.typography.titleSmall, color = ZhishengCyan, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1306,7 +1311,7 @@ private fun TyphoonCard(typhoons: List<TyphoonInfo>, modifier: Modifier) {
     }
 }
 
-// —— MAGI 页脚 ——
+// —— 枳生页脚 ——
 @Composable
 private fun Footer(data: WeatherData, modifier: Modifier) {
     Column(
@@ -1314,7 +1319,7 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "MAGI // MELCHIOR-1 · BALTHASAR-2 · CASPER-3",
+            "ZHISHENG CORE // SENSOR-1 · FORECAST-2 · DISPLAY-3",
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary,
             letterSpacing = 1.5.sp,
@@ -1328,15 +1333,15 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
     }
 }
 
-// —— 启动加载：EVA 开机序列 ——
+// —— 启动加载：枳生终端自检序列 ——
 @Composable
 private fun BootState() {
     val lines = listOf(
         "ZHISHENG WEATHER TERMINAL v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
-        "MAGI LINK ... ESTABLISHED",
+        "ZHISHENG CORE ... ONLINE",
         "SYNC ATMOSPHERIC DATA ...",
     )
-    var count by remember { mutableStateOf(0) }
+    var count by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         lines.indices.forEach { i ->
             kotlinx.coroutines.delay(260)
@@ -1371,8 +1376,8 @@ private fun EmptyState(onSearchClick: () -> Unit) {
         "SEARCH ANY CITY // 输入任意城市名",
         "AWAITING INPUT ...",
     )
-    var doneCount by remember { mutableStateOf(0) }
-    var chars by remember { mutableStateOf(0) }
+    var doneCount by remember { mutableIntStateOf(0) }
+    var chars by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         lines.forEachIndexed { i, l ->
             chars = 0

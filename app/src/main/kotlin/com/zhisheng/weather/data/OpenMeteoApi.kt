@@ -51,7 +51,7 @@ object OpenMeteoApi {
 
     // 16 天逐日（全球覆盖、免 key）：和风逐日上限 10 天、小米海外仅约 5 天，
     // 用此接口把逐日补齐到 15 天（v0.0.1 东京丢 15 天预报的修复）。timezone=auto 按城市本地日界
-    suspend fun fetchDaily(lat: Double, lon: Double): OpenMeteoDaily? = withContext(Dispatchers.IO) {
+    suspend fun fetchDaily(lat: Double, lon: Double): OpenMeteoDailyResult? = withContext(Dispatchers.IO) {
         try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
                 "&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max," +
@@ -59,7 +59,7 @@ object OpenMeteoApi {
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
-                json.decodeFromString<OpenMeteoDailyResult>(resp.body!!.string()).daily
+                json.decodeFromString<OpenMeteoDailyResult>(resp.body!!.string())
             }
         } catch (_: Exception) {
             null
@@ -80,7 +80,10 @@ data class OpenMeteoCurrent(
 )
 
 @Serializable
-data class OpenMeteoDailyResult(val daily: OpenMeteoDaily? = null)
+data class OpenMeteoDailyResult(
+    val daily: OpenMeteoDaily? = null,
+    val utc_offset_seconds: Int = 0,
+)
 
 @Serializable
 data class OpenMeteoDaily(
