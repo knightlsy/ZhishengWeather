@@ -10,4 +10,4 @@ This directory contains images used by the repository README. They are not packa
 - `banner.png` — README title banner
 - `icons_grid.png` — weather icon overview used in the README
 
-The v0.0.2 screenshots are normalized to 720 x 1440 pixels. Device status bars and embedded photo metadata are not included.
+The screenshots are normalized to 720 x 1440 pixels.
