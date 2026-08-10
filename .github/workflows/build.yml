@@ -23,5 +23,14 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
 
+      - name: Unit tests // 单元测试
+        run: ./gradlew testDebugUnitTest --no-daemon --stacktrace
+
+      - name: Android Lint // 静态检查
+        run: ./gradlew lintDebug --no-daemon --stacktrace
+
       - name: Assemble debug // 构建调试包
         run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Assemble public release // 构建公共发布包
+        run: ./gradlew assembleRelease -PpublicBuild --no-daemon --stacktrace

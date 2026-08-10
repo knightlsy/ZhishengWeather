@@ -51,10 +51,10 @@ Small project, simple rules — a few notes below.*
 
 - 遵循 Kotlin 官方编码规范；Compose 状态上提至 `ViewModel`
   *Follow the official Kotlin coding conventions; hoist Compose state into the `ViewModel`.*
-- 主题色一律引用 `ui/theme/Color.kt`（PhosphorGreen / NERVOrange / WireframeCyan），禁止硬编码色值
-  *Theme colors come from `ui/theme/Color.kt` (PhosphorGreen / NERVOrange / WireframeCyan); hardcoded values get rejected.*
-- 界面文案沿用终端风格：节号 `01// 02// …`，区块 `中文 // ENGLISH`
-  *UI copy keeps the terminal voice: numbered sections `01// 02// …`, blocks labelled `中文 // ENGLISH`.*
+- 主题色一律引用 `ui/theme/Color.kt`（PhosphorGreen / SignalOrange / WireframeCyan），禁止硬编码色值
+  *Theme colors come from `ui/theme/Color.kt` (PhosphorGreen / SignalOrange / WireframeCyan); hardcoded values get rejected.*
+- 界面文案沿用磷光终端风格：节号 `01// 02// …`，区块 `中文 // ENGLISH`
+  *UI copy keeps the phosphor-terminal voice: numbered sections `01// 02// …`, blocks labelled `中文 // ENGLISH`.*
 - 网络模型与领域模型分离（`data/*Models.kt` vs `model/Weather.kt`）
   *Wire models stay separate from domain models (`data/*Models.kt` vs `model/Weather.kt`).*
 

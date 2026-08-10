@@ -124,17 +124,20 @@ object OpenMeteoSource {
                     } catch (_: Exception) {
                         return@mapIndexedNotNull null
                     }
-                    com.zhisheng.weather.model.DailyWeather(
-                        dateMillis = e,
-                        high = d.temperature_2m_max?.getOrNull(i),
-                        low = d.temperature_2m_min?.getOrNull(i),
-                        condition = wmo(d.weather_code?.getOrNull(i), true),
-                        windSpeed = d.wind_speed_10m_max?.getOrNull(i),
-                        precipProbability = d.precipitation_probability_max?.getOrNull(i)
-                            ?.let { p -> Math.round(p).toInt() },
-                        sunrise = clockOf(d.sunrise?.getOrNull(i)),
-                        sunset = clockOf(d.sunset?.getOrNull(i)),
-                        moonPhase = MoonCalc.phaseKey(e),
+                    MoonCalc.enrich(
+                        com.zhisheng.weather.model.DailyWeather(
+                            dateMillis = e,
+                            high = d.temperature_2m_max?.getOrNull(i),
+                            low = d.temperature_2m_min?.getOrNull(i),
+                            condition = wmo(d.weather_code?.getOrNull(i), true),
+                            windSpeed = d.wind_speed_10m_max?.getOrNull(i),
+                            precipProbability = d.precipitation_probability_max?.getOrNull(i)
+                                ?.let { p -> Math.round(p).toInt() },
+                            sunrise = clockOf(d.sunrise?.getOrNull(i)),
+                            sunset = clockOf(d.sunset?.getOrNull(i)),
+                        ),
+                        lat,
+                        lon,
                     )
                 }?.take(15)
             } ?: emptyList()

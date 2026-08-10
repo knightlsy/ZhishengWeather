@@ -48,7 +48,7 @@ object LocationSource {
         if (!hasPermission(context)) return Result.Failed("未授予位置权限")
         if (!locationEnabledOnDevice(context)) return Result.Failed("系统定位服务未开启")
 
-        val loc = withTimeoutOrNull(12_000L) { currentLocation(context) }
+        val loc = currentLocation(context)
             ?: return Result.Failed("定位超时，请到空旷处重试或手动搜索城市")
 
         return when (val c = reverseGeocode(loc.latitude, loc.longitude)) {
@@ -61,48 +61,52 @@ object LocationSource {
     private suspend fun currentLocation(context: Context): Location? {
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager ?: return null
 
-        // 先用最近一次缓存位置（5 分钟内即可用，省一次定位耗电）
+        // 手动/自动复核都优先请求新位置；缓存只在新位置暂时不可得时兜底，避免换城市后仍停在旧定位。
         val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER)
             .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
         val cached = providers.mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
             .maxByOrNull { it.time }
-        if (cached != null && System.currentTimeMillis() - cached.time < 5 * 60_000L) return cached
-
-        val provider = providers.firstOrNull() ?: return cached
+        val provider = providers.firstOrNull() ?: return cached?.takeIf { isRecentFallback(it) }
 
         // 单次定位请求（回调在主线程 Looper 上注册）
-        return suspendCancellableCoroutine { cont ->
-            val listener = object : android.location.LocationListener {
-                private var done = false
-                override fun onLocationChanged(location: Location) {
-                    if (done) return
-                    done = true
-                    runCatching { lm.removeUpdates(this) }
-                    if (cont.isActive) cont.resume(location)
-                }
+        val fresh = withTimeoutOrNull(12_000L) {
+            suspendCancellableCoroutine { cont ->
+                val listener = object : android.location.LocationListener {
+                    private var done = false
+                    override fun onLocationChanged(location: Location) {
+                        if (done) return
+                        done = true
+                        runCatching { lm.removeUpdates(this) }
+                        if (cont.isActive) cont.resume(location)
+                    }
 
-                @Deprecated("Deprecated in Java")
-                override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
-                override fun onProviderEnabled(provider: String) = Unit
-                override fun onProviderDisabled(provider: String) {
-                    if (done) return
-                    done = true
-                    runCatching { lm.removeUpdates(this) }
-                    if (cont.isActive) cont.resume(null)
+                    @Deprecated("Deprecated in Java")
+                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
+                    override fun onProviderEnabled(provider: String) = Unit
+                    override fun onProviderDisabled(provider: String) {
+                        if (done) return
+                        done = true
+                        runCatching { lm.removeUpdates(this) }
+                        if (cont.isActive) cont.resume(null)
+                    }
                 }
+                try {
+                    lm.requestLocationUpdates(
+                        provider, 0L, 0f, listener,
+                        android.os.Looper.getMainLooper(),
+                    )
+                } catch (_: Exception) {
+                    if (cont.isActive) cont.resume(null)
+                    return@suspendCancellableCoroutine
+                }
+                cont.invokeOnCancellation { runCatching { lm.removeUpdates(listener) } }
             }
-            try {
-                lm.requestLocationUpdates(
-                    provider, 0L, 0f, listener,
-                    android.os.Looper.getMainLooper(),
-                )
-            } catch (_: Exception) {
-                if (cont.isActive) cont.resume(cached)
-                return@suspendCancellableCoroutine
-            }
-            cont.invokeOnCancellation { runCatching { lm.removeUpdates(listener) } }
         }
+        return fresh ?: cached?.takeIf { isRecentFallback(it) }
     }
+
+    private fun isRecentFallback(location: Location): Boolean =
+        System.currentTimeMillis() - location.time in 0..15 * 60_000L
 
     // 坐标 → 中文城市。小米 geo 接口免 key 且直接给 locationKey + 归属地，优先用；
     // 失败退和风 GeoAPI（按坐标 lookup）。两者都失败则如实报错，不猜城市。
