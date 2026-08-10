@@ -101,7 +101,7 @@ QWeather requests use Ed25519-signed JWTs. The `-PpublicBuild` task clears the Q
   <img src="assets/app-icon.png" width="144" alt="Zhisheng Weather app icon"/>
 </p>
 
-The launcher icon uses three obvious weather elements: sun, cloud, and rain. Four corner marks keep a small piece of the terminal display language. Cyan carries regular information; orange marks the active signal.
+The launcher icon uses three clear weather elements: sun, cloud, and rain. Its dark base and cyan-orange palette match the app interface.
 
 <p align="center"><img src="assets/icons_grid.png" width="560" alt="Zhisheng Weather icon set"/></p>
 
