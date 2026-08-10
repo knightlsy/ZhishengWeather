@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.2_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.3_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="0.0.3 in development" src="https://img.shields.io/badge/0.0.3-stability_testing-FF6F1E?style=flat-square"/>
+  <img alt="Current version 0.0.3" src="https://img.shields.io/badge/current-0.0.3-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or trackers" src="https://img.shields.io/badge/ads_·_accounts_·_trackers-zero-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -110,17 +110,17 @@ Clear, partly cloudy, overcast, fog, light rain, heavy rain, thunderstorm, snow,
 
 ## Install
 
-1. Download [`zhisheng-weather-v0.0.2.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.2/zhisheng-weather-v0.0.2.apk) (about 12 MB).
+1. Download [`zhisheng-weather-v0.0.3.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.3/zhisheng-weather-v0.0.3.apk) (about 12 MB).
 2. Install it on Android 8.0 or later.
 3. First launch shows Beijing by default; search and save your own cities from there.
 
 The APK ships only through GitHub, so Android will ask you to allow installs from unknown sources — that's a warning about the install channel, not an extra permission the app wants. If that bothers you, build it yourself with the steps above; the output is the same.
 
-## What is happening in 0.0.3
+## What changed in 0.0.3
 
-The current stable download is still 0.0.2. Source development has moved to the 0.0.3 stability cycle. This release is not adding another weather section; it is working through the problems that showed up in real use: moon data, launcher widgets and shortcuts, location changes, provider status, and the Vivid ambience level.
+0.0.3 does not add another weather card to the home screen. It fixes the problems that surfaced while using 0.0.2: moon data, launcher widgets and shortcuts, location changes, provider status, and the Vivid ambience level.
 
-The test matrix, fixes, and release gate live in [STABILITY_0.0.3.md](STABILITY_0.0.3.md). There will be no 0.0.3 Release until that checklist is complete.
+Before release, the project passed 15 unit tests, Android Lint, Debug and public Release builds, plus an upgrade and shortcut check on a Xiaomi phone running Android 16. The detailed record is in [STABILITY_0.0.3.md](STABILITY_0.0.3.md); the APK is on the [v0.0.3 Release](https://github.com/ZhishengZZ/ZhishengWeather/releases/tag/v0.0.3) page.
 
 ## Build from source
 
@@ -178,7 +178,7 @@ Laid out here so you don't discover them after installing:
 ## Changelog
 
 <details open>
-<summary><b>0.0.3 // STABILITY PASS (in development)</b> — no new weather sections; make the current app dependable</summary>
+<summary><b>0.0.3 // STABILITY PASS</b> — no new weather sections; make the current app dependable</summary>
 
 - Moon phase now follows the selected city's date; missing moonrise and moonset times are calculated on-device and displayed
 - Fixed widget layouts that some launchers could not inflate, with regression checks for all three sizes
