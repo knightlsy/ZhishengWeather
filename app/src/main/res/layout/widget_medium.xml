@@ -14,7 +14,7 @@
         android:orientation="horizontal"
         android:gravity="center_vertical">
 
-        <View
+        <TextView
             android:layout_width="3dp"
             android:layout_height="10dp"
             android:background="@drawable/widget_accent" />
@@ -30,7 +30,7 @@
             android:textColor="#FFFF9830"
             android:textSize="13sp"
             android:textStyle="bold"
-            android:text="枳生天气" />
+            android:text="@string/widget_name" />
 
         <TextView
             android:layout_width="0dp"
@@ -41,7 +41,7 @@
             android:textColor="#FF7E8A7E"
             android:textSize="9sp"
             android:maxLines="1"
-            android:text="ZHISHENG WEATHER TERMINAL" />
+            android:text="@string/widget_terminal" />
 
         <TextView
             android:id="@+id/w_upd"
@@ -50,7 +50,7 @@
             android:fontFamily="monospace"
             android:textColor="#FF7E8A7E"
             android:textSize="9sp"
-            android:text="UPD --" />
+            android:text="@string/widget_update_placeholder" />
     </LinearLayout>
 
     <LinearLayout
@@ -83,7 +83,7 @@
                     android:textSize="38sp"
                     android:textStyle="bold"
                     android:maxLines="1"
-                    android:text="--" />
+                    android:text="@string/widget_value_placeholder" />
 
                 <ImageView
                     android:id="@+id/w_icon"
@@ -103,10 +103,10 @@
                 android:textSize="11sp"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:text="--" />
+                android:text="@string/widget_value_placeholder" />
         </LinearLayout>
 
-        <View
+        <TextView
             android:layout_width="1dp"
             android:layout_height="match_parent"
             android:layout_marginHorizontal="10dp"

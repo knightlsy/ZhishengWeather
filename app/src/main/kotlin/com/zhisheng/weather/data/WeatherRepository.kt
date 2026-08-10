@@ -162,10 +162,7 @@ object WeatherRepository {
                 // 和风最多 10 天，超出部分用小米源续上
                 val qwCount = size
                 s?.let { mapXiaomiDaily(it) }?.drop(qwCount)?.let { addAll(it) }
-            }.map { dd ->
-                dd.takeIf { it.moonPhase != null }
-                    ?: dd.copy(moonPhase = MoonCalc.phaseKey(dd.dateMillis))
-            }
+            }.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
 
             WeatherData(
                 current = CurrentWeather(
@@ -316,10 +313,7 @@ object WeatherRepository {
         val data = mapXiaomiToWeatherData(result)
         // 小米源 moonPhase 恒空：本地计算补上，日月卡月相行不再整行消失
         val withMoon = data.copy(
-            daily = data.daily.map { dd ->
-                dd.takeIf { it.moonPhase != null }
-                    ?: dd.copy(moonPhase = MoonCalc.phaseKey(dd.dateMillis))
-            }
+            daily = data.daily.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
         )
         // 实况缺字段（能见度/露点/云量/阵风任一）即用 Open-Meteo 补缺
         val c = withMoon.current
@@ -393,35 +387,38 @@ object WeatherRepository {
     // 用 Open-Meteo 把尾部补齐
     private suspend fun backfillDaily(data: WeatherData, city: City): WeatherData {
         if (data.error != null || data.daily.size >= 15) return data
-        val om = OpenMeteoApi.fetchDaily(city.latitude, city.longitude) ?: return data
-        val extra = omToDaily(om).drop(data.daily.size).take(15 - data.daily.size)
+        val response = OpenMeteoApi.fetchDaily(city.latitude, city.longitude) ?: return data
+        val om = response.daily ?: return data
+        val extra = omToDaily(om, city, response.utc_offset_seconds)
+            .drop(data.daily.size).take(15 - data.daily.size)
         if (extra.isEmpty()) return data
-        val merged = (data.daily + extra).map { dd ->
-            dd.takeIf { it.moonPhase != null }
-                ?: dd.copy(moonPhase = MoonCalc.phaseKey(dd.dateMillis))
-        }
+        val merged = (data.daily + extra).map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
         return data.copy(daily = merged)
     }
 
-    private fun omToDaily(om: OpenMeteoDaily): List<DailyWeather> {
+    private fun omToDaily(om: OpenMeteoDaily, city: City, utcOffsetSeconds: Int): List<DailyWeather> {
         val times = om.time ?: return emptyList()
         return times.mapIndexedNotNull { i, day ->
             val t = try {
                 java.time.LocalDate.parse(day)
-                    .atStartOfDay(java.time.ZoneId.systemDefault())
-                    .toInstant().toEpochMilli()
+                    .atStartOfDay(java.time.ZoneOffset.UTC)
+                    .toInstant().toEpochMilli() - utcOffsetSeconds * 1000L
             } catch (_: Exception) {
                 0L
             }
-            if (t == 0L) null else DailyWeather(
-                dateMillis = t,
-                high = om.temperature_2m_max?.getOrNull(i),
-                low = om.temperature_2m_min?.getOrNull(i),
-                condition = fromWmoCode(om.weather_code?.getOrNull(i)),
-                windSpeed = om.wind_speed_10m_max?.getOrNull(i),
-                precipProbability = om.precipitation_probability_max?.getOrNull(i)?.let { Math.round(it).toInt() },
-                sunrise = formatLocalClock(om.sunrise?.getOrNull(i)),
-                sunset = formatLocalClock(om.sunset?.getOrNull(i)),
+            if (t == 0L) null else MoonCalc.enrich(
+                DailyWeather(
+                    dateMillis = t,
+                    high = om.temperature_2m_max?.getOrNull(i),
+                    low = om.temperature_2m_min?.getOrNull(i),
+                    condition = fromWmoCode(om.weather_code?.getOrNull(i)),
+                    windSpeed = om.wind_speed_10m_max?.getOrNull(i),
+                    precipProbability = om.precipitation_probability_max?.getOrNull(i)?.let { Math.round(it).toInt() },
+                    sunrise = formatLocalClock(om.sunrise?.getOrNull(i)),
+                    sunset = formatLocalClock(om.sunset?.getOrNull(i)),
+                ),
+                city.latitude,
+                city.longitude,
             )
         }
     }

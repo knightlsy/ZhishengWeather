@@ -1,15 +1,37 @@
 package com.zhisheng.weather.data
 
+import com.zhisheng.weather.model.DailyWeather
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Locale
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import kotlin.math.sin
+import kotlin.math.tan
 
 // 本地月相计算（Meeus《天文算法》49 章，分秒级精度）——数据源缺 moonPhase 字段时的兜底。
 // 计算朔/上弦/望/下弦的 UTC 时刻，标注约定与和风一致：
 // 事件发生当日取事件名，其余日取最近已过事件的"时期名"，保证与和风源同日显示一致。
 // 输出 key 与和风 moonPhase 相同，直接复用 Fmt.moonPhaseZh 翻译。
 object MoonCalc {
+
+    data class MoonTimes(val rise: String?, val set: String?)
+
+    fun enrich(day: DailyWeather, latitude: Double, longitude: Double): DailyWeather {
+        if (day.moonPhase != null && day.moonrise != null && day.moonset != null) return day
+        val times = riseSet(day.dateMillis, latitude, longitude)
+        return day.copy(
+            moonPhase = day.moonPhase ?: phaseKeyForDayStart(day.dateMillis),
+            moonrise = day.moonrise ?: times.rise,
+            moonset = day.moonset ?: times.set,
+        )
+    }
 
     fun phaseKey(dateMillis: Long): String {
         // 日界按本地时区算：原来用本地日期却配 UTC 零点，窗口整体偏了一个时区偏移，
@@ -18,6 +40,14 @@ object MoonCalc {
         val date = Instant.ofEpochMilli(dateMillis).atZone(zone).toLocalDate()
         val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        return phaseKeyForWindow(dayStart, dayEnd)
+    }
+
+    // dateMillis 已是目标城市当天 00:00 的真实 epoch 时使用，避免海外城市被手机本地时区带偏。
+    fun phaseKeyForDayStart(dateMillis: Long): String =
+        phaseKeyForWindow(dateMillis, dateMillis + DAY_MS)
+
+    private fun phaseKeyForWindow(dayStart: Long, dayEnd: Long): String {
         val events = eventsAround(dayStart)
         events.firstOrNull { it.first in dayStart until dayEnd }?.let { return it.second }
         val last = events.lastOrNull { it.first < dayStart } ?: return "waning-crescent"
@@ -29,9 +59,110 @@ object MoonCalc {
         }
     }
 
+    /**
+     * 计算目标城市本地日内的月出/月落。算法取自常用的月球赤经/赤纬近似模型，
+     * 以两小时为步长做二次插值；误差通常在数分钟量级，极区无升落事件时返回 null。
+     * [dayStartMillis] 必须对应目标城市的本地 00:00。
+     */
+    fun riseSet(dayStartMillis: Long, latitude: Double, longitude: Double): MoonTimes {
+        if (!latitude.isFinite() || !longitude.isFinite() || latitude !in -90.0..90.0) {
+            return MoonTimes(null, null)
+        }
+
+        val hc = 0.133 * RAD
+        var h0 = moonAltitude(dayStartMillis, latitude, longitude) - hc
+        var riseHour: Double? = null
+        var setHour: Double? = null
+
+        for (hour in 1..23 step 2) {
+            val h1 = moonAltitude(dayStartMillis + hour * HOUR_MS, latitude, longitude) - hc
+            val h2 = moonAltitude(dayStartMillis + (hour + 1) * HOUR_MS, latitude, longitude) - hc
+            val a = (h0 + h2) / 2.0 - h1
+            val b = (h2 - h0) / 2.0
+
+            if (abs(a) > 1e-12) {
+                val xe = -b / (2.0 * a)
+                val ye = (a * xe + b) * xe + h1
+                val discriminant = b * b - 4.0 * a * h1
+                if (discriminant >= 0.0) {
+                    val dx = sqrt(discriminant) / (2.0 * abs(a))
+                    val x1 = xe - dx
+                    val x2 = xe + dx
+                    val roots = listOf(x1, x2).filter { abs(it) <= 1.0 }.sorted()
+                    when (roots.size) {
+                        1 -> {
+                            val eventHour = hour + roots[0]
+                            if (h0 < 0.0) riseHour = eventHour else setHour = eventHour
+                        }
+                        2 -> {
+                            val first = hour + roots[0]
+                            val second = hour + roots[1]
+                            if (ye < 0.0) {
+                                riseHour = second
+                                setHour = first
+                            } else {
+                                riseHour = first
+                                setHour = second
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (riseHour != null && setHour != null) break
+            h0 = h2
+        }
+
+        return MoonTimes(formatLocalHour(riseHour), formatLocalHour(setHour))
+    }
+
+    private fun moonAltitude(millis: Long, latitude: Double, longitude: Double): Double {
+        val lw = -longitude * RAD
+        val phi = latitude * RAD
+        val days = millis / DAY_MS.toDouble() - 0.5 + J1970 - J2000
+        val coords = moonCoords(days)
+        val hourAngle = siderealTime(days, lw) - coords.first
+        val altitude = asin(sin(phi) * sin(coords.second) + cos(phi) * cos(coords.second) * cos(hourAngle))
+        // 折射公式自身在地平线以下按 0 计算，但必须保留原始负高度，否则整天都不会出现穿越事件。
+        val refractionAltitude = altitude.coerceAtLeast(0.0)
+        return altitude + 0.0002967 /
+            tan(refractionAltitude + 0.00312536 / (refractionAltitude + 0.08901179))
+    }
+
+    private fun moonCoords(days: Double): Pair<Double, Double> {
+        val meanLongitude = (218.316 + 13.176396 * days) * RAD
+        val meanAnomaly = (134.963 + 13.064993 * days) * RAD
+        val meanDistance = (93.272 + 13.229350 * days) * RAD
+        val longitude = meanLongitude + 6.289 * RAD * sin(meanAnomaly)
+        val latitude = 5.128 * RAD * sin(meanDistance)
+        return rightAscension(longitude, latitude) to declination(longitude, latitude)
+    }
+
+    private fun rightAscension(longitude: Double, latitude: Double): Double =
+        atan2(sin(longitude) * cos(OBLIQUITY) - tan(latitude) * sin(OBLIQUITY), cos(longitude))
+
+    private fun declination(longitude: Double, latitude: Double): Double =
+        asin(sin(latitude) * cos(OBLIQUITY) + cos(latitude) * sin(OBLIQUITY) * sin(longitude))
+
+    private fun siderealTime(days: Double, lw: Double): Double =
+        (280.16 + 360.9856235 * days) * RAD - lw
+
+    private fun formatLocalHour(hour: Double?): String? {
+        if (hour == null || !hour.isFinite()) return null
+        val minutes = (hour * 60.0).roundToInt()
+        if (minutes !in 0 until 24 * 60) return null
+        return String.format(Locale.US, "%02d:%02d", minutes / 60, minutes % 60)
+    }
+
     // 朔望月长度（毫秒）与 k=0 基准（2000-01-06 18:14 UTC 那次新月）
     private const val SYNODIC_MS = 2_551_442_877L
     private const val K0_EPOCH_MS = 946_728_000_000L + 476_040_000L
+    private const val HOUR_MS = 3_600_000L
+    private const val DAY_MS = 86_400_000L
+    private const val J1970 = 2440588.0
+    private const val J2000 = 2451545.0
+    private const val RAD = PI / 180.0
+    private const val OBLIQUITY = 23.4397 * RAD
 
     // 目标日前后共 3 个朔望月的 12 个相位事件，升序（epochMillis → 事件名）
     private fun eventsAround(millis: Long): List<Pair<Long, String>> {
