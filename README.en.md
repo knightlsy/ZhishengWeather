@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.5-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.5.1-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.5-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.5.1-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -126,6 +126,10 @@ Version 0.0.5 is mostly about themes. Alongside dark mode there is now a "cold j
 - A full polish pass on light-mode text, icons, and the daily temperature bars
 
 Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.5.md](RELEASE_0.0.5.md) for the full record.
+
+## Version 0.0.5.1
+
+A widget polish pass: date, update time, feels-like, and hourly/daily text got a size bump; the widget-picker previews are redrawn (sample city is now Shanghai, matching the real layouts); widgets now follow only the system dark mode — switching the in-app theme no longer restyles the desktop widgets. See [RELEASE_0.0.5.1.md](RELEASE_0.0.5.1.md) for the full record.
 
 ## Build from source
 
