@@ -1,17 +1,44 @@
-param([string]$ProjectRoot = (Get-Location).Path)
+﻿param(
+    [string]$ProjectRoot = (Get-Location).Path,
+    [string]$City = "上海"
+)
+
+# 小组件选择器预览图生成（v0.0.5 重写）
+# 原则：与真实布局 1:1 对齐——字号 = 布局 sp × 2（画布按 2x 密度），颜色取自
+# widget_colors.xml / widget_bg.xml 同值，示范城市默认上海（不再用开发机城市）。
+# 布局参照：widget_small/medium/large.xml（v0.0.5 字号放大后）。
 
 Add-Type -AssemblyName System.Drawing
 
 $outputDir = Join-Path $projectRoot "app\src\main\res\drawable-nodpi"
 [System.IO.Directory]::CreateDirectory($outputDir) | Out-Null
 
-$bg = [System.Drawing.ColorTranslator]::FromHtml("#1F232B")
-$border = [System.Drawing.ColorTranslator]::FromHtml("#46505B")
-$orange = [System.Drawing.ColorTranslator]::FromHtml("#FFA047")
-$cyan = [System.Drawing.ColorTranslator]::FromHtml("#75EAF3")
-$white = [System.Drawing.ColorTranslator]::FromHtml("#F4F8F4")
-$secondary = [System.Drawing.ColorTranslator]::FromHtml("#A9B5AC")
-$rule = [System.Drawing.ColorTranslator]::FromHtml("#303841")
+# widget_bg.xml 渐变与描边
+$bgStart  = [System.Drawing.ColorTranslator]::FromHtml("#0B1118")
+$bgEnd    = [System.Drawing.ColorTranslator]::FromHtml("#12171F")
+$border   = [System.Drawing.ColorTranslator]::FromHtml("#48535F")
+# widget_colors.xml
+$orange   = [System.Drawing.ColorTranslator]::FromHtml("#FF9830")
+$cyan     = [System.Drawing.ColorTranslator]::FromHtml("#20F0FF")
+$white    = [System.Drawing.ColorTranslator]::FromHtml("#E8F0E8")
+$secondary= [System.Drawing.ColorTranslator]::FromHtml("#C8D8C8")
+$tertiary = [System.Drawing.ColorTranslator]::FromHtml("#95A395")
+$rule     = [System.Drawing.ColorTranslator]::FromHtml("#303841")
+
+# 示范数据（上海，8 月）
+$dateLabel = (Get-Date).ToString("M月d日 ddd", [System.Globalization.CultureInfo]::GetCultureInfo("zh-CN"))
+$temp = "29°"
+$range = "晴  ·  33° / 27°"
+$details = "体感 32°  ·  湿度 68%"
+$detailsLarge = "体感 32°  ·  湿度 68%  ·  风 3 km/h"
+$aqiLine = "AQI 42 优  ·  降水 10%"
+$hours = @("14时", "15时", "16时", "17时")
+$temps = @("33°", "32°", "31°", "30°")
+$days = @(
+    @("今天", "晴", "27° ~ 33°"),
+    @("周四", "多云", "28° ~ 34°"),
+    @("周五", "晴", "27° ~ 32°")
+)
 
 function New-Font([float]$size, [System.Drawing.FontStyle]$style = [System.Drawing.FontStyle]::Regular) {
     return [System.Drawing.Font]::new("Microsoft YaHei UI", $size, $style, [System.Drawing.GraphicsUnit]::Pixel)
@@ -26,10 +53,7 @@ function Draw-RoundedPanel($graphics, [int]$width, [int]$height, [int]$radius) {
     $path.AddArc(1, $height - $diameter - 2, $diameter, $diameter, 90, 90)
     $path.CloseFigure()
     $fill = [System.Drawing.Drawing2D.LinearGradientBrush]::new(
-        [System.Drawing.Rectangle]::new(0, 0, $width, $height),
-        [System.Drawing.ColorTranslator]::FromHtml("#0B1118"),
-        [System.Drawing.ColorTranslator]::FromHtml("#202730"),
-        35
+        [System.Drawing.Rectangle]::new(0, 0, $width, $height), $bgStart, $bgEnd, 45
     )
     $stroke = [System.Drawing.Pen]::new($border, 2)
     $graphics.FillPath($fill, $path)
@@ -48,89 +72,135 @@ function Draw-Text($graphics, [string]$text, [float]$x, [float]$y, [float]$size,
     $brush.Dispose()
 }
 
-function Draw-Crescent($graphics, [float]$x, [float]$y, [float]$size) {
-    $cyanBrush = [System.Drawing.SolidBrush]::new($cyan)
-    $bgBrush = [System.Drawing.SolidBrush]::new($bg)
-    $graphics.FillEllipse($cyanBrush, $x, $y, $size, $size)
-    $graphics.FillEllipse($bgBrush, $x + $size * 0.28, $y - $size * 0.08, $size * 0.92, $size * 0.92)
-    $graphics.FillEllipse($cyanBrush, $x + $size * 0.78, $y + $size * 0.18, 5, 5)
-    $graphics.FillEllipse($cyanBrush, $x + $size * 0.68, $y + $size * 0.32, 3, 3)
-    $cyanBrush.Dispose()
-    $bgBrush.Dispose()
+# 晴：圆盘 + 八根短射线（对应 weather_sun 的意象）
+function Draw-Sun($graphics, [float]$cx, [float]$cy, [float]$size) {
+    $brush = [System.Drawing.SolidBrush]::new($cyan)
+    $r = $size / 2
+    $graphics.FillEllipse($brush, $cx - $r * 0.62, $cy - $r * 0.62, $r * 1.24, $r * 1.24)
+    $pen = [System.Drawing.Pen]::new($cyan, 5)
+    for ($i = 0; $i -lt 8; $i++) {
+        $a = $i * [Math]::PI / 4
+        $x1 = $cx + [Math]::Cos($a) * $r * 0.85
+        $y1 = $cy + [Math]::Sin($a) * $r * 0.85
+        $x2 = $cx + [Math]::Cos($a) * $r * 1.18
+        $y2 = $cy + [Math]::Sin($a) * $r * 1.18
+        $graphics.DrawLine($pen, $x1, $y1, $x2, $y2)
+    }
+    $pen.Dispose()
+    $brush.Dispose()
 }
 
-function New-Preview([string]$name, [int]$width, [int]$height, [ValidateSet("small", "medium", "large")]$kind) {
+function Draw-LiveDot($graphics, [float]$x, [float]$y) {
+    $brush = [System.Drawing.SolidBrush]::new($cyan)
+    $graphics.FillEllipse($brush, $x, $y, 12, 12)
+    $brush.Dispose()
+}
+
+function Draw-Rule($graphics, [float]$x1, [float]$y1, [float]$x2, [float]$y2) {
+    $pen = [System.Drawing.Pen]::new($rule, 2)
+    $graphics.DrawLine($pen, $x1, $y1, $x2, $y2)
+    $pen.Dispose()
+}
+
+# —— 2x2：accent 条 + 城市/日期 → 大温度+图标 → 范围 → 体感湿度 ——
+function New-PreviewSmall($width, $height) {
     $bitmap = [System.Drawing.Bitmap]::new($width, $height)
     $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
     $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
     $graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
     $graphics.Clear([System.Drawing.Color]::Transparent)
-    Draw-RoundedPanel $graphics $width $height ([Math]::Round([Math]::Min($width, $height) * 0.07))
-
-    $pad = [Math]::Round([Math]::Min($width, $height) * 0.07)
-    $accentBrush = [System.Drawing.SolidBrush]::new($orange)
-    $graphics.FillRectangle($accentBrush, $pad, $pad, 8, 42)
-    $accentBrush.Dispose()
-    Draw-Text $graphics "金川区" ($pad + 20) ($pad - 4) 30 $orange $true
-    Draw-Text $graphics "8月12日 周三" ($width - $pad - 170) ($pad + 2) 20 $cyan
-
-    if ($kind -eq "small") {
-        Draw-Text $graphics "19°" $pad 90 94 $white $true
-        Draw-Crescent $graphics ($width - $pad - 78) 112 70
-        Draw-Text $graphics "晴  ·  29° / 15°" $pad 225 25 $white $true
-        Draw-Text $graphics "体感 19°  ·  湿度 52%" $pad 270 20 $secondary
-    } elseif ($kind -eq "medium") {
-        $liveBrush = [System.Drawing.SolidBrush]::new($cyan)
-        $graphics.FillEllipse($liveBrush, $width - $pad - 14, $pad + 13, 7, 7)
-        $liveBrush.Dispose()
-        $split = [Math]::Round($width * 0.48)
-        $pen = [System.Drawing.Pen]::new($rule, 2)
-        $graphics.DrawLine($pen, $split, 92, $split, $height - $pad)
-        $pen.Dispose()
-        Draw-Text $graphics "19°" $pad 93 88 $white $true
-        Draw-Crescent $graphics ($split - 100) 120 64
-        Draw-Text $graphics "晴  ·  29° / 15°" $pad 232 24 $white $true
-        Draw-Text $graphics "体感 19°  ·  湿度 52%" $pad 277 18 $secondary
-        $hours = @("2时", "3时", "4时", "5时")
-        $temps = @("18°", "17°", "16°", "15°")
-        for ($i = 0; $i -lt 4; $i++) {
-            $x = $split + 42 + $i * 84
-            Draw-Text $graphics $hours[$i] $x 116 17 $secondary
-            Draw-Crescent $graphics ($x + 5) 158 34
-            Draw-Text $graphics $temps[$i] $x 224 24 $white
-        }
-    } else {
-        $liveBrush = [System.Drawing.SolidBrush]::new($cyan)
-        $graphics.FillEllipse($liveBrush, $width - $pad - 14, $pad + 13, 7, 7)
-        $liveBrush.Dispose()
-        Draw-Text $graphics "19°" $pad 90 110 $white $true
-        Draw-Crescent $graphics ($width - $pad - 115) 130 100
-        Draw-Text $graphics "晴  ·  29° / 15°" $pad 250 28 $white $true
-        Draw-Text $graphics "体感 19°  ·  湿度 52%  ·  风 3 km/h" $pad 300 20 $secondary
-        Draw-Text $graphics "AQI 35 优  ·  降水 0%" $pad 340 19 $cyan $true
-        $pen = [System.Drawing.Pen]::new($rule, 2)
-        $graphics.DrawLine($pen, $pad, 385, $width - $pad, 385)
-        $graphics.DrawLine($pen, $pad, 515, $width - $pad, 515)
-        $pen.Dispose()
-        $hours = @("2时", "3时", "4时", "5时")
-        $temps = @("18°", "17°", "16°", "15°")
-        for ($i = 0; $i -lt 4; $i++) {
-            $x = $pad + 65 + $i * 155
-            Draw-Text $graphics $hours[$i] $x 400 18 $secondary
-            Draw-Crescent $graphics ($x + 8) 440 38
-            Draw-Text $graphics $temps[$i] $x 480 21 $white
-        }
-        Draw-Text $graphics "今天     ☀     15° ~ 29°" $pad 535 22 $white
-        Draw-Text $graphics "周四     ☁     16° ~ 30°" $pad 590 22 $white
-        Draw-Text $graphics "周五     ☀     17° ~ 31°" $pad 645 22 $white
-    }
-
-    $target = Join-Path $outputDir $name
-    $bitmap.Save($target, [System.Drawing.Imaging.ImageFormat]::Png)
+    $pad = 26
+    Draw-RoundedPanel $graphics $width $height 46
+    $accent = [System.Drawing.SolidBrush]::new($orange)
+    $graphics.FillRectangle($accent, $pad, $pad, 8, 36)
+    $accent.Dispose()
+    Draw-Text $graphics $City ($pad + 26) ($pad - 8) 30 $orange $true
+    Draw-Text $graphics $dateLabel ($width - $pad - 190) ($pad + 4) 26 $cyan
+    Draw-Text $graphics $temp $pad 88 92 $white $true
+    Draw-Sun $graphics ($width - $pad - 60) 138 100
+    Draw-Text $graphics $range $pad 238 28 $white $true
+    Draw-Text $graphics $details $pad 288 24 $secondary
+    $bitmap.Save((Join-Path $outputDir "widget_preview_small.png"), [System.Drawing.Imaging.ImageFormat]::Png)
     $graphics.Dispose()
     $bitmap.Dispose()
 }
 
-New-Preview "widget_preview_small.png" 360 360 "small"
-New-Preview "widget_preview_medium.png" 720 360 "medium"
-New-Preview "widget_preview_large.png" 720 720 "large"
+# —— 4x2：顶行 + 左实况 + 分隔线 + 四小时 ——
+function New-PreviewMedium($width, $height) {
+    $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+    $graphics.Clear([System.Drawing.Color]::Transparent)
+    $pad = 28
+    Draw-RoundedPanel $graphics $width $height 46
+    $accent = [System.Drawing.SolidBrush]::new($orange)
+    $graphics.FillRectangle($accent, $pad, $pad, 8, 36)
+    $accent.Dispose()
+    Draw-Text $graphics $City ($pad + 26) ($pad - 8) 30 $orange $true
+    Draw-Text $graphics $dateLabel ($width - $pad - 350) ($pad + 4) 26 $cyan
+    Draw-LiveDot $graphics ($width - $pad - 150) ($pad + 14)
+    Draw-Text $graphics "UPD 12:00" ($width - $pad - 128) ($pad + 4) 24 $tertiary
+    $split = [Math]::Round($width * 0.48)
+    Draw-Rule $graphics $split 100 ($split) ($height - $pad)
+    Draw-Text $graphics $temp $pad 96 88 $white $true
+    Draw-Sun $graphics ($split - 105) 132 88
+    Draw-Text $graphics $range $pad 246 28 $white $true
+    Draw-Text $graphics $details $pad 296 24 $secondary
+    for ($i = 0; $i -lt 4; $i++) {
+        $x = $split + 50 + $i * 112
+        Draw-Text $graphics $hours[$i] $x 128 24 $tertiary
+        Draw-Sun $graphics ($x + 16) 172 44
+        Draw-Text $graphics $temps[$i] $x 248 30 $white
+    }
+    $bitmap.Save((Join-Path $outputDir "widget_preview_medium.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $graphics.Dispose()
+    $bitmap.Dispose()
+}
+
+# —— 4x4：顶行 + 实况(含 AQI) + 分隔 + 四小时 + 分隔 + 三日 ——
+function New-PreviewLarge($width, $height) {
+    $bitmap = [System.Drawing.Bitmap]::new($width, $height)
+    $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+    $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+    $graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+    $graphics.Clear([System.Drawing.Color]::Transparent)
+    $pad = 28
+    Draw-RoundedPanel $graphics $width $height 46
+    $accent = [System.Drawing.SolidBrush]::new($orange)
+    $graphics.FillRectangle($accent, $pad, $pad, 8, 40)
+    $accent.Dispose()
+    Draw-Text $graphics $City ($pad + 26) ($pad - 8) 32 $orange $true
+    Draw-Text $graphics $dateLabel ($width - $pad - 320) ($pad + 2) 28 $cyan
+    Draw-LiveDot $graphics ($width - $pad - 120) ($pad + 16)
+    Draw-Text $graphics "UPD 12:00" ($width - $pad - 98) ($pad + 2) 24 $tertiary
+    Draw-Text $graphics $temp $pad 90 96 $white $true
+    Draw-Sun $graphics ($width - $pad - 130) 130 120
+    Draw-Text $graphics $range $pad 256 30 $white $true
+    Draw-Text $graphics $detailsLarge $pad 306 26 $secondary
+    Draw-Text $graphics $aqiLine $pad 350 24 $cyan $true
+    Draw-Rule $graphics $pad 396 ($width - $pad) 396
+    for ($i = 0; $i -lt 4; $i++) {
+        $x = $pad + 40 + $i * 160
+        Draw-Text $graphics $hours[$i] $x 410 24 $tertiary
+        Draw-Sun $graphics ($x + 18) 452 52
+        Draw-Text $graphics $temps[$i] $x 500 30 $white
+    }
+    Draw-Rule $graphics $pad 545 ($width - $pad) 545
+    $y = 560
+    foreach ($d in $days) {
+        Draw-Text $graphics $d[0] $pad $y 28 $white
+        Draw-Text $graphics $d[1] ($pad + 140) $y 28 $secondary
+        Draw-Text $graphics $d[2] ($width - $pad - 260) $y 28 $white
+        $y += 58
+    }
+    $bitmap.Save((Join-Path $outputDir "widget_preview_large.png"), [System.Drawing.Imaging.ImageFormat]::Png)
+    $graphics.Dispose()
+    $bitmap.Dispose()
+}
+
+New-PreviewSmall 360 360
+New-PreviewMedium 720 360
+New-PreviewLarge 720 720
+
+Write-Host "previews written to $outputDir (city=$City, date=$dateLabel)"

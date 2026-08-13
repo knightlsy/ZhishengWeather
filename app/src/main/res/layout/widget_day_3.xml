@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:fontFamily="monospace"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:text="" />
 
     <ImageView
@@ -30,6 +30,6 @@
         android:layout_weight="1"
         android:fontFamily="monospace"
         android:textColor="@color/widget_text_primary"
-        android:textSize="13sp"
+        android:textSize="14sp"
         android:text="" />
 </LinearLayout>
