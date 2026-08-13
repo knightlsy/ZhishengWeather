@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.3_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.4-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.0.3" src="https://img.shields.io/badge/当前版本-0.0.3-31C9DB?style=flat-square"/>
+  <img alt="当前版本 0.0.4" src="https://img.shields.io/badge/当前版本-0.0.4-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -73,9 +73,9 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 | | 公共版 | 满血版 |
 |:--|:--|:--|
 | 获取方式 | [Release](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest) 下载 | 拉取源码自行构建 |
-| 默认数据链路 | Open-Meteo + 小米天气 | 和风天气为主，小米和 Open-Meteo 补充 |
-| 额外配置 | 不需要 | 和风天气 Ed25519 凭据 |
-| 主要差别 | 常用天气功能可直接使用，和风独有项目可能留空 | 可使用和风提供的预警、逐分钟降水和生活指数，具体范围取决于账号权限 |
+| 默认数据链路 | 小米天气 + Open-Meteo | 和风天气为主，小米和 Open-Meteo 补充 |
+| 额外配置 | 不需要 | 和风 Ed25519 凭据 |
+| 主要差别 | 常用天气功能可直接使用 | 可使用和风提供的预警、逐分钟降水和生活指数，具体范围取决于账号权限 |
 
 普通使用直接下载公共版即可。满血版不能预先打包，因为开发者凭据不应该放进公开 APK。
 
@@ -89,7 +89,7 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 | 小米天气 | 不需要 | 国内天气、城市搜索、昨日天气和台风辅助数据 |
 | Open-Meteo | 不需要 | 全球实况、逐时逐日、空气质量、15 分钟降水和缺项补充 |
 
-自动模式会按可用性切换。主源逐时数据不足时，应用按城市本地时区重建时间轴，再用 Open-Meteo 补足 24 小时；逐日预报采用同样的方式补到 15 天。
+自动模式会按可用性依次尝试和风（满血版）、小米和 Open-Meteo。主源逐时或逐日数据不足时，会用 Open-Meteo 补足。
 
 月相在本机按城市日期计算。数据源没有月出、月落时，应用会根据日期和城市坐标补算，不再发起额外请求。
 
@@ -109,26 +109,26 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 ## 安装
 
-1. 下载 [`zhisheng-weather-v0.0.3.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.3/zhisheng-weather-v0.0.3.apk)（约 12 MB）。
+1. 从 [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest) 下载最新公共版 APK。
 2. 安装到 Android 8.0 或更高版本的设备。
 3. 首次打开默认显示北京，可通过搜索保存自己的城市。
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
 
-## 0.0.3 更新
+## 0.0.4 更新
 
-0.0.3 主要处理 0.0.2 中发现的稳定性问题，没有增加新的天气模块。
+0.0.4 根据内测反馈重点重做桌面小组件，并继续合入稳定性修复；后续又补上离线缓存、小组件后台刷新与一批体验打磨。
 
-- 修正月相显示，并在数据源缺少月出、月落时由本机补算
-- 修复部分桌面启动器无法显示小组件的问题
-- 增加长按图标快捷操作
-- 调高“明显”天气氛围档的粒子数量、运动幅度和雷暴扫描频率
-- 设置页显示当前城市实际使用的数据源
-- 定位优先获取新位置，回到前台时按间隔复核城市
-- 设置页底部名称统一为“枳生天气 · 数据终端”
-- 重做应用启动图标
+- 三档小组件改为 22dp 圆角天气仪表，放大温度、日期、天气图标和逐时/逐日字号
+- 小组件补充日期、体感温度、湿度、风速、降水概率、来源与更新时间，配色与 App 主题统一
+- 小组件支持后台定时刷新（每小时），超过 3 小时标注「x小时前」，超过 24 小时提示过期
+- 新增离线缓存：断网或数据源全部失败时展示最近一次成功数据并标注「x 分钟前」
+- 全局请求超时（25 秒）与数据源熔断，坏掉的源不再拖慢每次刷新
+- 合入 0.0.3test 的 7 项稳定性修复
+- 预警按国标蓝/黄/橙/红四档着色；新增雨区距离、AQI 健康建议与逐时 AQI（小米源）
+- 城市数据损坏自动从备份恢复；定位整体限时 15 秒并过滤低精度结果
 
-发布检查包括 15 项单元测试、Android Lint、Debug 构建、公共版 Release 构建和真机覆盖安装。详细记录见 [STABILITY_0.0.3.md](STABILITY_0.0.3.md)。
+当前回归检查包括 41 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.4.md](RELEASE_0.0.4.md)。
 
 ## 从源码构建
 
@@ -184,6 +184,15 @@ qw.private_key=<Ed25519 私钥，单行>
 ## 更新记录
 
 <details open>
+<summary><b>0.0.4 // WIDGET OVERHAUL</b></summary>
+
+- 重做三档桌面小组件的圆角、字号、图标和信息层级
+- 合入 0.0.3test 稳定性补丁；41 项单元测试通过，Lint 0 Error
+- 离线缓存兜底、小组件后台刷新、数据源熔断、预警分级着色
+
+</details>
+
+<details>
 <summary><b>0.0.3 // STABILITY PASS</b></summary>
 
 - 修正月相、月出月落、小组件、快捷操作、定位换城和数据源状态

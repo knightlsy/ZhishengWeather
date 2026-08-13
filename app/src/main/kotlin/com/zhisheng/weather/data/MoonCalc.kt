@@ -154,7 +154,10 @@ object MoonCalc {
         return String.format(Locale.US, "%02d:%02d", minutes / 60, minutes % 60)
     }
 
-    // 朔望月长度（毫秒）与 k=0 基准（2000-01-06 18:14 UTC 那次新月）
+    // 朔望月长度（毫秒）与 k=0 基准锚点。
+    // 注意三处数值并不完全一致：K0_EPOCH_MS 为 2000-01-06T12:14Z，phaseMillis 多项式基值
+    // 2451550.09766 约对应 2000-01-05T14:20Z，真实新月约在 2000-01-06T18:14Z（v0.0.4 勘正旧注释）。
+    // 数小时的差除以朔望月仅 ~0.01，k0 经 round 取整不受影响，事件窗口判定由 2024-08 锚点测试锁定。
     private const val SYNODIC_MS = 2_551_442_877L
     private const val K0_EPOCH_MS = 946_728_000_000L + 476_040_000L
     private const val HOUR_MS = 3_600_000L

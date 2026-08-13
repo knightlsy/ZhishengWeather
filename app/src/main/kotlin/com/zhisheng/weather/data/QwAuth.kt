@@ -12,17 +12,25 @@ object QwAuth {
 
     private var cached: String? = null
     private var cachedExp: Long = 0
+    private var lastFailAt: Long = 0
+
+    // 签名失败负缓存：私钥格式错误时 5 分钟内不再重试解码+签名，
+    // 此前每个请求都会失败一次并打一条日志（v0.0.4）
+    private const val NEGATIVE_CACHE_MS = 5 * 60_000L
 
     // 7 路请求在 OkHttp 线程池并发取 token：加锁保证可见性 + 只签一次（v0.0.1）
     @Synchronized
     fun token(): String? {
         val now = System.currentTimeMillis() / 1000
         cached?.let { if (now < cachedExp - 120) return it }
+        if (lastFailAt > 0 && System.currentTimeMillis() - lastFailAt < NEGATIVE_CACHE_MS) return null
         val t = sign(now)
         if (t == null) {
+            lastFailAt = System.currentTimeMillis()
             android.util.Log.e("ZhishengWeather", "QwAuth 签名失败，和风请求将无 token（检查 qw.private_key 配置）")
             return null
         }
+        lastFailAt = 0
         cached = t
         cachedExp = now + 3600
         return t

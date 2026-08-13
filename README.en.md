@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.3_·_12_MB-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.4-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.3" src="https://img.shields.io/badge/current-0.0.3-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.4-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -73,9 +73,9 @@ GitHub Releases provide the public APK, which works immediately after installati
 | | Public build | Full build |
 |:--|:--|:--|
 | Get it | Download from [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest) | Clone and build the source |
-| Default data path | Open-Meteo + Xiaomi Weather | QWeather first, with Xiaomi and Open-Meteo as supplements |
+| Default data path | Xiaomi Weather + Open-Meteo | QWeather first, with Xiaomi and Open-Meteo as supplements |
 | Extra setup | None | QWeather Ed25519 credentials |
-| Main difference | Everyday weather features work; QWeather-only fields may be empty | QWeather alerts, minute precipitation, and life indices are available according to account permissions |
+| Main difference | Everyday weather works out of the box | QWeather alerts, minute precipitation, and life indices are available according to account permissions |
 
 The public build is the right choice for normal use. The full build cannot be distributed preconfigured because developer credentials do not belong in a public APK.
 
@@ -89,7 +89,7 @@ The app connects to QWeather, Xiaomi Weather, and Open-Meteo. Settings can selec
 | Xiaomi Weather | None | Weather in China, city search, yesterday's weather, and typhoon support data |
 | Open-Meteo | None | Global current/hourly/daily, AQI, 15-minute precipitation, and gap filling |
 
-Auto mode falls back according to availability. If the primary feed returns too few hourly entries, the app rebuilds the timeline in the city's local time and fills it to 24 hours with Open-Meteo. Daily forecasts use the same approach to reach 15 days.
+Auto tries QWeather in a full build, then Xiaomi Weather and Open-Meteo. If the primary feed returns too few hourly entries, the app rebuilds the timeline in the city's local time and fills it to 24 hours with Open-Meteo. Daily forecasts use the same approach to reach 15 days.
 
 Moon phase is calculated on-device for the selected city's date. If the provider does not return moonrise or moonset, the app calculates them from the date and coordinates without making another request.
 
@@ -109,26 +109,26 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 ## Install
 
-1. Download [`zhisheng-weather-v0.0.3.apk`](https://github.com/ZhishengZZ/ZhishengWeather/releases/download/v0.0.3/zhisheng-weather-v0.0.3.apk) (about 12 MB).
+1. Download the latest public APK from [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest).
 2. Install it on Android 8.0 or later.
 3. The first launch shows Beijing. Use search to save your own cities.
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
 
-## Version 0.0.3
+## Version 0.0.4
 
-Version 0.0.3 focuses on problems found while using 0.0.2. It does not add another weather section.
+Version 0.0.4 responds to test feedback by rebuilding the widgets and incorporating stability fixes, followed by offline caching, background widget refresh, and a polish pass.
 
-- Corrected moon-phase display and added on-device moonrise/moonset calculation when a provider omits them
-- Fixed widgets that some launchers could not display
-- Added launcher shortcuts
-- Increased particle count, movement, and thunderstorm scan frequency for the Vivid ambience level
-- Made provider settings show the source actually serving the current city
-- Made location request a fresh position first and recheck the city at intervals when returning to the foreground
-- Renamed the settings footer to “Zhisheng Weather · Data Terminal”
-- Replaced the launcher icon
+- Reworked all three widgets into 22dp rounded weather instruments with substantially larger readings and glyphs
+- Added date, feels-like, humidity, wind, rain probability, provider, and update time to widgets, with colors aligned to the app theme
+- Widgets now refresh in the background every hour; snapshots older than 3 hours show "x hours ago" and older than 24 hours show "stale"
+- Added offline caching: when the network or all providers fail, the last successful data is shown with an "x minutes ago" marker
+- Global 25s request deadline and provider circuit breaking keep dead providers from stalling every refresh
+- Included all seven stability fixes from the 0.0.3 test branch
+- Alerts are color-coded by the four-tier national scale (blue/yellow/orange/red); added rain-band distance, AQI health advice, and hourly AQI (Xiaomi provider)
+- City data corruption now self-heals from a backup; location lookup is capped at 15s and rejects low-accuracy fixes
 
-Release checks cover 15 unit tests, Android Lint, Debug and public Release builds, and an upgrade installation on a physical device. See [STABILITY_0.0.3.md](STABILITY_0.0.3.md) for the full record.
+Release checks cover 41 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.4.md](RELEASE_0.0.4.md) for the full record.
 
 ## Build from source
 
@@ -184,6 +184,15 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
+<summary><b>0.0.4 // WIDGET OVERHAUL</b></summary>
+
+- Rebuilt all three widgets with rounded panels, larger type and glyphs, and a clearer information hierarchy
+- Included the 0.0.3 test stability patches; 41 unit tests pass and Lint reports zero errors
+- Offline cache fallback, background widget refresh, provider circuit breaking, color-coded alerts
+
+</details>
+
+<details>
 <summary><b>0.0.3 // STABILITY PASS</b></summary>
 
 - Fixed moon data, widgets, launcher shortcuts, city relocation, and provider status

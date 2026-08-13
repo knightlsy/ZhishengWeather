@@ -14,12 +14,13 @@ import com.zhisheng.weather.R
 import com.zhisheng.weather.data.WidgetCache
 import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.WeatherCondition
+import com.zhisheng.weather.model.conditionIconRes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-// 磷光终端风桌面小组件（v0.0.2）
+// 磷光天气仪表桌面小组件（v0.0.4）
 // 三个 Provider = 桌面选择器里三个独立条目（2x2 / 4x2 / 4x4）；
 // 每个仍可拉伸，布局按实际尺寸自适应。
 // 数据来自 WidgetCache（主 App 抓取后写入），小组件本身不发网络请求。
@@ -92,27 +93,62 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             ),
         )
 
+        v.setTextViewText(R.id.w_date, dateLabel())
+        // 2x2 布局已移除 w_upd 控件（主动舍弃更新时间，v0.0.4）；其余档位正常显示
+        if (layout != R.layout.widget_small) v.setViewVisibility(R.id.w_upd, View.VISIBLE)
+
         if (snap == null || snap.temp == null) {
-            v.setTextViewText(R.id.w_city, "枳生天气")
-            v.setTextViewText(R.id.w_temp, "--")
-            v.setTextViewText(R.id.w_range, "打开 App 同步数据")
+            // 空态兜底文案资源化（v0.0.4）
+            v.setTextViewText(R.id.w_city, context.getString(R.string.widget_name))
+            v.setTextViewText(R.id.w_temp, context.getString(R.string.widget_value_placeholder))
+            v.setTextViewText(R.id.w_range, context.getString(R.string.widget_sync_hint))
+            v.setTextViewText(R.id.w_details, context.getString(R.string.widget_details_placeholder))
+            if (layout != R.layout.widget_small) {
+                v.setTextViewText(R.id.w_upd, context.getString(R.string.widget_update_placeholder))
+            }
+            if (layout != R.layout.widget_small) {
+                listOf(R.id.h1_i, R.id.h2_i, R.id.h3_i, R.id.h4_i)
+                    .forEach { v.setViewVisibility(it, View.INVISIBLE) }
+            }
+            if (layout == R.layout.widget_large) {
+                listOf(R.id.d1_i, R.id.d2_i, R.id.d3_i)
+                    .forEach { v.setViewVisibility(it, View.INVISIBLE) }
+                v.setViewVisibility(R.id.w_aqi, View.GONE)
+            }
             return v
         }
 
-        v.setTextViewText(R.id.w_city, snap.city.ifBlank { "枳生天气" })
+        v.setTextViewText(R.id.w_city, snap.city.ifBlank { context.getString(R.string.widget_name) })
         v.setTextViewText(R.id.w_temp, "${snap.temp}°")
         v.setTextViewText(
             R.id.w_range,
             buildString {
                 if (snap.text.isNotBlank()) append(snap.text)
                 if (snap.high != null && snap.low != null) {
-                    if (isNotEmpty()) append("  ")
-                    append("${snap.high}°/${snap.low}°")
+                    if (isNotEmpty()) append("  ·  ")
+                    append("${snap.high}° / ${snap.low}°")
                 }
             },
         )
         v.setImageViewResource(R.id.w_icon, iconRes(snap.conditionName))
-        v.setTextViewText(R.id.w_upd, "UPD ${clock(snap.updateMillis)}")
+        v.setTextViewText(
+            R.id.w_details,
+            buildList {
+                snap.feelsLike?.let { add(if (layout == R.layout.widget_large) "体感 $it°" else "体感$it°") }
+                snap.humidity?.let { add(if (layout == R.layout.widget_large) "湿度 $it%" else "湿度$it%") }
+                if (layout == R.layout.widget_large && snap.windText.isNotBlank()) add("风 ${snap.windText}")
+            }
+                .joinToString(if (layout == R.layout.widget_large) "  ·  " else " · ")
+                .ifBlank { "体感 --  ·  湿度 --" },
+        )
+        if (layout != R.layout.widget_small) {
+            v.setTextViewText(
+                R.id.w_upd,
+                listOfNotNull(sourceShort(snap.source), timeLabel(context, snap))
+                    .joinToString("  ")
+                    .ifBlank { context.getString(R.string.widget_update_placeholder) },
+            )
+        }
 
         if (layout != R.layout.widget_small) {
             val hourIds = listOf(
@@ -126,10 +162,12 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                 if (h == null) {
                     v.setTextViewText(tId, "")
                     v.setTextViewText(vId, "")
+                    v.setViewVisibility(iId, View.INVISIBLE)
                 } else {
                     v.setTextViewText(tId, h.label)
                     v.setTextViewText(vId, h.temp?.let { "$it°" } ?: "--")
                     v.setImageViewResource(iId, iconRes(h.conditionName))
+                    v.setViewVisibility(iId, View.VISIBLE)
                 }
             }
         }
@@ -145,6 +183,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                 if (d == null) {
                     v.setTextViewText(tId, "")
                     v.setTextViewText(vId, "")
+                    v.setViewVisibility(iId, View.INVISIBLE)
                 } else {
                     v.setTextViewText(tId, d.label)
                     v.setTextViewText(
@@ -152,11 +191,16 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                         if (d.high != null && d.low != null) "${d.low}° ~ ${d.high}°" else "--",
                     )
                     v.setImageViewResource(iId, iconRes(d.conditionName))
+                    v.setViewVisibility(iId, View.VISIBLE)
                 }
             }
-            if (snap.aqi != null) {
+            val status = buildList {
+                snap.aqi?.let { add("AQI $it ${snap.aqiLevel}".trim()) }
+                snap.rainChance?.let { add("降水 $it%") }
+            }.joinToString("  ·  ")
+            if (status.isNotBlank()) {
                 v.setViewVisibility(R.id.w_aqi, View.VISIBLE)
-                v.setTextViewText(R.id.w_aqi, "AQI ${snap.aqi} ${snap.aqiLevel}")
+                v.setTextViewText(R.id.w_aqi, status)
             } else {
                 v.setViewVisibility(R.id.w_aqi, View.GONE)
             }
@@ -168,26 +212,34 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         if (ms <= 0) "--" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
             .format(java.util.Date(ms))
 
-    private fun iconRes(name: String): Int = when (runCatching {
-        WeatherCondition.valueOf(name)
-    }.getOrNull()) {
-        WeatherCondition.CLEAR -> R.drawable.weather_sun
-        WeatherCondition.CLEAR_NIGHT -> R.drawable.weather_moon
-        WeatherCondition.PARTLY_CLOUDY -> R.drawable.weather_cloud_sun
-        WeatherCondition.PARTLY_CLOUDY_NIGHT -> R.drawable.weather_cloud_moon
-        WeatherCondition.CLOUDY -> R.drawable.weather_cloud
-        WeatherCondition.OVERCAST -> R.drawable.weather_clouds
-        WeatherCondition.RAIN -> R.drawable.weather_rain
-        WeatherCondition.DRIZZLE -> R.drawable.weather_drizzle
-        WeatherCondition.THUNDERSTORM -> R.drawable.weather_bolt
-        WeatherCondition.SNOW -> R.drawable.weather_snow
-        WeatherCondition.SLEET -> R.drawable.weather_sleet
-        WeatherCondition.FOG -> R.drawable.weather_fog
-        WeatherCondition.HAZE -> R.drawable.weather_haze
-        WeatherCondition.SAND -> R.drawable.weather_sand
-        WeatherCondition.WIND -> R.drawable.weather_wind
-        null -> R.drawable.weather_cloud
+    // 快照新鲜度（v0.0.4）：超过 3 小时显示「x小时前」，超过 24 小时提示过期，
+    // 不再让几天前的旧数据伪装成「今天 HH:mm」。负龄为设备时钟回拨，退回显示时刻。
+    private fun timeLabel(context: Context, snap: WidgetSnapshot): String {
+        val ageMs = System.currentTimeMillis() - snap.updateMillis
+        return when {
+            ageMs < 3 * 3_600_000L ->
+                clock(snap.updateMillis).takeUnless { it == "--" }
+                    ?: context.getString(R.string.widget_update_placeholder)
+            ageMs < 24 * 3_600_000L -> context.getString(R.string.widget_stale_hours, ageMs / 3_600_000L)
+            else -> context.getString(R.string.widget_stale_expired)
+        }
     }
+
+    private fun dateLabel(): String =
+        java.text.SimpleDateFormat("M月d日 E", java.util.Locale.CHINA)
+            .format(java.util.Date())
+
+    private fun sourceShort(source: String): String? = when (source) {
+        "QWEATHER" -> "和风"
+        "XIAOMI" -> "小米"
+        "OPEN-METEO" -> "公共源"
+        else -> source.takeIf { it.isNotBlank() }
+    }
+
+    // 图标资源映射收敛在 model/ConditionIcons.kt（与 Compose 侧共用同一真源，v0.0.4）
+    private fun iconRes(name: String): Int = conditionIconRes(
+        runCatching { WeatherCondition.valueOf(name) }.getOrNull()
+    ) ?: R.drawable.weather_cloud
 
     companion object {
         private const val TAG = "ZhishengWidget"
