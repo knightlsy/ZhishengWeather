@@ -11,15 +11,15 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="monospace"
-        android:textColor="#FF7E8A7E"
-        android:textSize="10sp"
+        android:textColor="@color/widget_text_tertiary"
+        android:textSize="11sp"
         android:text="" />
 
     <ImageView
         android:id="@+id/h3_i"
-        android:layout_width="18dp"
-        android:layout_height="18dp"
-        android:layout_marginVertical="3dp"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_marginVertical="4dp"
         android:contentDescription="@string/widget_icon_desc"
         android:src="@drawable/weather_cloud" />
 
@@ -28,7 +28,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="monospace"
-        android:textColor="#FFE8F0E8"
-        android:textSize="12sp"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="14sp"
         android:text="" />
 </LinearLayout>

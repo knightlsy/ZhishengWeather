@@ -146,3 +146,30 @@
 
 - README 改为面向下载者和开发者的直接说明，删除测试过程式提示
 - 启动图标改为太阳、云和降水组合，使用与应用界面一致的深色底板和青橙配色
+
+## 2026-08-11 工作副本补丁轮（0.0.3test）
+
+在 `ZhishengWeather-0.0.3 - test` 工作副本上对正式 0.0.3 叠加了一轮 bug 修复，**尚未提交、尚未合入正式分支**；详细根因与回归见 `测试报告_0.0.3核对结果.md`，接手说明见 `HANDOFF_0.0.3test.md`。
+
+修复清单（7 个）：
+
+| # | 严重度 | 修复 |
+|---|---|---|
+| A | 高·崩溃 | 逐日温度条 `coerceIn` 下界超上界 → 提取 `tempBarParams` 纯函数 |
+| B | 中·NPE | Open-Meteo 三处 `body!!` → `body?` 安全写法 |
+| C | 中·状态 | 切城市取消任务 loading 不复位 → try/finally + 当前任务校验 |
+| D | 中·显示 | 昨日温差 ΔT 华氏度不一致 → 提取 `tempDelta` 按显示单位算 |
+| E | 低·显示 | 分钟降水 `take(9)` → `take(8)` 与 120min 文案对齐 |
+| F | 中·数据 | 小米能见度未按 unit 换算 → `when(unit) { "m" -> /1000 }` |
+| G | 功能 | "开机自检动画"开关无人读取 → DisplayPrefs 加 `bootAnim` 透传到 `BootState` |
+
+新增回归测试 12 项（`app/src/test/.../ui/home/TempBarParamsTest.kt`），合并后 `testDebugUnitTest` 27 项全绿、`lintDebug` 0 Error、`assembleDebug` 通过。
+
+版本号标记：`versionName` 由 `0.0.3` 改为 `0.0.3test`、`versionCode` 仍为 `20260809`，便于在真机上与正式 0.0.3（私人签名）`-r` 覆盖安装区分。
+
+本机构建踩平的两个环境坑（已沉淀到 `build.ps1`）：
+
+1. PowerShell 直接跑 `gradlew.bat` 会被宿主工具杀掉 gradle daemon 子进程 → 用 `--no-daemon` + 独立后台进程。
+2. 中文 JAVA_HOME 传 `gradlew.bat` 编码失效被 gradle 判为 "invalid directory" → JAVA_HOME 固定指向纯英文路径 `D:\android-build-tools\jdk-17.0.13+11`（从 `D:\金川党建数据大屏项目\tools` 复制出来的副本）。
+
+下一版从本工作副本继续；正式 0.0.3 目录（`ZhishengWeather-0.0.3`）仍停留在未含这 7 步修复的状态，不要再回到那里构建。

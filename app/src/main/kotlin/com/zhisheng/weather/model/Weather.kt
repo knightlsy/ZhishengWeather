@@ -13,6 +13,8 @@ data class City(
     val locationKey: String,
 )
 
+// 以下模型全部 @Serializable：离线缓存（WeatherCache）按城市持久化最近一次 WeatherData（v0.0.4）
+@Serializable
 data class CurrentWeather(
     val temperature: Double? = null,
     val feelsLike: Double? = null,
@@ -30,6 +32,7 @@ data class CurrentWeather(
     val precipMm: Double? = null,
 )
 
+@Serializable
 data class HourlyWeather(
     val timeMillis: Long,
     val temperature: Double? = null,
@@ -39,11 +42,13 @@ data class HourlyWeather(
     val aqi: Int? = null,
 )
 
+@Serializable
 data class MinutePrecip(
     val timeMillis: Long,
     val precip: Float,
 )
 
+@Serializable
 data class YesterdayInfo(
     val high: Double? = null,
     val low: Double? = null,
@@ -51,6 +56,7 @@ data class YesterdayInfo(
     val condition: WeatherCondition? = null,
 )
 
+@Serializable
 data class TyphoonInfo(
     val name: String? = null,
     val ename: String? = null,
@@ -58,6 +64,7 @@ data class TyphoonInfo(
     val windSpeed: Double? = null,
 )
 
+@Serializable
 data class DailyWeather(
     val dateMillis: Long,
     val high: Double? = null,
@@ -72,6 +79,7 @@ data class DailyWeather(
     val moonPhase: String? = null,
 )
 
+@Serializable
 data class AqiInfo(
     val value: Int? = null,
     val level: String? = null,
@@ -82,21 +90,53 @@ data class AqiInfo(
     val no2: String? = null,
     val so2: String? = null,
     val co: String? = null,
+    // 健康建议文案（小米 suggest，v0.0.4 接入；其余源为空）
+    val suggest: String? = null,
 )
 
+@Serializable
 data class LifeIndexExtra(
     val name: String,
     val en: String,
     val category: String,
 )
 
+@Serializable
 data class AlertInfo(
     val title: String,
     val detail: String? = null,
     val level: String? = null,
     val pubTime: String? = null,
+    // 三源等级归一（和风 severity 英文枚举 / 小米 level 中文），UI 按档着色（v0.0.4）
+    val severity: AlertLevel = AlertLevel.UNKNOWN,
 )
 
+// 预警四档（国标蓝/黄/橙/红）
+@Serializable
+enum class AlertLevel {
+    BLUE, YELLOW, ORANGE, RED, UNKNOWN
+}
+
+// 三源等级归一：中文色名（小米 level「黄色预警」）/ 英文色名（和风 color.code）/ 英文严重度（和风 severity）
+fun alertLevelOf(raw: String?): AlertLevel {
+    val r = raw?.trim().orEmpty()
+    return when {
+        r.isEmpty() -> AlertLevel.UNKNOWN
+        r.contains("红") || r.equals("red", ignoreCase = true) -> AlertLevel.RED
+        r.contains("橙") || r.equals("orange", ignoreCase = true) -> AlertLevel.ORANGE
+        r.contains("黄") || r.equals("yellow", ignoreCase = true) -> AlertLevel.YELLOW
+        r.contains("蓝") || r.equals("blue", ignoreCase = true) -> AlertLevel.BLUE
+        // 和风 severity 英文枚举（无 color.code 时兜底）：国内 minor→蓝 / moderate→黄 / severe→橙 / extreme→红；
+        // major/standard 为澳洲等地的补充档，就近归入橙/蓝（0.0.4 修复：此前英文枚举不匹配、全落 UNKNOWN）
+        r.equals("extreme", ignoreCase = true) -> AlertLevel.RED
+        r.equals("severe", ignoreCase = true) || r.equals("major", ignoreCase = true) -> AlertLevel.ORANGE
+        r.equals("moderate", ignoreCase = true) -> AlertLevel.YELLOW
+        r.equals("minor", ignoreCase = true) || r.equals("standard", ignoreCase = true) -> AlertLevel.BLUE
+        else -> AlertLevel.UNKNOWN
+    }
+}
+
+@Serializable
 data class WeatherData(
     val current: CurrentWeather? = null,
     val hourly: List<HourlyWeather> = emptyList(),
@@ -111,10 +151,13 @@ data class WeatherData(
     val extraIndices: List<LifeIndexExtra> = emptyList(),
     val yesterday: YesterdayInfo? = null,
     val typhoons: List<TyphoonInfo> = emptyList(),
+    // 雨区距离（km）：小米分钟降水 kmNum，仅该源返回时非空（v0.0.4）
+    val rainDistanceKm: Double? = null,
     val dataSource: String? = null,
     val error: String? = null,
 )
 
+@Serializable
 enum class WeatherCondition(val label: String) {
     CLEAR("晴"),
     CLEAR_NIGHT("晴"),

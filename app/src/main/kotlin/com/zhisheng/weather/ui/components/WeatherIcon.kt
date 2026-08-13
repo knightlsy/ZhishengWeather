@@ -3,40 +3,34 @@ package com.zhisheng.weather.ui.components
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
-import com.zhisheng.weather.R
 import com.zhisheng.weather.model.WeatherCondition
+import com.zhisheng.weather.model.conditionIconRes
+import com.zhisheng.weather.ui.theme.LocalZhishengPalette
 
-// 图标资源映射（平面双色调 PNG，颜色已内置于位图，不再统一染色）
-private val ICON_RES = mapOf(
-    WeatherCondition.CLEAR to R.drawable.weather_sun,
-    WeatherCondition.CLEAR_NIGHT to R.drawable.weather_moon,
-    WeatherCondition.PARTLY_CLOUDY to R.drawable.weather_cloud_sun,
-    WeatherCondition.PARTLY_CLOUDY_NIGHT to R.drawable.weather_cloud_moon,
-    WeatherCondition.CLOUDY to R.drawable.weather_cloud,
-    WeatherCondition.OVERCAST to R.drawable.weather_clouds,
-    WeatherCondition.RAIN to R.drawable.weather_rain,
-    WeatherCondition.DRIZZLE to R.drawable.weather_drizzle,
-    WeatherCondition.THUNDERSTORM to R.drawable.weather_bolt,
-    WeatherCondition.SNOW to R.drawable.weather_snow,
-    WeatherCondition.SLEET to R.drawable.weather_sleet,
-    WeatherCondition.FOG to R.drawable.weather_fog,
-    WeatherCondition.HAZE to R.drawable.weather_haze,
-    WeatherCondition.SAND to R.drawable.weather_sand,
-    WeatherCondition.WIND to R.drawable.weather_wind,
-)
-
+// 天气图标组件。资源映射收敛在 model/ConditionIcons.kt（与小组件共用同一真源，v0.0.4）。
+// 图标为平面双色调 PNG，颜色已内置于位图，不统一染色。
+// v0.0.5 浅色模式：位图是深底亮线设计，直接放纸白底会发白看不清——
+// 用 SrcIn 把线条统一染成钢青，呈单色青线（清冷翡翠质感；此前染成墨黑太硬）。
 @Composable
 fun WeatherIcon(
     condition: WeatherCondition?,
     modifier: Modifier = Modifier,
 ) {
-    val res = condition?.let { ICON_RES[it] }
+    val res = conditionIconRes(condition)
     if (res != null) {
+        val palette = LocalZhishengPalette.current
         Image(
             painter = painterResource(res),
             contentDescription = condition?.label,
             modifier = modifier,
+            colorFilter = if (palette.isLight) {
+                ColorFilter.tint(palette.cyan, BlendMode.SrcIn)
+            } else {
+                null
+            },
         )
     }
 }

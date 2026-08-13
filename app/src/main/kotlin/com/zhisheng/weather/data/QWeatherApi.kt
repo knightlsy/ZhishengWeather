@@ -68,9 +68,11 @@ interface QWeatherService {
 object QWeatherApi {
 
     // local.properties 未配置凭据时为 false，自动走小米源
+    // v0.0.4：补 QW_KID 检查——kid 为空时 JWT 头 kid=""，服务端必 401，原判定会让用户无感降级
     val enabled: Boolean
         get() = BuildConfig.QW_HOST.isNotBlank() &&
             BuildConfig.QW_PROJECT_ID.isNotBlank() &&
+            BuildConfig.QW_KID.isNotBlank() &&
             BuildConfig.QW_PRIVATE_KEY.isNotBlank()
 
     private val json = Json {
@@ -94,9 +96,8 @@ object QWeatherApi {
             val t2 = QwAuth.token()
             if (t2 != null) {
                 resp = chain.proceed(req.newBuilder().header("Authorization", "Bearer $t2").build())
-            } else {
-                resp = chain.proceed(first)
             }
+            // t2 == null：直接返回 401 响应；原实现会重放带旧 token 的请求（注定再 401 的浪费请求，v0.0.4）
         }
         resp
     }
