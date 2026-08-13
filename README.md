@@ -128,7 +128,7 @@ APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来
 - 预警按国标蓝/黄/橙/红四档着色；新增雨区距离、AQI 健康建议与逐时 AQI（小米源）
 - 城市数据损坏自动从备份恢复；定位整体限时 15 秒并过滤低精度结果
 
-当前回归检查包括 41 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.4.md](RELEASE_0.0.4.md)。
+当前回归检查包括 41 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.4_FINAL.md](RELEASE_0.0.4_FINAL.md)。
 
 ## 从源码构建
 
