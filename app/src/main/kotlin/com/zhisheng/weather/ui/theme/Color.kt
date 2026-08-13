@@ -10,7 +10,7 @@ val ZhishengSurface = Color(0xFF0E0E12)     // 面板
 val ZhishengCard = Color(0xFF14141A)        // 内嵌块（比面板亮一档）
 val ZhishengCardBorder = Color(0xFF23232B)  // 面板边框
 
-val ZhishengMint = Color(0xFF50FF50)        // 数据绿 · 主强调
+val ZhishengMint = Color(0xFF50FF50)        // 数据绿 · 主强调（v0.0.2 起扩展为选中/成功态）
 val ZhishengOrange = Color(0xFFFF9830)      // 信号橙 · 标题/标签
 val ZhishengCyan = Color(0xFF20F0FF)        // 线框青 · 图标/温度°
 val ZhishengRed = Color(0xFFFF3030)         // 警报红

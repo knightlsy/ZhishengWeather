@@ -69,6 +69,48 @@ class MoonCalcTest {
         assertEquals(MoonCalc.MoonTimes(null, null), MoonCalc.riseSet(dayStart, Double.NaN, 0.0))
     }
 
+    // —— v0.0.4 补充：基准与边界 ——
+
+    @Test
+    fun phaseKeyForDayStartMatchesKnownEventDays() {
+        // 直接以城市本地 00:00 的真实 epoch 调用，不依赖设备时区
+        assertEquals("new-moon", MoonCalc.phaseKeyForDayStart(Instant.parse("2024-08-04T00:00:00Z").toEpochMilli()))
+        assertEquals("full-moon", MoonCalc.phaseKeyForDayStart(Instant.parse("2024-08-19T00:00:00Z").toEpochMilli()))
+        assertEquals("first-quarter", MoonCalc.phaseKeyForDayStart(Instant.parse("2024-08-12T00:00:00Z").toEpochMilli()))
+        assertEquals("last-quarter", MoonCalc.phaseKeyForDayStart(Instant.parse("2024-08-26T00:00:00Z").toEpochMilli()))
+    }
+
+    @Test
+    fun enrichFillsMissingFieldsAndKeepsExisting() {
+        val dayStart = Instant.parse("2026-08-10T00:00:00Z").toEpochMilli()
+        val bare = com.zhisheng.weather.model.DailyWeather(dateMillis = dayStart, high = 30.0, low = 20.0)
+        val filled = MoonCalc.enrich(bare, 39.90, 116.41)
+        assertTrue(filled.moonPhase in setOf(
+            "new-moon", "first-quarter", "full-moon", "last-quarter",
+            "waxing-crescent", "waxing-gibbous", "waning-gibbous", "waning-crescent",
+        ))
+        assertTrue(filled.moonrise?.matches(Regex("[0-2]\\d:[0-5]\\d")) ?: true)
+        assertTrue(filled.moonset?.matches(Regex("[0-2]\\d:[0-5]\\d")) ?: true)
+        // 已有数据不被覆盖
+        val preset = bare.copy(moonPhase = "new-moon", moonrise = "06:00", moonset = "18:00")
+        val kept = MoonCalc.enrich(preset, 39.90, 116.41)
+        assertEquals("new-moon", kept.moonPhase)
+        assertEquals("06:00", kept.moonrise)
+        assertEquals("18:00", kept.moonset)
+    }
+
+    @Test
+    fun riseSetWorksForSouthernHemisphereAndPolarEdge() {
+        // 悉尼（南半球）：2026-08-10 当地 00:00（AEST = UTC+10）
+        val sydneyDayStart = Instant.parse("2026-08-09T14:00:00Z").toEpochMilli()
+        val sydney = MoonCalc.riseSet(sydneyDayStart, -33.87, 151.21)
+        assertTrue(sydney.rise == null || sydney.rise.matches(Regex("[0-2]\\d:[0-5]\\d")))
+        assertTrue(sydney.set == null || sydney.set.matches(Regex("[0-2]\\d:[0-5]\\d")))
+        // 极区边缘：允许 null（无升落事件），但不许崩溃
+        val polar = MoonCalc.riseSet(sydneyDayStart, 89.0, 0.0)
+        assertTrue(polar.rise == null || polar.rise.matches(Regex("[0-2]\\d:[0-5]\\d")))
+    }
+
     private fun phaseAtNoon(date: String): String =
         MoonCalc.phaseKey(Instant.parse("${date}T12:00:00Z").toEpochMilli())
 

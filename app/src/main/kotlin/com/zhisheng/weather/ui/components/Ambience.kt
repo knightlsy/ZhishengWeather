@@ -6,17 +6,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.runtime.withFrameNanos
 import com.zhisheng.weather.data.AmbienceLevel
 import com.zhisheng.weather.model.WeatherCondition
@@ -89,11 +94,23 @@ fun WeatherAmbience(
     val particles = remember(kind, level) { List(particleCount) { Particle(it * 7919 + 13, 22) } }
     val monoTypeface = remember { android.graphics.Typeface.MONOSPACE }
 
-    Canvas(modifier = modifier.fillMaxSize()) {
+    // 雾点阵缓存（v0.0.4 性能）：点阵位置只依赖尺寸与档位、与动画时间无关，
+    // 原实现每帧循环画约 4000 个 drawCircle，低端机 VIVID 档功耗明显。
+    var fogSize by remember { mutableStateOf(IntSize.Zero) }
+    val fogPath = remember(fogSize, vivid) {
+        if (fogSize == IntSize.Zero) null
+        else buildFogPath(fogSize.width.toFloat(), fogSize.height.toFloat(), vivid)
+    }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .onSizeChanged { fogSize = it },
+    ) {
         when (kind) {
             AmbienceKind.RAIN -> drawDataRain(t, f, motion, particles, density.density, monoTypeface)
             AmbienceKind.SNOW -> drawSnow(t, f, motion, particles)
-            AmbienceKind.FOG -> drawFogNoise(t, f, vivid)
+            AmbienceKind.FOG -> drawFogNoise(t, f, fogPath)
             AmbienceKind.STORM -> drawStormScan(t, f, vivid)
             AmbienceKind.NONE -> Unit
         }
@@ -152,29 +169,37 @@ private fun DrawScope.drawSnow(t: Float, f: Float, motion: Float, particles: Lis
 }
 
 // —— 雾：稀疏点阵整体呼吸（明暗缓慢起伏） ——
-private fun DrawScope.drawFogNoise(t: Float, f: Float, vivid: Boolean) {
+// 点阵已预生成 Path（buildFogPath），这里只整体调 alpha（v0.0.4）
+private fun DrawScope.drawFogNoise(t: Float, f: Float, fogPath: Path?) {
+    if (fogPath == null) return
     // 呼吸周期约 7 秒
     val breathe = (sin((t * 0.9f).toDouble()).toFloat() + 1f) / 2f
     val alpha = (0.03f + 0.045f * breathe) * f
+    drawPath(fogPath, Color.White.copy(alpha = alpha.coerceIn(0f, 1f)))
+}
+
+// 雾点阵 Path：位置抖动与原逐点实现一致（确定性），仅半径随档位
+private fun buildFogPath(width: Float, height: Float, vivid: Boolean): Path {
     val step = 26f
+    val path = Path()
     var y = 0f
     var row = 0
-    while (y < size.height) {
+    val r = if (vivid) 1.45f else 1.05f
+    while (y < height) {
         var x = ((row % 2) * step / 2f)
-        while (x < size.width) {
+        while (x < width) {
             // 位置确定性抖动，避免规则网格感
             val jx = ((row * 31 + (x / step).toInt() * 17) % 7 - 3).toFloat()
             val jy = ((row * 13 + (x / step).toInt() * 29) % 7 - 3).toFloat()
-            drawCircle(
-                color = Color.White.copy(alpha = alpha.coerceIn(0f, 1f)),
-                radius = if (vivid) 1.45f else 1.05f,
-                center = Offset(x + jx, y + jy),
-            )
+            val cx = x + jx
+            val cy = y + jy
+            path.addOval(Rect(Offset(cx - r, cy - r), Size(2 * r, 2 * r)))
             x += step
         }
         y += step
         row++
     }
+    return path
 }
 
 // —— 雷暴：一道扫描线周期性下扫，偶发极淡闪白 ——

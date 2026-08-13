@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -47,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,7 +73,8 @@ import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════
 // 设置（v0.0.2 重做）
-// 01 数据源（可选：自动/和风/小米/公共源）  02 定位（默认关，严格可选）
+// 01 数据源（自动/和风/小米/公共源）
+// 02 定位（默认关，严格可选）
 // 03 单位  04 显示模块  05 界面效果  06 关于
 // ═══════════════════════════════════════════════════════════
 
@@ -154,7 +158,12 @@ fun SettingsScreen(
                         pref = p,
                         description = sourceDescription(p),
                         selected = source == p,
-                        status = sourceStatus(p, source == p, activeSource, sourceLoading),
+                        status = sourceStatus(
+                            p,
+                            source == p,
+                            activeSource,
+                            sourceLoading,
+                        ),
                         onClick = { scope.launch { SettingsRepository.setSourcePref(p) } },
                     )
                 }
@@ -336,11 +345,11 @@ private fun sourceHint(
 }
 
 private fun sourceDescription(p: SourcePref): String = when (p) {
-    SourcePref.AUTO -> if (QWeatherApi.enabled) {
-        "和风 → 小米 → Open-Meteo，按可用性降级"
-    } else {
-        "小米 → Open-Meteo，公共版自动降级"
-    }
+    SourcePref.AUTO -> buildList {
+        if (QWeatherApi.enabled) add("和风")
+        add("小米")
+        add("Open-Meteo")
+    }.joinToString(" → ") + "，按可用性降级"
     SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "当前构建未配置和风凭据"
     SourcePref.XIAOMI -> "免配置·国内城市优先"
     SourcePref.OPEN_METEO -> "免配置·全球覆盖"
@@ -432,6 +441,8 @@ private fun SourceRow(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(role = Role.RadioButton) { onClick() }
+            // v0.0.4：TalkBack 播报选中状态
+            .semantics { this.selected = selected }
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -476,7 +487,11 @@ private fun SegmentRow(
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengText)
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            // v0.0.4：互斥选项组语义，TalkBack 正确播报单选关系
+            modifier = Modifier.selectableGroup(),
+        ) {
             options.forEach { (text, value) ->
                 val on = current == value
                 Box(
@@ -484,6 +499,7 @@ private fun SegmentRow(
                         .background(if (on) ZhishengMint.copy(alpha = 0.14f) else ZhishengSurface)
                         .border(1.dp, if (on) ZhishengMint else ZhishengCardBorder, RectangleShape)
                         .clickable(role = Role.RadioButton) { onPick(value) }
+                        .semantics { this.selected = on }
                         .padding(vertical = 9.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -503,7 +519,9 @@ private fun SegmentRow(
 private fun ToggleRow(label: String, hint: String, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .clickable(role = Role.Switch) { onToggle() }
+            // 行级不再声明 Role.Switch（v0.0.4）：内部 Switch 已提供开关语义，
+            // 双重 role 会让 TalkBack 重复播报
+            .clickable { onToggle() }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

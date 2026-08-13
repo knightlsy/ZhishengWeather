@@ -22,6 +22,10 @@ private val ZhishengColorScheme = darkColorScheme(
     outline = ZhishengCardBorder,
     outlineVariant = ZhishengCardBorder,
     error = ZhishengRed,
+    // v0.0.4：补齐 M3 错误派生色，避免用系统默认紫红与磷光红割裂
+    onError = Color(0xFF3F0B0B),
+    errorContainer = Color(0xFF461313),
+    onErrorContainer = Color(0xFFFFDAD4),
 )
 
 @Composable
