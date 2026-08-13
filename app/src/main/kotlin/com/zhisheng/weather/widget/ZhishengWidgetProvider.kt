@@ -12,8 +12,6 @@ import android.view.View
 import android.widget.RemoteViews
 import com.zhisheng.weather.MainActivity
 import com.zhisheng.weather.R
-import com.zhisheng.weather.data.SettingsRepository
-import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.data.WidgetCache
 import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.WeatherCondition
@@ -21,7 +19,6 @@ import com.zhisheng.weather.model.conditionIconRes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // 磷光天气仪表桌面小组件（v0.0.4）
@@ -54,14 +51,10 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                 val snap = runCatching { WidgetCache.load(context) }
                     .onFailure { android.util.Log.e(TAG, "读取小组件缓存失败", it) }
                     .getOrNull()
-                // 小组件双主题（v0.0.5）：跟随 App 主题模式；SYSTEM 时按当前系统夜间态判定
-                val light = when (SettingsRepository.themeMode.first()) {
-                    ThemeMode.LIGHT -> true
-                    ThemeMode.DARK -> false
-                    ThemeMode.SYSTEM ->
-                        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) !=
-                            Configuration.UI_MODE_NIGHT_YES
-                }
+                // 小组件主题（v0.0.5 修订）：只跟系统深浅，不跟 App 内手动主题——
+                // App 切浅色时小组件保持系统外观，与选择器深色预览一致（用户反馈后调整）
+                val light = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) !=
+                    Configuration.UI_MODE_NIGHT_YES
                 ids.forEach { id ->
                     runCatching {
                         val views = build(context, manager, id, snap, light)

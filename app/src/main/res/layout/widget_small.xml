@@ -42,7 +42,7 @@
             android:maxLines="1"
             android:text="@string/widget_date_placeholder"
             android:textColor="@color/widget_accent_cyan"
-            android:textSize="11sp" />
+            android:textSize="13sp" />
 
     </LinearLayout>
 
@@ -83,7 +83,7 @@
         android:maxLines="1"
         android:text="@string/widget_value_placeholder"
         android:textColor="@color/widget_text_secondary"
-        android:textSize="13sp" />
+        android:textSize="14sp" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -102,7 +102,7 @@
             android:maxLines="1"
             android:text="@string/widget_details_placeholder"
             android:textColor="@color/widget_text_tertiary"
-            android:textSize="11sp" />
+            android:textSize="12sp" />
         <!-- 2x2 主动舍弃更新时间以完整显示体感与湿度：不再保留 w_upd 占位（v0.0.4） -->
     </LinearLayout>
 </LinearLayout>
