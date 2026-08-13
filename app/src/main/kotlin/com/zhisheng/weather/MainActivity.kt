@@ -48,6 +48,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         dispatchShortcut(intent)
+        applySplashBackground()
         // 部分厂商系统在新接口下仍依赖旧窗口标志；两者并用可兼容 Android 8.0 和定制 ROM。
         @Suppress("DEPRECATION")
         window.addFlags(
@@ -85,6 +86,9 @@ class MainActivity : ComponentActivity() {
                         isAppearanceLightStatusBars = isLight
                         isAppearanceLightNavigationBars = isLight
                     }
+                }
+                LaunchedEffect(isLight) {
+                    persistSplashBackground(isLight)
                 }
 
                 LaunchedEffect(command.sequence) {
@@ -171,9 +175,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun applySplashBackground() {
+        val light = getSharedPreferences(PREFS_SPLASH, MODE_PRIVATE).getBoolean(KEY_SPLASH_LIGHT, false)
+        persistSplashBackground(light)
+    }
+
+    private fun persistSplashBackground(light: Boolean) {
+        getSharedPreferences(PREFS_SPLASH, MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SPLASH_LIGHT, light)
+            .apply()
+        val color = if (light) R.color.splash_light else R.color.splash_dark
+        window.setBackgroundDrawableResource(color)
+        window.navigationBarColor = getColor(color)
+    }
+
     private companion object {
         const val ACTION_REFRESH = "com.zhisheng.weather.action.REFRESH"
         const val ACTION_SEARCH = "com.zhisheng.weather.action.SEARCH"
         const val ACTION_SETTINGS = "com.zhisheng.weather.action.SETTINGS"
+        const val PREFS_SPLASH = "zhisheng_splash"
+        const val KEY_SPLASH_LIGHT = "light"
     }
 }

@@ -53,7 +53,7 @@ object OpenMeteoSource {
                         "wind_direction_10m,wind_gusts_10m,visibility,dew_point_2m" +
                         "&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation_probability" +
                         "&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max," +
-                        "precipitation_probability_max,sunrise,sunset,uv_index_max" +
+                        "precipitation_probability_max,precipitation_sum,sunrise,sunset,uv_index_max" +
                         "&minutely_15=precipitation" +
                         "&forecast_days=16&forecast_hours=24&timezone=auto"
                 )
@@ -134,6 +134,7 @@ object OpenMeteoSource {
                             windSpeed = d.wind_speed_10m_max?.getOrNull(i),
                             precipProbability = d.precipitation_probability_max?.getOrNull(i)
                                 ?.let { p -> Math.round(p).toInt() },
+                            precipMm = d.precipitation_sum?.getOrNull(i),
                             sunrise = clockOf(d.sunrise?.getOrNull(i)),
                             sunset = clockOf(d.sunset?.getOrNull(i)),
                         ),
@@ -172,7 +173,7 @@ object OpenMeteoSource {
                 aqi = aqiInfo,
                 alerts = emptyList(), // 公共源不提供官方预警
                 updateTime = System.currentTimeMillis(),
-                rainNowcast = precipSummary(precip),
+                // 不编 rainNowcast：接口没有短时降水文案。主屏一句话走分钟序列/温差。
                 rainMinutes = if (precip.size >= 2) precip else emptyList(),
                 dataSource = "OPEN-METEO",
             )
@@ -185,12 +186,6 @@ object OpenMeteoSource {
 
     private fun fmt1(v: Double): String =
         if (v == Math.floor(v)) v.toInt().toString() else String.format(java.util.Locale.US, "%.1f", v)
-
-    private fun precipSummary(list: List<MinutePrecip>): String? {
-        if (list.isEmpty()) return null
-        val total = list.sumOf { it.precip.toDouble() }
-        return if (total <= 0.0) "未来两小时无降水" else "未来两小时有降水，累计约 ${fmt1(total)}mm"
-    }
 
     // 逐时图标昼夜：按城市本地小时判断（6-18 视为白天），避免夜里整排太阳
     private fun isDayAt(epochMs: Long, offsetMs: Long): Boolean {
@@ -262,6 +257,7 @@ data class OmDailyFull(
     val weather_code: List<Int?>? = null,
     val wind_speed_10m_max: List<Double?>? = null,
     val precipitation_probability_max: List<Double?>? = null,
+    val precipitation_sum: List<Double?>? = null,
     val sunrise: List<String>? = null,
     val sunset: List<String>? = null,
     val uv_index_max: List<Double?>? = null,
