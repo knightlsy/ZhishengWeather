@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 磷光终端面板底：近黑底 + 1px 冷灰描边，与 App 内 HudCard 同色系 -->
+<!-- 0.0.4 气象终端面板：斜向深色渐变 + 冷灰描边，保留足够对比度。 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
-    <solid android:color="#F00E0E12" />
-    <stroke android:width="1dp" android:color="#FF23232B" />
-    <corners android:radius="2dp" />
+    <gradient
+        android:angle="315"
+        android:startColor="#F50B1118"
+        android:centerColor="#F51D232C"
+        android:endColor="#F512171F" />
+    <stroke android:width="1dp" android:color="#FF48535F" />
+    <corners android:radius="22dp" />
 </shape>

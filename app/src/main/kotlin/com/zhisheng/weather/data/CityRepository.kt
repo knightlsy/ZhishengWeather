@@ -21,6 +21,7 @@ object CityRepository {
     private lateinit var store: DataStore<Preferences>
 
     private val KEY_CITIES = stringPreferencesKey("cities")
+    private val KEY_CITIES_BACKUP = stringPreferencesKey("cities_backup")
     private val KEY_SELECTED = stringPreferencesKey("selected_key")
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -31,21 +32,34 @@ object CityRepository {
     }
 
     // 首装种子默认城市（零配置体验：装好即有天气，无需手动加城市）；
-    // 以 KEY_CITIES 是否存在判定“首装”，用户删光城市后不会重种
+    // 以 KEY_CITIES 是否存在判定“首装”，用户删光城市后不会重种。
+    // v0.0.4：主值 JSON 损坏时先尝试备份值；主备都坏则重种北京（此前会永久空列表且不重种）。
     suspend fun ensureDefaultCity() {
-        val seeded = store.data.map { it.contains(KEY_CITIES) }.first()
-        if (!seeded) {
-            addCity(
-                City(
-                    name = "北京",
-                    affiliation = "北京",
-                    latitude = 39.90,
-                    longitude = 116.41,
-                    locationKey = "101010100",
-                )
-            )
+        val prefs = store.data.first()
+        val state = prefs.decodeCities()
+        when {
+            state.corrupted -> {
+                android.util.Log.e("ZhishengWeather", "城市数据主备均损坏，重新播种默认城市")
+                addCity(defaultCity())
+            }
+            state.repairedFromBackup -> {
+                // 主值损坏、备份可用：把备份回写主值，完成自愈
+                android.util.Log.w("ZhishengWeather", "城市主数据损坏，已从备份恢复")
+                store.edit { prefs ->
+                    prefs[KEY_CITIES_BACKUP]?.let { prefs[KEY_CITIES] = it }
+                }
+            }
+            !prefs.contains(KEY_CITIES) -> addCity(defaultCity())
         }
     }
+
+    private fun defaultCity() = City(
+        name = "北京",
+        affiliation = "北京",
+        latitude = 39.90,
+        longitude = 116.41,
+        locationKey = "101010100",
+    )
 
     // 搜索城市（和风 GeoAPI 主，小米兜底）
     suspend fun search(query: String): List<City> {
@@ -117,7 +131,9 @@ object CityRepository {
             if (list.none { it.locationKey == city.locationKey }) {
                 list.add(city)
             }
-            prefs[KEY_CITIES] = json.encodeToString(cityListSerializer, list)
+            val encoded = json.encodeToString(cityListSerializer, list)
+            prefs[KEY_CITIES] = encoded
+            prefs[KEY_CITIES_BACKUP] = encoded // 双写备份（v0.0.4）
             prefs[KEY_SELECTED] = city.locationKey
         }
     }
@@ -126,7 +142,9 @@ object CityRepository {
         store.edit { prefs ->
             val list = prefs.cities().toMutableList()
             list.removeAll { it.locationKey == locationKey }
-            prefs[KEY_CITIES] = json.encodeToString(cityListSerializer, list)
+            val encoded = json.encodeToString(cityListSerializer, list)
+            prefs[KEY_CITIES] = encoded
+            prefs[KEY_CITIES_BACKUP] = encoded // 双写备份（v0.0.4）
             if (prefs[KEY_SELECTED] == locationKey) {
                 prefs[KEY_SELECTED] = list.firstOrNull()?.locationKey.orEmpty()
             }
@@ -139,12 +157,32 @@ object CityRepository {
         }
     }
 
-    private fun Preferences.cities(): List<City> {
-        val raw = this[KEY_CITIES] ?: return emptyList()
-        return try {
+    // 解码状态：list 为可用城市；repairedFromBackup 表示主值损坏、已从备份读出；
+    // corrupted 表示主备均损坏（或不存在备份且主值损坏）
+    private data class CitiesState(
+        val list: List<City>,
+        val repairedFromBackup: Boolean,
+        val corrupted: Boolean,
+    )
+
+    private fun Preferences.decodeCities(): CitiesState {
+        val raw = this[KEY_CITIES] ?: return CitiesState(emptyList(), false, false)
+        val decoded = try {
             json.decodeFromString(cityListSerializer, raw)
         } catch (_: Exception) {
-            emptyList()
+            null
         }
+        if (decoded != null) return CitiesState(decoded, false, false)
+        val backup = this[KEY_CITIES_BACKUP]
+        if (backup != null) {
+            return try {
+                CitiesState(json.decodeFromString(cityListSerializer, backup), true, false)
+            } catch (_: Exception) {
+                CitiesState(emptyList(), false, true)
+            }
+        }
+        return CitiesState(emptyList(), false, true)
     }
+
+    private fun Preferences.cities(): List<City> = decodeCities().list
 }
