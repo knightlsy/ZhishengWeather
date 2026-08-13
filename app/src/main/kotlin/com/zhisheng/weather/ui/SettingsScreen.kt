@@ -59,7 +59,6 @@ import com.zhisheng.weather.data.QWeatherApi
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
 import com.zhisheng.weather.data.ThemeMode
-import com.zhisheng.weather.widget.ZhishengWidgetProvider
 import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCard
 import com.zhisheng.weather.ui.theme.ZhishengCardBorder
@@ -288,13 +287,7 @@ fun SettingsScreen(
                     "主题模式",
                     listOf("深色" to "dark", "浅色" to "light", "跟随系统" to "system"),
                     themeMode.key,
-                ) { v ->
-                    scope.launch {
-                        SettingsRepository.setThemeMode(ThemeMode.from(v))
-                        // 主题切换后立即重渲桌面小组件，避免桌面画风与 App 内脱节（v0.0.5）
-                        ZhishengWidgetProvider.refreshAll(context.applicationContext)
-                    }
-                }
+                ) { v -> scope.launch { SettingsRepository.setThemeMode(ThemeMode.from(v)) } }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
                     "天气氛围层",
