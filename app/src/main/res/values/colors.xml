@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 启动窗底：与 Color.kt 深/浅页面底对齐，避免浅色主题冷启动闪黑（v0.0.6） -->
+    <color name="splash_dark">#050507</color>
+    <color name="splash_light">#F2F4F5</color>
+</resources>

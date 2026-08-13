@@ -77,6 +77,7 @@ data class DailyWeather(
     val moonrise: String? = null,
     val moonset: String? = null,
     val moonPhase: String? = null,
+    val precipMm: Double? = null,
 )
 
 @Serializable

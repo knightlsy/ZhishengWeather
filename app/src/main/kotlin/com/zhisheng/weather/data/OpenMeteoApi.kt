@@ -21,7 +21,7 @@ object OpenMeteoApi {
         try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
                 "&current=visibility,dew_point_2m,cloud_cover,wind_gusts_10m" +
-                "&timezone=Asia%2FShanghai"
+                "&timezone=auto"
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
@@ -55,7 +55,7 @@ object OpenMeteoApi {
         try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
                 "&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max," +
-                "precipitation_probability_max,sunrise,sunset&forecast_days=16&timezone=auto"
+                "precipitation_probability_max,precipitation_sum,sunrise,sunset&forecast_days=16&timezone=auto"
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
@@ -92,6 +92,7 @@ data class OpenMeteoDaily(
     val weather_code: List<Int?>? = null,
     val wind_speed_10m_max: List<Double?>? = null,
     val precipitation_probability_max: List<Double?>? = null,
+    val precipitation_sum: List<Double?>? = null,
     val sunrise: List<String>? = null,
     val sunset: List<String>? = null,
 )
