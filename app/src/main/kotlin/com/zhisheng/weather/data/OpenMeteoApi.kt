@@ -20,12 +20,12 @@ object OpenMeteoApi {
     suspend fun fetch(lat: Double, lon: Double): OpenMeteoResult? = withContext(Dispatchers.IO) {
         try {
             val url = "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
-                "&current=visibility,dew_point_2m,cloud_cover,wind_gusts_10m,precipitation_probability" +
+                "&current=visibility,dew_point_2m,cloud_cover,wind_gusts_10m" +
                 "&timezone=Asia%2FShanghai"
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
-                json.decodeFromString<OpenMeteoResult>(resp.body!!.string())
+                json.decodeFromString<OpenMeteoResult>(resp.body?.string() ?: return@withContext null)
             }
         } catch (_: Exception) {
             null
@@ -42,7 +42,7 @@ object OpenMeteoApi {
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
-                json.decodeFromString<OpenMeteoHourlyResponse>(resp.body!!.string())
+                json.decodeFromString<OpenMeteoHourlyResponse>(resp.body?.string() ?: return@withContext null)
             }
         } catch (_: Exception) {
             null
@@ -59,7 +59,7 @@ object OpenMeteoApi {
             val request = Request.Builder().url(url).build()
             okHttp.newCall(request).execute().use { resp ->
                 if (!resp.isSuccessful) return@withContext null
-                json.decodeFromString<OpenMeteoDailyResult>(resp.body!!.string())
+                json.decodeFromString<OpenMeteoDailyResult>(resp.body?.string() ?: return@withContext null)
             }
         } catch (_: Exception) {
             null
@@ -76,7 +76,6 @@ data class OpenMeteoCurrent(
     val dew_point_2m: Double? = null,
     val cloud_cover: Double? = null,
     val wind_gusts_10m: Double? = null,
-    val precipitation_probability: Double? = null,
 )
 
 @Serializable

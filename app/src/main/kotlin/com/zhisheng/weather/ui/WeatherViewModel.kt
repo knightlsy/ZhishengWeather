@@ -8,14 +8,10 @@ import com.zhisheng.weather.data.CityRepository
 import com.zhisheng.weather.data.LocationSource
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
+import com.zhisheng.weather.data.WeatherCache
 import com.zhisheng.weather.data.WeatherRepository
-import com.zhisheng.weather.data.WidgetCache
-import com.zhisheng.weather.data.WidgetDay
-import com.zhisheng.weather.data.WidgetHour
-import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.City
 import com.zhisheng.weather.model.WeatherData
-import com.zhisheng.weather.widget.ZhishengWidgetProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,10 +19,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import kotlin.math.roundToInt
 
 data class DisplayPrefs(
     val showAqi: Boolean = true,
@@ -38,6 +30,7 @@ data class DisplayPrefs(
     val pressureUnit: String = "hpa",
     val scanlines: Boolean = true,
     val ambience: AmbienceLevel = AmbienceLevel.SUBTLE,
+    val bootAnim: Boolean = true,
 )
 
 data class HomeUiState(
@@ -51,6 +44,8 @@ data class HomeUiState(
     val prefs: DisplayPrefs = DisplayPrefs(),
     val locating: Boolean = false,
     val locateMessage: String? = null,
+    // 非空 = 当前展示的是离线缓存兜底数据，值为缓存年龄（毫秒）
+    val staleAgeMillis: Long? = null,
 )
 
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
@@ -59,6 +54,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val _loading = MutableStateFlow(false)
     private val _locating = MutableStateFlow(false)
     private val _locateMessage = MutableStateFlow<String?>(null)
+    private val _staleAge = MutableStateFlow<Long?>(null)
 
     private var lastFetchedKey: String? = null
     private var lastFetchKey: String? = null
@@ -93,13 +89,15 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             SettingsRepository.pressureUnit,
             SettingsRepository.scanlines,
             SettingsRepository.ambience,
-        ) { w, pr, sl, amb -> listOf(w, pr, sl, amb) }
+            SettingsRepository.bootAnim,
+        ) { w, pr, sl, amb, boot -> listOf(w, pr, sl, amb, boot) }
     ) { base, extra ->
         base.copy(
             windUnit = extra[0] as String,
             pressureUnit = extra[1] as String,
             scanlines = extra[2] as Boolean,
             ambience = extra[3] as AmbienceLevel,
+            bootAnim = extra[4] as Boolean,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DisplayPrefs())
 
@@ -118,10 +116,18 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
 
+    // combine 的 6 元没有具名 lambda 重载，与 baseState 一样用 Array 风格
     val uiState: StateFlow<HomeUiState> = combine(
-        baseState, displayPrefs, sourcePref, _locating, _locateMessage,
-    ) { base, prefs, src, locating, msg ->
-        base.copy(prefs = prefs, sourcePref = src, locating = locating, locateMessage = msg)
+        baseState, displayPrefs, sourcePref, _locating, _locateMessage, _staleAge,
+    ) { arr ->
+        @Suppress("UNCHECKED_CAST")
+        (arr[0] as HomeUiState).copy(
+            prefs = arr[1] as DisplayPrefs,
+            sourcePref = arr[2] as SourcePref,
+            locating = arr[3] as Boolean,
+            locateMessage = arr[4] as String?,
+            staleAgeMillis = arr[5] as Long?,
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
 
     init {
@@ -142,6 +148,9 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 refresh()
             }
         }
+        viewModelScope.launch {
+            SettingsRepository.purgeRetiredProviderData()
+        }
     }
 
     // force=false 用于 ON_RESUME 自动刷新：同城 10 分钟内不重复拉，
@@ -154,72 +163,50 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         lastFetchKey = target.locationKey
         lastFetchAt = now
         fetchJob?.cancel()
-        fetchJob = viewModelScope.launch {
+        var job: kotlinx.coroutines.Job? = null
+        job = viewModelScope.launch {
             _loading.value = true
-            val result = WeatherRepository.fetchWeather(target, sourcePref.value)
-            _weather.value = result
-            _loading.value = false
-            // 抓到有效数据就写一份小组件快照并刷新桌面（失败不影响主流程）
-            if (result.current != null) {
-                runCatching { saveWidgetSnapshot(target, result) }
+            try {
+                // 全局超时兜底：三源降级链最坏可串行 60s+，超过 25s 直接判失败走离线缓存。
+                // 注意 TimeoutCancellationException 是 CancellationException 子类，必须先于它 catch（v0.0.4）。
+                var result = try {
+                    kotlinx.coroutines.withTimeout(FETCH_TIMEOUT_MS) {
+                        WeatherRepository.fetchWeather(target, sourcePref.value)
+                    }
+                } catch (te: kotlinx.coroutines.TimeoutCancellationException) {
+                    android.util.Log.w("ZhishengWeather", "抓取超时 ${target.name}，走缓存兜底")
+                    WeatherData(error = "请求超时")
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (e: Exception) {
+                    android.util.Log.w("ZhishengWeather", "抓取异常 ${target.name}", e)
+                    WeatherData(error = e.message ?: "网络错误")
+                }
+                if (result.current == null) {
+                    // 失败兜底：展示该城最近一次成功数据，标注缓存年龄；无缓存才显示错误
+                    val cached = WeatherCache.load(getApplication(), target.locationKey)
+                    if (cached != null) {
+                        result = cached.data
+                        _staleAge.value = System.currentTimeMillis() - cached.savedAtMillis
+                        android.util.Log.i("ZhishengWeather", "${target.name} 抓取失败，展示 ${_staleAge.value}ms 前的缓存")
+                    } else {
+                        _staleAge.value = null
+                    }
+                } else {
+                    _staleAge.value = null
+                    runCatching { WeatherCache.save(getApplication(), target.locationKey, result) }
+                    // 抓到有效数据就写一份小组件快照并刷新桌面（失败不影响主流程）
+                    runCatching { WidgetSnapshotBuilder.save(getApplication(), target, result) }
+                }
+                _weather.value = result
+            } finally {
+                // 仅当自己仍是当前任务时才清 loading：换城市取消旧任务时，
+                // 旧任务的 finally 不应把新任务刚置的 loading 清掉（v0.0.3）
+                if (fetchJob === job) _loading.value = false
             }
         }
+        fetchJob = job
     }
-
-    private suspend fun saveWidgetSnapshot(city: City, data: WeatherData) {
-        val ctx = getApplication<Application>()
-        val unit = SettingsRepository.tempUnit.first()
-        fun t(v: Double?): Int? = v?.let {
-            (if (unit == "f") it * 9.0 / 5.0 + 32.0 else it).roundToInt()
-        }
-        val today = data.daily.firstOrNull()
-        val hi = if (today?.high != null && today.low != null) maxOf(today.high, today.low) else today?.high
-        val lo = if (today?.high != null && today.low != null) minOf(today.high, today.low) else today?.low
-        val hourFmt = DateTimeFormatter.ofPattern("H时")
-        val zone = ZoneId.systemDefault()
-
-        WidgetCache.save(
-            ctx,
-            WidgetSnapshot(
-                city = city.name,
-                temp = t(data.current?.temperature),
-                high = t(hi),
-                low = t(lo),
-                feelsLike = t(data.current?.feelsLike),
-                text = data.current?.weatherText ?: data.current?.condition?.label.orEmpty(),
-                conditionName = data.current?.condition?.name.orEmpty(),
-                aqi = data.aqi?.value,
-                aqiLevel = data.aqi?.level.orEmpty(),
-                updateMillis = data.updateTime ?: System.currentTimeMillis(),
-                source = data.dataSource.orEmpty(),
-                // 跳过"现在"那格，小组件右侧展示接下来的四小时
-                hours = data.hourly.drop(1).take(4).map { h ->
-                    WidgetHour(
-                        label = hourFmt.format(Instant.ofEpochMilli(h.timeMillis).atZone(zone)),
-                        temp = t(h.temperature),
-                        conditionName = h.condition?.name.orEmpty(),
-                    )
-                },
-                days = data.daily.take(3).mapIndexed { i, d ->
-                    val dh = if (d.high != null && d.low != null) maxOf(d.high, d.low) else d.high
-                    val dl = if (d.high != null && d.low != null) minOf(d.high, d.low) else d.low
-                    WidgetDay(
-                        label = if (i == 0) "今天" else weekdayZh(d.dateMillis, zone),
-                        high = t(dh),
-                        low = t(dl),
-                        conditionName = d.condition?.name.orEmpty(),
-                    )
-                },
-            ),
-        )
-        ZhishengWidgetProvider.refreshAll(ctx)
-    }
-
-    private fun weekdayZh(millis: Long, zone: ZoneId): String =
-        when (Instant.ofEpochMilli(millis).atZone(zone).dayOfWeek.value) {
-            1 -> "周一"; 2 -> "周二"; 3 -> "周三"; 4 -> "周四"
-            5 -> "周五"; 6 -> "周六"; else -> "周日"
-        }
 
     fun selectCity(locationKey: String) {
         _locateMessage.value = null
@@ -292,5 +279,6 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
     private companion object {
         const val AUTO_LOCATE_INTERVAL_MS = 30 * 60_000L
+        const val FETCH_TIMEOUT_MS = 25_000L
     }
 }
