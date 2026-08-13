@@ -12,6 +12,7 @@ import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
+import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.alertLevelOf
 import com.zhisheng.weather.model.wmoToCondition
 import kotlinx.coroutines.async
@@ -38,7 +39,7 @@ object WeatherRepository {
             SourcePref.AUTO -> autoChain(city)
         }
         // 逐日不足 15 天用 Open-Meteo 补齐（海外城市小米源天数少的兜底）
-        return backfillHourly(backfillDaily(data, city), city)
+        return densifyPrecip(backfillHourly(backfillDaily(data, city), city))
     }
 
     // AUTO 链：down 的源直接跳过，不再白等超时；失败留痕并计入熔断计数
@@ -61,6 +62,11 @@ object WeatherRepository {
         }
         // 全部 down / 全部失败：最后硬试小米，再落公共源（保留原兜底行为）
         return fetchXiaomi(city).ifFailed { OpenMeteoSource.fetch(city) }
+    }
+
+    private fun densifyPrecip(data: WeatherData): WeatherData {
+        if (data.rainMinutes.size < 2) return data
+        return data.copy(rainMinutes = Nowcast.densifyToMinutes(data.rainMinutes))
     }
 
     // 小米源失败时再落一层公共源：此前和风+小米双失败会直接整屏红字（v0.0.2）
@@ -171,6 +177,7 @@ object WeatherRepository {
                         condition = WeatherCondition.fromQwCode(dd.daytime?.condition?.code),
                         windSpeed = speedKmh(dd.daytime?.wind?.speed),
                         precipProbability = dd.daytime?.precipitation?.probability,
+                        precipMm = dd.daytime?.precipitation?.amount?.value,
                         sunrise = formatClock(dd.astro?.sunrise),
                         sunset = formatClock(dd.astro?.sunset),
                         moonrise = formatClock(dd.astro?.moonrise),
@@ -457,6 +464,7 @@ object WeatherRepository {
                     condition = wmoToCondition(om.weather_code?.getOrNull(i), true),
                     windSpeed = om.wind_speed_10m_max?.getOrNull(i),
                     precipProbability = om.precipitation_probability_max?.getOrNull(i)?.let { Math.round(it).toInt() },
+                    precipMm = om.precipitation_sum?.getOrNull(i),
                     sunrise = formatLocalClock(om.sunrise?.getOrNull(i)),
                     sunset = formatLocalClock(om.sunset?.getOrNull(i)),
                 ),
@@ -518,6 +526,7 @@ object WeatherRepository {
         val dailyWindSpeed = r.forecastDaily?.wind?.speed?.value
         val dailyPrecip = r.forecastDaily?.precipitationProbability?.value
         val dailySun = r.forecastDaily?.sunRiseSet?.value
+        val dailyMoon = r.forecastDaily?.moonPhase?.value
         return buildList {
             val highs = r.forecastDaily?.temperature?.value
             val codes = r.forecastDaily?.weather?.value
@@ -545,6 +554,7 @@ object WeatherRepository {
                         precipProbability = dailyPrecip?.getOrNull(i)?.toIntOrNull(),
                         sunrise = formatClock(sun?.from),
                         sunset = formatClock(sun?.to),
+                        moonPhase = dailyMoon?.getOrNull(i),
                     )
                 )
             }
@@ -634,7 +644,9 @@ object WeatherRepository {
             alerts = alerts,
             // v0.0.4：统一为本地抓取时刻（此前小米用服务器时间，与和风/OM 语义不一致）
             updateTime = System.currentTimeMillis(),
-            rainNowcast = r.minutely?.precipitation?.description,
+            rainNowcast = xiaomiNowcast(r.minutely),
+            // v0.0.6：小米 precipitation.value 为约 120 个逐分钟点；此前只接了文案和雨区距离
+            rainMinutes = xiaomiMinuteSeries(r.minutely?.precipitation),
             // v0.0.4：小米 kmNum（雨区距离）接入，分钟降水卡下方展示
             rainDistanceKm = r.minutely?.precipitation?.kmNum?.toDoubleOrNull(),
             carWashOk = r.indices?.indices?.firstOrNull { it.type == "carWash" }?.value?.let { it == "0" },
@@ -668,6 +680,25 @@ object WeatherRepository {
         val normalized = ((deg % 360.0) + 360.0) % 360.0
         val idx = (((normalized + 22.5) / 45.0).toInt()) % 8
         return dirs[idx]
+    }
+
+    private fun xiaomiNowcast(minutely: XiaomiMinutely?): String? {
+        val precip = minutely?.precipitation
+        val prob = minutely?.probability
+        return listOf(
+            precip?.description,
+            prob?.probabilityDescV2,
+            prob?.maxProbability,
+            prob?.probabilityDesc,
+        ).firstOrNull { !it.isNullOrBlank() }
+    }
+
+    private fun xiaomiMinuteSeries(precip: XiaomiMinutelyPrecip?): List<MinutePrecip> {
+        val values = precip?.value?.map { it.toFloat() }.orEmpty()
+        if (values.isEmpty()) return emptyList()
+        val start = parseTimeMillis(precip?.pubTime).takeIf { it != 0L }
+            ?: System.currentTimeMillis()
+        return Nowcast.minuteSeries(values, start)
     }
 
     // 时刻（HH:mm）

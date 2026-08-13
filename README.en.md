@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.5.1-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.6-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.5.1-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.0.6" src="https://img.shields.io/badge/current-0.0.6-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -115,6 +115,10 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
 
+## Version 0.0.6
+
+Open the app and see the next two hours at a glance. A one-line briefing sits under the big temperature (when rain starts, alerts, tomorrow's swing). The precipitation card says "rain starts in X minutes". The public Xiaomi feed now includes the 120-minute nowcast series. Tap a daily row for sunrise, sunset, and moon data. MIUI forced-dark is disabled, and light theme no longer flashes black on cold start. Notifications are not in this release.
+
 ## Version 0.0.5
 
 Version 0.0.5 is mostly about themes. Alongside dark mode there is now a "cold jade" light theme — cool gray paper with jade as the data color — and the widgets change skin with it. It also fixes two bugs that had been hiding in plain sight.
@@ -185,6 +189,17 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
+<summary><b>0.0.6 // NOWCAST</b></summary>
+
+- One-line briefing under the big temperature: rain timing, alerts, tomorrow's swing
+- Precipitation card says when rain starts; public Xiaomi feed now includes the 120-minute series
+- Daily rows expand for sunrise, sunset, and moon data
+- Disabled forced-dark; light theme no longer flashes black on cold start
+- Precip chart and hourly row height stay consistent across providers; a locked source no longer falls back to another provider's cache
+
+</details>
+
+<details>
 <summary><b>0.0.4 // WIDGET OVERHAUL</b></summary>
 
 - Rebuilt all three widgets with rounded panels, larger type and glyphs, and a clearer information hierarchy

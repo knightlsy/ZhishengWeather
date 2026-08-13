@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.5.1-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.6-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.0.5" src="https://img.shields.io/badge/当前版本-0.0.5.1-31C9DB?style=flat-square"/>
+  <img alt="当前版本 0.0.6" src="https://img.shields.io/badge/当前版本-0.0.6-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -115,6 +115,12 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
 
+## 0.0.6 更新
+
+打开就能看懂接下来两小时：大温度下面加一句话（何时下雨、预警、明天冷不冷）；降水卡直接写清几点下；公共版小米源补上逐分钟降水柱；点某一天可展开看出日落和月相。顺手关掉 MIUI 强制深色反转，浅色启动不再闪黑。
+
+当前回归检查见单元测试与构建。通知功能本版不做。
+
 ## 0.0.5 更新
 
 0.0.5 的重头戏是主题。深色之外新增了浅色「清冷翡翠」——冷灰纸面打底、翡冷翠做数据色，桌面小组件跟着一起换；顺手修了两个藏得比较深的毛病。
@@ -185,6 +191,17 @@ qw.private_key=<Ed25519 私钥，单行>
 ## 更新记录
 
 <details open>
+<summary><b>0.0.6 // NOWCAST</b></summary>
+
+- 主屏大温度下增加一句话摘要：何时下雨、预警、明天温差
+- 分钟降水卡写明「X 分钟后开始下雨」；公共版小米源接上 120 分钟序列
+- 逐日行可点开，看出日落与月相
+- 关闭系统强制深色；浅色主题冷启动不再闪黑
+- 换源后降水图与逐时行高对齐；锁定源失败不再串用上一源缓存
+
+</details>
+
+<details>
 <summary><b>0.0.5 // COLD JADE</b></summary>
 
 - 新增「清冷翡翠」浅色主题，深色 / 浅色 / 跟随系统三档

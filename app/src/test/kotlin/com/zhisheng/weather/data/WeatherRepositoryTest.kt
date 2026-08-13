@@ -28,4 +28,13 @@ class WeatherRepositoryTest {
         assertNull(WeatherRepository.windDirection(Double.POSITIVE_INFINITY))
         assertNull(WeatherRepository.windDirection(Double.NEGATIVE_INFINITY))
     }
+
+    @Test
+    fun lockedSourceDoesNotAcceptAnotherProvidersCache() {
+        assertEquals(true, SourcePref.AUTO.matches("XIAOMI"))
+        assertEquals(true, SourcePref.XIAOMI.matches("XIAOMI"))
+        assertEquals(false, SourcePref.OPEN_METEO.matches("XIAOMI"))
+        assertEquals(false, SourcePref.QWEATHER.matches("OPEN-METEO"))
+        assertEquals(true, SourcePref.OPEN_METEO.matches("OPEN-METEO"))
+    }
 }

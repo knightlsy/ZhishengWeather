@@ -24,6 +24,14 @@ enum class SourcePref(val key: String, val cn: String, val en: String, val desc:
     companion object {
         fun from(v: String?): SourcePref = entries.firstOrNull { it.key == v } ?: AUTO
     }
+
+    // 离线缓存按源认领：锁了公共源就不能把上一手小米数据当成当前结果。
+    fun matches(dataSource: String?): Boolean = when (this) {
+        AUTO -> true
+        QWEATHER -> dataSource == "QWEATHER"
+        XIAOMI -> dataSource == "XIAOMI"
+        OPEN_METEO -> dataSource == "OPEN-METEO"
+    }
 }
 
 // 氛围层强度：克制为默认（背景层低透明度，绝不压信息）

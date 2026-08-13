@@ -183,8 +183,9 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                     WeatherData(error = e.message ?: "网络错误")
                 }
                 if (result.current == null) {
-                    // 失败兜底：展示该城最近一次成功数据，标注缓存年龄；无缓存才显示错误
+                    // 失败兜底：只复用同一数据源的缓存。换源失败时不能把上一源的卡片当成当前结果。
                     val cached = WeatherCache.load(getApplication(), target.locationKey)
+                        ?.takeIf { sourcePref.value.matches(it.data.dataSource) }
                     if (cached != null) {
                         result = cached.data
                         _staleAge.value = System.currentTimeMillis() - cached.savedAtMillis
