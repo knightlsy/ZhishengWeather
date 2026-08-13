@@ -26,12 +26,13 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20260809
-        versionName = "0.0.3"
+        // 20260820：0.0.5（浅色模式）——> 20260818 可覆盖安装 0.0.4
+        versionCode = 20260820
+        versionName = "0.0.5"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
-        buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid", "TMWDYM6VB4")}\"")
+        buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid")}\"")
         buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) "" else lp("qw.private_key")}\"")
     }
 
@@ -73,6 +74,11 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        // android.util.Log 等在纯 JVM 单测中返回默认值而非抛「not mocked」
+        //（SourceHealth 熔断等逻辑的日志路径进入单测，v0.0.4）
+        unitTests.isReturnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -88,11 +94,11 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
-    implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.datastore.preferences)
     implementation(libs.coroutines.android)
     implementation(libs.bouncycastle)
+    implementation(libs.work.runtime.ktx)
     testImplementation(libs.junit)
     debugImplementation(libs.compose.tooling)
 }

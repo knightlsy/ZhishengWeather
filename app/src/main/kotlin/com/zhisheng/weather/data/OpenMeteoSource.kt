@@ -5,8 +5,8 @@ import com.zhisheng.weather.model.City
 import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.MinutePrecip
-import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
+import com.zhisheng.weather.model.wmoToCondition
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -81,13 +81,14 @@ object OpenMeteoSource {
             }
 
             val cur = m.current
-            val isDay = cur?.is_day != 0
+            // is_day 缺失时按城市本地小时兜底判昼夜，避免夜间显示太阳（v0.0.4：原 null 恒判白天）
+            val isDay = cur?.is_day?.let { it != 0 } ?: isDayAt(System.currentTimeMillis(), offsetMs)
             val current = cur?.let {
                 CurrentWeather(
                     temperature = it.temperature_2m,
                     feelsLike = it.apparent_temperature,
-                    condition = wmo(it.weather_code, isDay),
-                    weatherText = wmo(it.weather_code, isDay).label,
+                    condition = wmoToCondition(it.weather_code, isDay),
+                    weatherText = wmoToCondition(it.weather_code, isDay).label,
                     humidity = it.relative_humidity_2m,
                     windSpeed = it.wind_speed_10m,
                     windDirectionDeg = it.wind_direction_10m,
@@ -109,7 +110,7 @@ object OpenMeteoSource {
                     if (e < nowMs - 3_600_000L) null else HourlyWeather(
                         timeMillis = e,
                         temperature = h.temperature_2m?.getOrNull(i),
-                        condition = wmo(h.weather_code?.getOrNull(i), isDayAt(e, offsetMs)),
+                        condition = wmoToCondition(h.weather_code?.getOrNull(i), isDayAt(e, offsetMs)),
                         windSpeed = h.wind_speed_10m?.getOrNull(i),
                         precipProb = h.precipitation_probability?.getOrNull(i)?.let { p -> Math.round(p).toInt() },
                     )
@@ -129,7 +130,7 @@ object OpenMeteoSource {
                             dateMillis = e,
                             high = d.temperature_2m_max?.getOrNull(i),
                             low = d.temperature_2m_min?.getOrNull(i),
-                            condition = wmo(d.weather_code?.getOrNull(i), true),
+                            condition = wmoToCondition(d.weather_code?.getOrNull(i), true),
                             windSpeed = d.wind_speed_10m_max?.getOrNull(i),
                             precipProbability = d.precipitation_probability_max?.getOrNull(i)
                                 ?.let { p -> Math.round(p).toInt() },
@@ -148,7 +149,7 @@ object OpenMeteoSource {
                     val e = epochOf(t) ?: return@mapIndexedNotNull null
                     if (e < nowMs - 900_000L) null
                     else MinutePrecip(e, mm.precipitation?.getOrNull(i)?.toFloat() ?: 0f)
-                }?.take(9)
+                }?.take(8)
             } ?: emptyList()
 
             val aqiInfo = air?.current?.let { a ->
@@ -206,18 +207,7 @@ object OpenMeteoSource {
         }
     }
 
-    // WMO code → 条件枚举，带昼夜变体
-    private fun wmo(code: Int?, isDay: Boolean): WeatherCondition = when (code) {
-        0 -> if (isDay) WeatherCondition.CLEAR else WeatherCondition.CLEAR_NIGHT
-        1, 2 -> if (isDay) WeatherCondition.PARTLY_CLOUDY else WeatherCondition.PARTLY_CLOUDY_NIGHT
-        3 -> WeatherCondition.OVERCAST
-        45, 48 -> WeatherCondition.FOG
-        51, 53, 55, 56, 57 -> WeatherCondition.DRIZZLE
-        61, 63, 65, 66, 67, 80, 81, 82 -> WeatherCondition.RAIN
-        71, 73, 75, 77, 85, 86 -> WeatherCondition.SNOW
-        95, 96, 99 -> WeatherCondition.THUNDERSTORM
-        else -> WeatherCondition.CLOUDY
-    }
+    // WMO 映射已收敛到 model.WmoMaps.wmoToCondition（v0.0.4，原私有 wmo 与 WeatherRepository.fromWmoCode 双份重复）
 
     // —— 城市检索（Open-Meteo Geocoding，免 key，支持中文） ——
     suspend fun searchCity(query: String): List<City> {

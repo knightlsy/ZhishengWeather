@@ -89,6 +89,7 @@ import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
+import com.zhisheng.weather.R
 import com.zhisheng.weather.ui.Fmt
 import com.zhisheng.weather.ui.HomeUiState
 import com.zhisheng.weather.ui.WeatherViewModel
@@ -98,6 +99,7 @@ import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCard
 import com.zhisheng.weather.ui.theme.ZhishengCardBorder
 import com.zhisheng.weather.ui.theme.ZhishengCyan
+import com.zhisheng.weather.ui.theme.LocalZhishengPalette
 import com.zhisheng.weather.ui.theme.ZhishengMint
 import androidx.compose.ui.graphics.lerp as colorLerp
 import com.zhisheng.weather.ui.theme.ZhishengOrange
@@ -106,6 +108,7 @@ import com.zhisheng.weather.ui.theme.ZhishengSurface
 import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
+import com.zhisheng.weather.ui.theme.ZhishengWarning
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -187,8 +190,9 @@ fun HomeScreen(
                                     unit = uiState.tempUnit,
                                     showTyphoon = uiState.showTyphoon,
                                     prefs = uiState.prefs,
+                                    staleAgeMillis = uiState.staleAgeMillis,
                                 )
-                                else -> BootState()
+                                else -> BootState(uiState.prefs.bootAnim)
                             }
                         }
                     }
@@ -199,15 +203,19 @@ fun HomeScreen(
     }
 }
 
-// —— CRT 扫描线氛围层（3dp 周期，3% 透明度，不拦截触摸） ——
+// —— 扫描线氛围层（3dp 周期，不拦截触摸）——
+// 深色 = CRT 扫描线（白 2.5%）；浅色 = 纸面细纹（墨线 2%，v0.0.5）
 @Composable
 private fun Scanlines() {
+    val lineColor = LocalZhishengPalette.current.run {
+        if (isLight) text.copy(alpha = 0.02f) else Color.White.copy(alpha = 0.025f)
+    }
     Canvas(modifier = Modifier.fillMaxSize()) {
         val step = 3.dp.toPx()
         var y = 0f
         while (y < size.height) {
             drawLine(
-                color = Color.White.copy(alpha = 0.025f),
+                color = lineColor,
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1f,
@@ -302,6 +310,7 @@ private fun WeatherContent(
     unit: String,
     showTyphoon: Boolean,
     prefs: com.zhisheng.weather.ui.DisplayPrefs,
+    staleAgeMillis: Long?,
 ) {
     // 入场动画总开关：状态提升到 LazyColumn 之上，只驱动一次交错入场（v0.0.1 修复快滑闪卡）
     var entered by remember { mutableStateOf(false) }
@@ -328,7 +337,7 @@ private fun WeatherContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 40.dp),
     ) {
-        item { StatusLine(city, data) }
+        item { StatusLine(city, data, staleAgeMillis) }
         data.current?.let { cur ->
             item { Stagger(nextStagger(), entered) { m -> HeroSection(cur, data, unit, prefs, m) } }
         }
@@ -343,7 +352,7 @@ private fun WeatherContent(
         if (showPrecip) {
             val n = nextIndex()
             item { SectionTitle(n, "分钟降水", "PRECIP") }
-            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data.rainMinutes, data.rainNowcast, m) } }
+            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data.rainMinutes, data.rainNowcast, data.rainDistanceKm, m) } }
         }
         if (showDaily) {
             val n = nextIndex()
@@ -385,7 +394,7 @@ private fun WeatherContent(
 
 // —— 状态行：坐标 / 更新时间 / 数据源 ——
 @Composable
-private fun StatusLine(city: com.zhisheng.weather.model.City?, data: WeatherData) {
+private fun StatusLine(city: com.zhisheng.weather.model.City?, data: WeatherData, staleAgeMillis: Long?) {
     val coord = city?.let {
         // 负坐标按 S/W 显示，避免出现 "-33.90N" 这种矛盾写法（v0.0.1）
         String.format(
@@ -394,17 +403,33 @@ private fun StatusLine(city: com.zhisheng.weather.model.City?, data: WeatherData
             Math.abs(it.longitude), if (it.longitude >= 0) "E" else "W",
         )
     } ?: "----"
+    // 离线缓存兜底时标注缓存年龄（<10 分钟不打扰，只给正常更新时间）
+    val updText = if (staleAgeMillis != null && staleAgeMillis >= 10 * 60_000L) {
+        "UPD ${staleAgeMillis / 60_000L}分钟前 · 缓存"
+    } else {
+        "UPD ${data.updateTime?.let { formatTime(it) } ?: "--"}"
+    }
     Row(
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(coord, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary, letterSpacing = 1.sp)
-        Spacer(Modifier.weight(1f))
         Text(
-            "UPD ${data.updateTime?.let { formatTime(it) } ?: "--"}  //  ${data.dataSource ?: "LINK"}",
+            text = coord,
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary,
             letterSpacing = 1.sp,
+            maxLines = 1,
+            softWrap = false,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            "$updText // SRC ${dataSourceShortLabel(data.dataSource)}",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (staleAgeMillis != null && staleAgeMillis >= 10 * 60_000L) ZhishengOrange else ZhishengTextTertiary,
+            letterSpacing = 1.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
     }
 }
@@ -464,7 +489,9 @@ private fun HeroSection(
                 }
             }
             Box(contentAlignment = Alignment.Center) {
-                // 六边形 AT 力场底纹
+                // 六边形 AT 力场底纹（Canvas lambda 非 composable 上下文，颜色提前取值）
+                val hexOuter = ZhishengOrange.copy(alpha = 0.22f)
+                val hexInner = ZhishengCyan.copy(alpha = 0.12f)
                 Canvas(modifier = Modifier.size(116.dp)) {
                     val c = center
                     val r = size.minDimension / 2f
@@ -476,7 +503,7 @@ private fun HeroSection(
                         }
                         close()
                     }
-                    drawPath(path, ZhishengOrange.copy(alpha = 0.22f), style = Stroke(1.5f))
+                    drawPath(path, hexOuter, style = Stroke(1.5f))
                     drawPath(
                         androidx.compose.ui.graphics.Path().apply {
                             val r2 = r * 0.82f
@@ -487,7 +514,7 @@ private fun HeroSection(
                             }
                             close()
                         },
-                        ZhishengCyan.copy(alpha = 0.12f),
+                        hexInner,
                         style = Stroke(1f),
                     )
                 }
@@ -523,7 +550,7 @@ private fun AnimatedTemp(celsius: Double?, unit: String) {
     )
 }
 
-// —— 预警横幅：警示斜纹 + 红边框 ——
+// —— 预警横幅：警示斜纹 + 按等级着色边框 ——
 @Composable
 private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
     // 展开态按标题记忆：原来按列表位置 remember，预警条数变化时展开态会错位到别条（v0.0.2）
@@ -533,13 +560,15 @@ private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
         alerts.forEach { alert ->
             val expanded = alert.title in expandedTitles
+            // v0.0.4：三源等级归一后按国标四档着色，未识别档退回警报红
+            val c = alertColor(alert.severity)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp)
                     .clip(RectangleShape)
                     .background(ZhishengCard)
-                    .border(1.dp, ZhishengRed.copy(alpha = 0.7f), RectangleShape)
+                    .border(1.dp, c.copy(alpha = 0.7f), RectangleShape)
                     .clickable {
                         if (expanded) expandedTitles.remove(alert.title)
                         else expandedTitles.add(alert.title)
@@ -548,16 +577,16 @@ private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
             ) {
                 // 顶部警示斜纹
                 Canvas(modifier = Modifier.fillMaxWidth().height(5.dp)) {
-                    hazardStripes(this, ZhishengRed.copy(alpha = 0.75f))
+                    hazardStripes(this, c.copy(alpha = 0.75f))
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    BlinkDot(blinkOn)
+                    BlinkDot(blinkOn, c)
                     Spacer(Modifier.width(10.dp))
                     Column(Modifier.weight(1f)) {
-                        Text(alert.title, style = MaterialTheme.typography.titleSmall, color = ZhishengRed, fontWeight = FontWeight.Bold)
+                        Text(alert.title, style = MaterialTheme.typography.titleSmall, color = c, fontWeight = FontWeight.Bold)
                         alert.pubTime?.let {
                             Text(formatAlertTime(it), style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
                         }
@@ -565,11 +594,11 @@ private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
                     Text(
                         if (expanded) "[-]" else "[+]",
                         style = MaterialTheme.typography.labelMedium,
-                        color = ZhishengRed,
+                        color = c,
                     )
                 }
                 if (expanded && !alert.detail.isNullOrBlank()) {
-                    HorizontalDivider(color = ZhishengRed.copy(alpha = 0.3f), thickness = 1.dp)
+                    HorizontalDivider(color = c.copy(alpha = 0.3f), thickness = 1.dp)
                     Text(
                         alert.detail,
                         style = MaterialTheme.typography.bodySmall,
@@ -580,6 +609,16 @@ private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
             }
         }
     }
+}
+
+// 预警等级 → 着色（国标蓝/黄/橙/红；黄色按主题取色板 warning：深色荧光黄 / 浅色油墨黄）
+@Composable
+private fun alertColor(level: com.zhisheng.weather.model.AlertLevel): Color = when (level) {
+    com.zhisheng.weather.model.AlertLevel.RED -> ZhishengRed
+    com.zhisheng.weather.model.AlertLevel.ORANGE -> ZhishengOrange
+    com.zhisheng.weather.model.AlertLevel.YELLOW -> ZhishengWarning
+    com.zhisheng.weather.model.AlertLevel.BLUE -> ZhishengCyan
+    com.zhisheng.weather.model.AlertLevel.UNKNOWN -> ZhishengRed
 }
 
 private fun hazardStripes(scope: DrawScope, color: Color) {
@@ -614,11 +653,13 @@ private fun rememberBlink(): Boolean {
 }
 
 @Composable
-private fun BlinkDot(on: Boolean) {
+private fun BlinkDot(on: Boolean, color: Color? = null) {
+    // 默认取主题警报红（composable getter 不能出现在默认参数表达式里，v0.0.5）
+    val c = color ?: ZhishengRed
     Box(
         Modifier
             .size(8.dp)
-            .background(if (on) ZhishengRed else ZhishengRed.copy(alpha = 0.25f)),
+            .background(if (on) c else c.copy(alpha = 0.25f)),
     )
 }
 
@@ -656,6 +697,7 @@ private fun HudCard(
     }
 }
 
+@Composable
 private fun Modifier.hudBorder() = this
     .border(1.dp, ZhishengCardBorder, RectangleShape)
     .padding(0.dp)
@@ -735,6 +777,39 @@ private fun HourlySection(
 private fun conv(c: Double?, unit: String): Double? =
     c?.let { if (unit == "f") it * 9.0 / 5.0 + 32.0 else it }
 
+// 归一化温度条参数：返回 (lo, hi, widthFraction)，均限制在 [0,1]。
+// low/high 为数据源原始摄氏度；weekMin/weekMax 为已按 unit 换算的显示温度
+// （与 DailySection 调用约定一致：weekMin/weekMax 由 lows/highs 经 conv 预算）。
+// 提取为纯函数以便对 lo 接近 1 的极端温度分布做回归（v0.0.3）。
+// 原内联写法 (hi-lo).coerceIn(0.03f, 1f-lo) 当 lo>0.97 时下界大于上界，
+// Float.coerceIn 会抛 IllegalArgumentException，致逐日区域整体崩溃。
+internal fun tempBarParams(
+    low: Double?,
+    high: Double?,
+    weekMin: Double,
+    weekMax: Double,
+    unit: String,
+): Triple<Float, Float, Float> {
+    val range = (weekMax - weekMin).coerceAtLeast(1.0)
+    val a = (((conv(low, unit) ?: weekMin) - weekMin) / range).toFloat()
+    val b = (((conv(high, unit) ?: weekMax) - weekMin) / range).toFloat()
+    val lo = minOf(a, b).coerceIn(0f, 1f)
+    val hi = maxOf(a, b).coerceIn(0f, 1f)
+    // 空间允许时保底 0.03f 可见；lo 接近 1 时收缩宽度，避免下界超过上界且不溢出右边界。
+    val maxW = (1f - lo).coerceAtLeast(0f)
+    val minW = minOf(0.03f, maxW)
+    val w = (hi - lo).coerceIn(minW, maxW)
+    return Triple(lo, hi, w)
+}
+
+// 昨日温差：按当前显示单位换算后取整再相减，保证 ΔT 与高低温读数一致（v0.0.3）。
+// 原代码直接用原始摄氏度相减，华氏度模式下 ΔT 会和高低温读数对不上。
+internal fun tempDelta(todayHigh: Double?, yesterdayHigh: Double?, unit: String): Int? {
+    if (todayHigh == null || yesterdayHigh == null) return null
+    return (conv(todayHigh, unit) ?: todayHigh).roundToInt() -
+        (conv(yesterdayHigh, unit) ?: yesterdayHigh).roundToInt()
+}
+
 @Composable
 private fun HourlyItem(
     h: HourlyWeather,
@@ -766,7 +841,9 @@ private fun HourlyItem(
             color = ZhishengText,
         )
         Spacer(Modifier.height(3.dp))
-        // 连续曲线：左半段接上一格中点，右半段接下一格中点
+        // 连续曲线：左半段接上一格中点，右半段接下一格中点（颜色提前取值，Canvas lambda 非 composable）
+        val curveMint = ZhishengMint
+        val curveBg = ZhishengBg
         Canvas(modifier = Modifier.fillMaxWidth().height(30.dp)) {
             val range = (maxT - minT).coerceAtLeast(1.0).toFloat()
             val top = 4f
@@ -794,7 +871,7 @@ private fun HourlyItem(
                 lineTo(pLeft?.x ?: cx, size.height)
                 close()
             }
-            drawPath(fill, ZhishengMint.copy(alpha = 0.07f))
+            drawPath(fill, curveMint.copy(alpha = 0.07f))
 
             // 折线本体
             val line = Path().apply {
@@ -802,14 +879,14 @@ private fun HourlyItem(
                 lineTo(pCur.x, pCur.y)
                 pRight?.let { lineTo(it.x, it.y) }
             }
-            drawPath(line, ZhishengMint.copy(alpha = 0.75f), style = Stroke(1.6f))
+            drawPath(line, curveMint.copy(alpha = 0.75f), style = Stroke(1.6f))
 
             // 当前小时用实心亮点强调，其余用小空心点
             if (first) {
-                drawCircle(ZhishengMint, 3.2f, pCur)
+                drawCircle(curveMint, 3.2f, pCur)
             } else {
-                drawCircle(ZhishengBg, 2.6f, pCur)
-                drawCircle(ZhishengMint.copy(alpha = 0.85f), 2.6f, pCur, style = Stroke(1.2f))
+                drawCircle(curveBg, 2.6f, pCur)
+                drawCircle(curveMint.copy(alpha = 0.85f), 2.6f, pCur, style = Stroke(1.2f))
             }
         }
         Spacer(Modifier.height(3.dp))
@@ -823,12 +900,25 @@ private fun HourlyItem(
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary,
         )
+        // 逐时 AQI（v0.0.4：小米独有字段接入，其余源为 null 不占位）
+        h.aqi?.let { aqiV ->
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = "AQI $aqiV",
+                style = MaterialTheme.typography.labelSmall,
+                color = aqiColor(aqiV),
+            )
+        }
     }
 }
 
 // —— 分钟降水：柱状雷达图 ——
 @Composable
-private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, modifier: Modifier) {
+private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistanceKm: Double?, modifier: Modifier) {
+    // Canvas lambda 非 composable，柱色与标记线颜色提前取值
+    val barCyan = ZhishengCyan.copy(alpha = 0.85f)
+    val barBorder = ZhishengCardBorder
+    val nowLineOrange = ZhishengOrange
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
             summary?.let {
@@ -843,7 +933,7 @@ private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, modifier: 
                 minutes.forEachIndexed { i, m ->
                     val hgt = if (m.precip <= 0f) 1.5f else (m.precip / maxP) * (size.height - 4f) + 1.5f
                     drawRect(
-                        color = if (m.precip > 0f) ZhishengCyan.copy(alpha = 0.85f) else ZhishengCardBorder,
+                        color = if (m.precip > 0f) barCyan else barBorder,
                         topLeft = Offset(i * bw + bw * 0.2f, size.height - hgt),
                         size = androidx.compose.ui.geometry.Size(bw * 0.6f, hgt),
                     )
@@ -855,12 +945,21 @@ private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, modifier: 
                 val t1 = minutes.last().timeMillis
                 val frac = if (t1 > t0) (nowMillis - t0).toFloat() / (t1 - t0) else 0f
                 val nowX = frac.coerceIn(0f, 1f) * size.width
-                drawLine(ZhishengOrange, Offset(nowX, 0f), Offset(nowX, size.height), 1.4f)
+                drawLine(nowLineOrange, Offset(nowX, 0f), Offset(nowX, size.height), 1.4f)
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                 Text("现在", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange)
                 Spacer(Modifier.weight(1f))
                 Text("+120min", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+            }
+            // 雨区距离（v0.0.4）：小米分钟降水 kmNum，其余源为 null 不显示
+            rainDistanceKm?.let { km ->
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "雨区距此 ${if (km == Math.floor(km)) km.toInt().toString() else String.format(Locale.US, "%.1f", km)} km",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ZhishengCyan,
+                )
             }
         }
     }
@@ -878,7 +977,6 @@ private fun DailySection(
     val highs = daily.mapNotNull { conv(it.high, unit) }
     val weekMin = lows.minOrNull() ?: 0.0
     val weekMax = highs.maxOrNull() ?: 1.0
-    val range = (weekMax - weekMin).coerceAtLeast(1.0)
 
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
@@ -909,15 +1007,11 @@ private fun DailySection(
                         // 归一化温度条
                         BoxWithConstraints(
                             Modifier.padding(horizontal = 8.dp).weight(1f).height(4.dp)
-                                .background(ZhishengCardBorder, RectangleShape)
+                                .background(ZhishengTextTertiary.copy(alpha = 0.3f), RectangleShape)
                         ) {
-                            // lo/hi 先排序再归一：源数据偶发把高低温写反（小米 from/to 语义不定），
-                            // 若直接相减会得到负宽度，Modifier.width 抛异常（v0.0.2）
-                            val a = (((conv(d.low, unit) ?: weekMin) - weekMin) / range).toFloat()
-                            val b = (((conv(d.high, unit) ?: weekMax) - weekMin) / range).toFloat()
-                            val lo = minOf(a, b).coerceIn(0f, 1f)
-                            val hi = maxOf(a, b).coerceIn(0f, 1f)
-                            val w = (hi - lo).coerceIn(0.03f, 1f - lo)
+                            // lo/hi/w 经 tempBarParams 统一归一：源数据偶发把高低温写反（小米 from/to
+                            // 语义不定），且 lo 接近 1 时需收缩宽度避免 coerceIn 下界超过上界（v0.0.3）
+                            val (lo, _, w) = tempBarParams(d.low, d.high, weekMin, weekMax, unit)
                             Box(
                                 Modifier
                                     .offset(x = maxWidth * lo)
@@ -948,10 +1042,15 @@ private fun DailySection(
     }
 }
 
-// 温度色：冷青 → 暖橙 线性插值
+// 温度色：两段插值 钢青 → 翡翠 → 琥珀（单段青→橙的中点会发灰发脏，v0.0.5 盘查）
+@Composable
 private fun tempColor(low: Double?): Color {
-    val t = ((low ?: 10.0) + 10.0) / 45.0
-    return colorLerp(ZhishengCyan, ZhishengOrange, t.toFloat().coerceIn(0f, 1f))
+    val t = (((low ?: 10.0) + 10.0) / 45.0).toFloat().coerceIn(0f, 1f)
+    return if (t < 0.5f) {
+        colorLerp(ZhishengCyan, ZhishengMint, t * 2f)
+    } else {
+        colorLerp(ZhishengMint, ZhishengOrange, (t - 0.5f) * 2f)
+    }
 }
 
 // —— 遥测卡格：2 列 HUD 小卡 ——
@@ -1056,12 +1155,13 @@ private fun TeleCell(
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (en == "WIND" && cur.windDirectionDeg != null) {
-                    // 风向箭头（北=上，按度数旋转）
+                    // 风向箭头（北=上，按度数旋转；颜色提前取值）
+                    val arrowCyan = ZhishengCyan
                     Canvas(Modifier.size(14.dp).rotate(cur.windDirectionDeg.toFloat() + 180f)) {
                         val c = Offset(size.width / 2, size.height / 2)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x, size.height - 1f), 1.6f)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x - 3f, 5f), 1.6f)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x + 3f, 5f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x, size.height - 1f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x - 3f, 5f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x + 3f, 5f), 1.6f)
                     }
                     Spacer(Modifier.width(6.dp))
                 }
@@ -1151,6 +1251,11 @@ private fun AqiCard(aqi: AqiInfo, modifier: Modifier) {
                 PollutantChip("SO2", aqi.so2, Modifier.weight(1f))
                 PollutantChip("CO", aqi.co, Modifier.weight(1f))
             }
+            // 健康建议（v0.0.4：小米 suggest 接入，其余源无此行）
+            aqi.suggest?.takeIf { it.isNotBlank() }?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+            }
         }
     }
 }
@@ -1170,6 +1275,7 @@ private fun PollutantChip(name: String, value: String?, modifier: Modifier = Mod
     }
 }
 
+@Composable
 private fun aqiColor(value: Int?): Color = when {
     value == null -> ZhishengTextTertiary
     value <= 50 -> ZhishengMint
@@ -1268,15 +1374,12 @@ private fun YesterdayCard(y: YesterdayInfo, today: DailyWeather?, unit: String, 
                 Text("AQI $it", style = MaterialTheme.typography.labelMedium, color = aqiColor(it))
             }
             Spacer(Modifier.weight(1f))
-            today?.high?.let { th ->
-                y.high?.let {
-                    val diff = th.roundToInt() - it.roundToInt()
-                    Text(
-                        "ΔT ${if (diff >= 0) "+" else ""}$diff°",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (diff > 0) ZhishengOrange else ZhishengMint,
-                    )
-                }
+            tempDelta(today?.high, y.high, unit)?.let { diff ->
+                Text(
+                    "ΔT ${if (diff >= 0) "+" else ""}$diff°",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (diff > 0) ZhishengOrange else ZhishengMint,
+                )
             }
         }
     }
@@ -1325,7 +1428,7 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
             letterSpacing = 1.5.sp,
         )
         Text(
-            "DATA ${data.dataSource ?: "--"} · 枳生天气 v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
+            "${dataSourceLabel(data.dataSource)} · 枳生天气 v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary.copy(alpha = 0.7f),
             letterSpacing = 1.sp,
@@ -1333,9 +1436,23 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
     }
 }
 
+private fun dataSourceLabel(source: String?): String = when (source) {
+    "QWEATHER" -> "数据来自和风天气"
+    "XIAOMI" -> "数据来自小米天气"
+    "OPEN-METEO" -> "数据来自 Open-Meteo"
+    else -> "DATA ${source ?: "--"}"
+}
+
+private fun dataSourceShortLabel(source: String?): String = when (source) {
+    "QWEATHER" -> "和风"
+    "XIAOMI" -> "小米"
+    "OPEN-METEO" -> "OPEN-METEO"
+    else -> source ?: "--"
+}
+
 // —— 启动加载：枳生终端自检序列 ——
 @Composable
-private fun BootState() {
+private fun BootState(bootAnim: Boolean = true) {
     val lines = listOf(
         "ZHISHENG WEATHER TERMINAL v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
         "ZHISHENG CORE ... ONLINE",
@@ -1343,6 +1460,11 @@ private fun BootState() {
     )
     var count by remember { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
+        // 关闭开机动画时直接全部显示，不逐行打字延迟（v0.0.3：bootAnim 设置项此前无人读取）
+        if (!bootAnim) {
+            count = lines.size
+            return@LaunchedEffect
+        }
         lines.indices.forEach { i ->
             kotlinx.coroutines.delay(260)
             count = i + 1

@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -47,6 +48,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +58,8 @@ import com.zhisheng.weather.data.LocationSource
 import com.zhisheng.weather.data.QWeatherApi
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
+import com.zhisheng.weather.data.ThemeMode
+import com.zhisheng.weather.widget.ZhishengWidgetProvider
 import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCard
 import com.zhisheng.weather.ui.theme.ZhishengCardBorder
@@ -70,7 +75,8 @@ import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════
 // 设置（v0.0.2 重做）
-// 01 数据源（可选：自动/和风/小米/公共源）  02 定位（默认关，严格可选）
+// 01 数据源（自动/和风/小米/公共源）
+// 02 定位（默认关，严格可选）
 // 03 单位  04 显示模块  05 界面效果  06 关于
 // ═══════════════════════════════════════════════════════════
 
@@ -103,6 +109,7 @@ fun SettingsScreen(
     val showTelemetry by SettingsRepository.showTelemetry.collectAsState(initial = true)
     val bootAnim by SettingsRepository.bootAnim.collectAsState(initial = true)
     val keepScreenOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
+    val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
 
     var permDenied by remember { mutableStateOf(false) }
 
@@ -154,7 +161,12 @@ fun SettingsScreen(
                         pref = p,
                         description = sourceDescription(p),
                         selected = source == p,
-                        status = sourceStatus(p, source == p, activeSource, sourceLoading),
+                        status = sourceStatus(
+                            p,
+                            source == p,
+                            activeSource,
+                            sourceLoading,
+                        ),
                         onClick = { scope.launch { SettingsRepository.setSourcePref(p) } },
                     )
                 }
@@ -270,8 +282,20 @@ fun SettingsScreen(
 
             // ——— 05 界面效果 ———
             SectionTitle(5, "界面效果", "VISUAL")
-            Hint("氛围层只在背景绘制，不遮挡读数；嫌费电可以关。")
+            Hint("磷光深色之外可切纸面浅色（v0.0.5）；氛围层只在背景绘制，不遮挡读数，嫌费电可以关。")
             CardBox {
+                SegmentRow(
+                    "主题模式",
+                    listOf("深色" to "dark", "浅色" to "light", "跟随系统" to "system"),
+                    themeMode.key,
+                ) { v ->
+                    scope.launch {
+                        SettingsRepository.setThemeMode(ThemeMode.from(v))
+                        // 主题切换后立即重渲桌面小组件，避免桌面画风与 App 内脱节（v0.0.5）
+                        ZhishengWidgetProvider.refreshAll(context.applicationContext)
+                    }
+                }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
                     "天气氛围层",
                     listOf("关闭" to "off", "克制" to "subtle", "明显" to "vivid"),
@@ -299,6 +323,19 @@ fun SettingsScreen(
                 InfoRow("和风凭据", if (QWeatherApi.enabled) "已配置" else "未配置")
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 InfoRow("权限", "仅网络；位置为可选且默认关闭")
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                // 开源引流入口（v0.0.5）：GitHub 仓库 → 浏览器
+                LinkRow(
+                    "GitHub 仓库",
+                    "开源主页 · 欢迎 star",
+                ) {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ZhishengZZ/ZhishengWeather"))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(18.dp))
@@ -336,11 +373,11 @@ private fun sourceHint(
 }
 
 private fun sourceDescription(p: SourcePref): String = when (p) {
-    SourcePref.AUTO -> if (QWeatherApi.enabled) {
-        "和风 → 小米 → Open-Meteo，按可用性降级"
-    } else {
-        "小米 → Open-Meteo，公共版自动降级"
-    }
+    SourcePref.AUTO -> buildList {
+        if (QWeatherApi.enabled) add("和风")
+        add("小米")
+        add("Open-Meteo")
+    }.joinToString(" → ") + "，按可用性降级"
     SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "当前构建未配置和风凭据"
     SourcePref.XIAOMI -> "免配置·国内城市优先"
     SourcePref.OPEN_METEO -> "免配置·全球覆盖"
@@ -432,6 +469,8 @@ private fun SourceRow(
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(role = Role.RadioButton) { onClick() }
+            // v0.0.4：TalkBack 播报选中状态
+            .semantics { this.selected = selected }
             .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -476,7 +515,11 @@ private fun SegmentRow(
     Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengText)
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            // v0.0.4：互斥选项组语义，TalkBack 正确播报单选关系
+            modifier = Modifier.selectableGroup(),
+        ) {
             options.forEach { (text, value) ->
                 val on = current == value
                 Box(
@@ -484,6 +527,7 @@ private fun SegmentRow(
                         .background(if (on) ZhishengMint.copy(alpha = 0.14f) else ZhishengSurface)
                         .border(1.dp, if (on) ZhishengMint else ZhishengCardBorder, RectangleShape)
                         .clickable(role = Role.RadioButton) { onPick(value) }
+                        .semantics { this.selected = on }
                         .padding(vertical = 9.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -503,7 +547,9 @@ private fun SegmentRow(
 private fun ToggleRow(label: String, hint: String, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .clickable(role = Role.Switch) { onToggle() }
+            // 行级不再声明 Role.Switch（v0.0.4）：内部 Switch 已提供开关语义，
+            // 双重 role 会让 TalkBack 重复播报
+            .clickable { onToggle() }
             .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -552,5 +598,24 @@ private fun InfoRow(label: String, value: String) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengTextSecondary)
         Spacer(Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.labelMedium, color = ZhishengText)
+    }
+}
+
+// 可点击外链行：跳浏览器打开 URL（v0.0.5 GitHub 引流入口）
+@Composable
+private fun LinkRow(label: String, sub: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column {
+            Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengCyan)
+            Text(sub, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+        }
+        Spacer(Modifier.weight(1f))
+        Text("↗", style = MaterialTheme.typography.titleMedium, color = ZhishengCyan)
     }
 }

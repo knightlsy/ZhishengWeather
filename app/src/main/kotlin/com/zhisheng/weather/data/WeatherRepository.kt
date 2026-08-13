@@ -12,6 +12,8 @@ import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
+import com.zhisheng.weather.model.alertLevelOf
+import com.zhisheng.weather.model.wmoToCondition
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
@@ -21,7 +23,7 @@ import java.time.format.DateTimeFormatter
 // 和风不可用（未配置凭据/网络失败）时整体回退小米源。
 object WeatherRepository {
 
-    // v0.0.2：数据源可选。AUTO 保持既有降级链；手动锁定时只打那一个源，
+    // AUTO 走熔断降级链（v0.0.4）；手动锁定时只打那一个源，
     // 失败就如实报错，不静默串到别的源（用户选了就该看到那个源的真实状态）。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
@@ -33,15 +35,32 @@ object WeatherRepository {
                 }
             SourcePref.XIAOMI -> fetchXiaomi(city)
             SourcePref.OPEN_METEO -> OpenMeteoSource.fetch(city)
-            SourcePref.AUTO ->
-                if (QWeatherApi.enabled) {
-                    fetchQWeather(city) ?: fetchXiaomi(city).ifFailed { OpenMeteoSource.fetch(city) }
-                } else {
-                    fetchXiaomi(city).ifFailed { OpenMeteoSource.fetch(city) }
-                }
+            SourcePref.AUTO -> autoChain(city)
         }
         // 逐日不足 15 天用 Open-Meteo 补齐（海外城市小米源天数少的兜底）
         return backfillHourly(backfillDaily(data, city), city)
+    }
+
+    // AUTO 链：down 的源直接跳过，不再白等超时；失败留痕并计入熔断计数
+    private suspend fun autoChain(city: City): WeatherData {
+        if (QWeatherApi.enabled && !SourceHealth.isDown(SourceHealth.QWEATHER)) {
+            val d = fetchQWeather(city)
+            if (d != null) {
+                SourceHealth.recordSuccess(SourceHealth.QWEATHER)
+                return d
+            }
+            SourceHealth.recordFailure(SourceHealth.QWEATHER)
+        }
+        if (!SourceHealth.isDown(SourceHealth.XIAOMI)) {
+            val d = fetchXiaomi(city)
+            if (d.error == null && d.current != null) {
+                SourceHealth.recordSuccess(SourceHealth.XIAOMI)
+                return d
+            }
+            SourceHealth.recordFailure(SourceHealth.XIAOMI)
+        }
+        // 全部 down / 全部失败：最后硬试小米，再落公共源（保留原兜底行为）
+        return fetchXiaomi(city).ifFailed { OpenMeteoSource.fetch(city) }
     }
 
     // 小米源失败时再落一层公共源：此前和风+小米双失败会直接整屏红字（v0.0.2）
@@ -224,13 +243,23 @@ object WeatherRepository {
                                 detail = al.description,
                                 level = al.severity,
                                 pubTime = al.issuedTime,
+                                // 优先官方预警色 color.code（blue/yellow/orange/red），无颜色习惯时按 severity 英文枚举兜底
+                                severity = alertLevelOf(al.color?.code ?: al.severity),
                             )
                         )
                     }
                     s?.alerts?.forEach { xa ->
                         val title = xa.title ?: ""
                         if (title.isNotBlank() && none { it.title == title }) {
-                            add(AlertInfo(title = title, detail = xa.detail, level = xa.level, pubTime = xa.pubTime))
+                            add(
+                                AlertInfo(
+                                    title = title,
+                                    detail = xa.detail,
+                                    level = xa.level,
+                                    pubTime = xa.pubTime,
+                                    severity = alertLevelOf(xa.level),
+                                )
+                            )
                         }
                     }
                 },
@@ -346,29 +375,38 @@ object WeatherRepository {
     }
 
     // 按城市名反查小米 key：同名异地（金川区/金川县、朝阳…）必须取距离最近的命中，
-    // 且超过 150km 视为无匹配，宁可缺数据也不串城市（v0.0.1）
+    // 且超过 150km 视为无匹配，宁可缺数据也不串城市（v0.0.1）。
+    // v0.0.4：结果做会话级缓存——此前每次和风刷新都附带一次 searchCity 往返（15s 超时风险）
     private const val XIAOMI_MATCH_MAX_KM = 150.0
 
-    private suspend fun nearestXiaomiKey(name: String, lat: Double, lon: Double): String? = try {
-        val hits = XiaomiApi.instance.searchCity(name)
-            .filter { it.status == 0 && !it.locationKey.isNullOrBlank() }
-        val hit = hits.minByOrNull { h ->
-            val hl = h.latitude?.toDoubleOrNull()
-            val ho = h.longitude?.toDoubleOrNull()
-            if (hl == null || ho == null) Double.MAX_VALUE / 2 else distanceKm(lat, lon, hl, ho)
-        }
-        if (hit == null) {
+    private val xiaomiKeyCache = java.util.concurrent.ConcurrentHashMap<String, String?>()
+
+    private suspend fun nearestXiaomiKey(name: String, lat: Double, lon: Double): String? {
+        val cacheKey = "$name|$lat|$lon"
+        xiaomiKeyCache[cacheKey]?.let { return it }
+        val hit = try {
+            val hits = XiaomiApi.instance.searchCity(name)
+                .filter { it.status == 0 && !it.locationKey.isNullOrBlank() }
+            val nearest = hits.minByOrNull { h ->
+                val hl = h.latitude?.toDoubleOrNull()
+                val ho = h.longitude?.toDoubleOrNull()
+                if (hl == null || ho == null) Double.MAX_VALUE / 2 else distanceKm(lat, lon, hl, ho)
+            }
+            if (nearest == null) {
+                null
+            } else {
+                val hl = nearest.latitude?.toDoubleOrNull()
+                val ho = nearest.longitude?.toDoubleOrNull()
+                if (hl == null || ho == null) nearest.locationKey // 命中无坐标，退化为直接用
+                else if (distanceKm(lat, lon, hl, ho) <= XIAOMI_MATCH_MAX_KM) nearest.locationKey else null
+            }
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
+        } catch (_: Exception) {
             null
-        } else {
-            val hl = hit.latitude?.toDoubleOrNull()
-            val ho = hit.longitude?.toDoubleOrNull()
-            if (hl == null || ho == null) hit.locationKey // 命中无坐标，退化为直接用
-            else if (distanceKm(lat, lon, hl, ho) <= XIAOMI_MATCH_MAX_KM) hit.locationKey else null
         }
-    } catch (ce: kotlinx.coroutines.CancellationException) {
-        throw ce
-    } catch (_: Exception) {
-        null
+        xiaomiKeyCache[cacheKey] = hit
+        return hit
     }
 
     private fun distanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -389,10 +427,15 @@ object WeatherRepository {
         if (data.error != null || data.daily.size >= 15) return data
         val response = OpenMeteoApi.fetchDaily(city.latitude, city.longitude) ?: return data
         val om = response.daily ?: return data
+        // v0.0.4：按 dateMillis 过滤补齐，而非按位置 drop(size)——两源日界错位时
+        // 原实现会重复或缺失日期；合并后 distinctBy 再兜一层
+        val existing = data.daily.map { it.dateMillis }.toSet()
         val extra = omToDaily(om, city, response.utc_offset_seconds)
-            .drop(data.daily.size).take(15 - data.daily.size)
+            .filter { it.dateMillis !in existing }
+            .take(15 - data.daily.size)
         if (extra.isEmpty()) return data
-        val merged = (data.daily + extra).map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
+        val merged = (data.daily + extra).distinctBy { it.dateMillis }
+            .map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
         return data.copy(daily = merged)
     }
 
@@ -411,7 +454,7 @@ object WeatherRepository {
                     dateMillis = t,
                     high = om.temperature_2m_max?.getOrNull(i),
                     low = om.temperature_2m_min?.getOrNull(i),
-                    condition = fromWmoCode(om.weather_code?.getOrNull(i)),
+                    condition = wmoToCondition(om.weather_code?.getOrNull(i), true),
                     windSpeed = om.wind_speed_10m_max?.getOrNull(i),
                     precipProbability = om.precipitation_probability_max?.getOrNull(i)?.let { Math.round(it).toInt() },
                     sunrise = formatLocalClock(om.sunrise?.getOrNull(i)),
@@ -424,9 +467,14 @@ object WeatherRepository {
     }
 
     // 逐时补齐：和风/小米逐时缺失（海外 4xx 落空等）时用 Open-Meteo 取 24 小时；
-    // OM 时间为城市本地墙上时间，用 utc_offset_seconds 折回真实 epoch，保证跨时区显示正确
+    // OM 时间为城市本地墙上时间，用 utc_offset_seconds 折回真实 epoch，保证跨时区显示正确。
+    // v0.0.4：补齐门槛从「size>=2」改为「≥2 条且最后一条距今 <3h」——主源只回了
+    // 2-3 条近过期数据（日末边缘）时原逻辑会跳过补齐，逐时区近乎空白
     private suspend fun backfillHourly(data: WeatherData, city: City): WeatherData {
-        if (data.error != null || data.hourly.size >= 2) return data
+        if (data.error != null) return data
+        val last = data.hourly.maxOfOrNull { it.timeMillis } ?: 0L
+        val freshEnough = last >= System.currentTimeMillis() - 3 * 3_600_000L
+        if (data.hourly.size >= 2 && freshEnough) return data
         val om = OpenMeteoApi.fetchHourly(city.latitude, city.longitude) ?: return data
         val h = om.hourly ?: return data
         val offsetMs = om.utc_offset_seconds * 1000L
@@ -441,7 +489,11 @@ object WeatherRepository {
             else HourlyWeather(
                 timeMillis = local - offsetMs,
                 temperature = h.temperature_2m?.getOrNull(i),
-                condition = fromWmoCode(h.weather_code?.getOrNull(i)),
+                // 逐时补齐同样按城市本地小时判昼夜，夜间不再整排太阳（v0.0.4）
+                condition = wmoToCondition(
+                    h.weather_code?.getOrNull(i),
+                    (local / 3_600_000L % 24L).toInt() in 6..18,
+                ),
                 windSpeed = h.wind_speed_10m?.getOrNull(i),
                 precipProb = h.precipitation_probability?.getOrNull(i)?.let { Math.round(it).toInt() },
             )
@@ -449,18 +501,7 @@ object WeatherRepository {
         return if (list.size >= 2) data.copy(hourly = list) else data
     }
 
-    // WMO weather_code → 条件枚举（Open-Meteo）
-    private fun fromWmoCode(code: Int?): WeatherCondition = when (code) {
-        0 -> WeatherCondition.CLEAR
-        1, 2 -> WeatherCondition.PARTLY_CLOUDY
-        3 -> WeatherCondition.OVERCAST
-        45, 48 -> WeatherCondition.FOG
-        51, 53, 55, 56, 57 -> WeatherCondition.DRIZZLE
-        61, 63, 65, 66, 67, 80, 81, 82 -> WeatherCondition.RAIN
-        71, 73, 75, 77, 85, 86 -> WeatherCondition.SNOW
-        95, 96, 99 -> WeatherCondition.THUNDERSTORM
-        else -> WeatherCondition.CLOUDY
-    }
+    // WMO 映射已收敛到 model.WmoMaps.wmoToCondition（v0.0.4，原 fromWmoCode 与 OpenMeteoSource.wmo 双份重复）
 
     // Open-Meteo 时间为无时区本地格式（2026-08-07T04:53）
     private fun formatLocalClock(s: String?): String? {
@@ -525,7 +566,15 @@ object WeatherRepository {
                 windDirectionDeg = cur.wind?.direction?.value?.toDoubleOrNull(),
                 pressure = cur.pressure?.value?.toDoubleOrNull(),
                 uvIndex = cur.uvIndex?.toIntOrNull(),
-                visibility = cur.visibility?.value?.toDoubleOrNull(),
+                visibility = cur.visibility?.let { v ->
+                    v.value?.toDoubleOrNull()?.let { num ->
+                        // 小米能见度按 unit 换算到 km：m 转 km，km 或缺省透传（v0.0.3）
+                        when (v.unit?.lowercase()) {
+                            "m" -> num / 1000.0
+                            else -> num
+                        }
+                    }
+                },
             )
         }
 
@@ -563,6 +612,7 @@ object WeatherRepository {
                 no2 = a.no2,
                 so2 = a.so2,
                 co = a.co,
+                suggest = a.suggest, // v0.0.4：小米健康建议接入 AQI 卡
             )
         }
 
@@ -572,6 +622,7 @@ object WeatherRepository {
                 detail = a.detail,
                 level = a.level,
                 pubTime = a.pubTime,
+                severity = alertLevelOf(a.level),
             )
         } ?: emptyList()
 
@@ -581,8 +632,11 @@ object WeatherRepository {
             daily = daily,
             aqi = aqi,
             alerts = alerts,
-            updateTime = parseTimeMillis(r.updateTime).takeIf { it != 0L } ?: System.currentTimeMillis(),
+            // v0.0.4：统一为本地抓取时刻（此前小米用服务器时间，与和风/OM 语义不一致）
+            updateTime = System.currentTimeMillis(),
             rainNowcast = r.minutely?.precipitation?.description,
+            // v0.0.4：小米 kmNum（雨区距离）接入，分钟降水卡下方展示
+            rainDistanceKm = r.minutely?.precipitation?.kmNum?.toDoubleOrNull(),
             carWashOk = r.indices?.indices?.firstOrNull { it.type == "carWash" }?.value?.let { it == "0" },
             sportsOk = r.indices?.indices?.firstOrNull { it.type == "sports" }?.value?.let { it == "0" },
             yesterday = r.yesterday?.let {

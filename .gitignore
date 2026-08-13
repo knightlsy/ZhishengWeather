@@ -28,3 +28,7 @@ WORKLOG.md
 PROGRESS_*.md
 进度总结.md
 PLAN-*.md
+
+# 真机截图与调试目录（不入库）
+.device-screenshots/
+shots/

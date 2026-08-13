@@ -21,6 +21,9 @@ object LocationSource {
 
     const val PERMISSION = Manifest.permission.ACCESS_COARSE_LOCATION
 
+    // 精度过滤阈值：COARSE 网络定位超过 20km 误差的坐标不用于反查城市
+    private const val ACCURACY_MAX_M = 20_000f
+
     sealed interface Result {
         data class Ok(val city: City) : Result
         data class Failed(val message: String) : Result
@@ -44,17 +47,23 @@ object LocationSource {
             lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
 
     // 定位 + 反查城市。调用前必须已确认权限（由 UI 层申请），此处再兜一次校验。
+    // v0.0.4：整体 15s 上限（此前 12s 定位 + 15s 小米 + 12s 和风最坏约 40s），
+    // 并对新鲜定位做精度过滤（COARSE 网络定位在城市边界可能反查出隔壁城市）。
     suspend fun locate(context: Context): Result {
         if (!hasPermission(context)) return Result.Failed("未授予位置权限")
         if (!locationEnabledOnDevice(context)) return Result.Failed("系统定位服务未开启")
 
-        val loc = currentLocation(context)
-            ?: return Result.Failed("定位超时，请到空旷处重试或手动搜索城市")
-
-        return when (val c = reverseGeocode(loc.latitude, loc.longitude)) {
-            null -> Result.Failed("已取到坐标但未能反查城市名，请手动搜索")
-            else -> Result.Ok(c)
-        }
+        return withTimeoutOrNull(15_000L) {
+            val loc = currentLocation(context)
+                ?: return@withTimeoutOrNull Result.Failed("定位超时，请到空旷处重试或手动搜索城市")
+            if (loc.hasAccuracy() && loc.accuracy > ACCURACY_MAX_M) {
+                return@withTimeoutOrNull Result.Failed("定位精度不足（${loc.accuracy.toInt()}m），请到空旷处重试或手动搜索")
+            }
+            when (val c = reverseGeocode(loc.latitude, loc.longitude)) {
+                null -> Result.Failed("已取到坐标但未能反查城市名，请手动搜索")
+                else -> Result.Ok(c)
+            }
+        } ?: Result.Failed("定位超时，请到空旷处重试或手动搜索城市")
     }
 
     @Suppress("MissingPermission")

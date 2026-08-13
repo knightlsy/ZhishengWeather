@@ -100,7 +100,12 @@ data class QwAlert(
     val severity: String? = null,
     val issuedTime: String? = null,
     val eventType: QwEventType? = null,
+    // 官方预警色（当地习惯）：code 为 blue/yellow/orange/red；当地无颜色习惯时为 null
+    val color: QwAlertColor? = null,
 )
+
+@Serializable
+data class QwAlertColor(val code: String? = null)
 
 @Serializable
 data class QwAlerts(val alerts: List<QwAlert> = emptyList())
