@@ -129,11 +129,11 @@ Version 0.0.5 is mostly about themes. Alongside dark mode there is now a "cold j
 - Added a GitHub repository link in Settings — stars welcome
 - A full polish pass on light-mode text, icons, and the daily temperature bars
 
-Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.5.md](RELEASE_0.0.5.md) for the full record.
+Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and full Release builds.
 
 ## Version 0.0.5.1
 
-A widget polish pass: date, update time, feels-like, and hourly/daily text got a size bump; the widget-picker previews are redrawn (sample city is now Shanghai, matching the real layouts); widgets now follow only the system dark mode — switching the in-app theme no longer restyles the desktop widgets. See [RELEASE_0.0.5.1.md](RELEASE_0.0.5.1.md) for the full record.
+A widget polish pass: date, update time, feels-like, and hourly/daily text got a size bump; the widget-picker previews are redrawn (sample city is now Shanghai, matching the real layouts); widgets now follow only the system dark mode — switching the in-app theme no longer restyles the desktop widgets.
 
 ## Build from source
 
