@@ -128,7 +128,7 @@ Version 0.0.4 responds to test feedback by rebuilding the widgets and incorporat
 - Alerts are color-coded by the four-tier national scale (blue/yellow/orange/red); added rain-band distance, AQI health advice, and hourly AQI (Xiaomi provider)
 - City data corruption now self-heals from a backup; location lookup is capped at 15s and rejects low-accuracy fixes
 
-Release checks cover 41 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.4.md](RELEASE_0.0.4.md) for the full record.
+Release checks cover 41 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.4_FINAL.md](RELEASE_0.0.4_FINAL.md) for the full record.
 
 ## Build from source
 
