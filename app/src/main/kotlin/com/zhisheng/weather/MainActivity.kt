@@ -15,6 +15,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +29,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.zhisheng.weather.data.SettingsRepository
+import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.model.City
 import com.zhisheng.weather.ui.SearchScreen
 import com.zhisheng.weather.ui.WeatherViewModel
@@ -59,12 +62,30 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            ZhishengWeatherTheme {
+            // 主题模式（v0.0.5）：深色 / 浅色 / 跟随系统三档，切换立即生效
+            val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
+            val systemDark = isSystemInDarkTheme()
+            val isLight = when (themeMode) {
+                ThemeMode.LIGHT -> true
+                ThemeMode.DARK -> false
+                // 跟随系统：系统深色→深色板（此前直接取 systemDark，方向反了，跟随系统会显示相反主题）
+                ThemeMode.SYSTEM -> !systemDark
+            }
+            ZhishengWeatherTheme(isLight = isLight) {
                 val vm: WeatherViewModel = viewModel()
                 // rememberSaveable：旋转/进程重建后仍停在原来那屏（v0.0.2）
                 var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
                 val uiState by vm.uiState.collectAsState()
                 val command by shortcutCommand.collectAsState()
+
+                // 状态栏/导航栏图标颜色随主题切换（浅色主题 → 深色图标）
+                val view = LocalView.current
+                SideEffect {
+                    androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                        isAppearanceLightStatusBars = isLight
+                        isAppearanceLightNavigationBars = isLight
+                    }
+                }
 
                 LaunchedEffect(command.sequence) {
                     when (command.action) {
@@ -79,7 +100,6 @@ class MainActivity : ComponentActivity() {
 
                 // 常亮屏幕（设置项）
                 val keepOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
-                val view = LocalView.current
                 DisposableEffect(keepOn) {
                     view.keepScreenOn = keepOn
                     onDispose { view.keepScreenOn = false }

@@ -37,6 +37,17 @@ enum class AmbienceLevel(val key: String, val cn: String, val factor: Float) {
     }
 }
 
+// 主题模式（v0.0.5）：默认深色保持磷光终端品牌，可切纸面浅色或跟随系统
+enum class ThemeMode(val key: String, val cn: String) {
+    DARK("dark", "深色"),
+    LIGHT("light", "浅色"),
+    SYSTEM("system", "跟随系统");
+
+    companion object {
+        fun from(v: String?): ThemeMode = entries.firstOrNull { it.key == v } ?: DARK
+    }
+}
+
 // 设置仓储
 object SettingsRepository {
 
@@ -57,6 +68,7 @@ object SettingsRepository {
     private val KEY_SHOW_TELEMETRY = booleanPreferencesKey("show_telemetry")
     private val KEY_BOOT_ANIM = booleanPreferencesKey("boot_anim")
     private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
+    private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
 
     fun init(context: Context) {
         store = context.applicationContext.settingsStore
@@ -83,6 +95,10 @@ object SettingsRepository {
     val showTelemetry: Flow<Boolean> by lazy { store.data.map { it[KEY_SHOW_TELEMETRY] ?: true } }
     val bootAnim: Flow<Boolean> by lazy { store.data.map { it[KEY_BOOT_ANIM] ?: true } }
     val keepScreenOn: Flow<Boolean> by lazy { store.data.map { it[KEY_KEEP_SCREEN_ON] ?: false } }
+    // 主题模式（v0.0.5）：默认深色
+    val themeMode: Flow<ThemeMode> by lazy {
+        store.data.map { ThemeMode.from(it[KEY_THEME_MODE]) }.distinctUntilChanged()
+    }
 
     suspend fun setTempUnit(unit: String) = store.edit { it[KEY_TEMP_UNIT] = unit }
     suspend fun setShowTyphoon(show: Boolean) = store.edit { it[KEY_SHOW_TYPHOON] = show }
@@ -106,4 +122,5 @@ object SettingsRepository {
     suspend fun setShowTelemetry(v: Boolean) = store.edit { it[KEY_SHOW_TELEMETRY] = v }
     suspend fun setBootAnim(v: Boolean) = store.edit { it[KEY_BOOT_ANIM] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEY_KEEP_SCREEN_ON] = v }
+    suspend fun setThemeMode(mode: ThemeMode) = store.edit { it[KEY_THEME_MODE] = mode.key }
 }

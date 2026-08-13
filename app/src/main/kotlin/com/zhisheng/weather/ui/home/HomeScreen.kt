@@ -99,6 +99,7 @@ import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCard
 import com.zhisheng.weather.ui.theme.ZhishengCardBorder
 import com.zhisheng.weather.ui.theme.ZhishengCyan
+import com.zhisheng.weather.ui.theme.LocalZhishengPalette
 import com.zhisheng.weather.ui.theme.ZhishengMint
 import androidx.compose.ui.graphics.lerp as colorLerp
 import com.zhisheng.weather.ui.theme.ZhishengOrange
@@ -107,6 +108,7 @@ import com.zhisheng.weather.ui.theme.ZhishengSurface
 import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
+import com.zhisheng.weather.ui.theme.ZhishengWarning
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -201,15 +203,19 @@ fun HomeScreen(
     }
 }
 
-// —— CRT 扫描线氛围层（3dp 周期，3% 透明度，不拦截触摸） ——
+// —— 扫描线氛围层（3dp 周期，不拦截触摸）——
+// 深色 = CRT 扫描线（白 2.5%）；浅色 = 纸面细纹（墨线 2%，v0.0.5）
 @Composable
 private fun Scanlines() {
+    val lineColor = LocalZhishengPalette.current.run {
+        if (isLight) text.copy(alpha = 0.02f) else Color.White.copy(alpha = 0.025f)
+    }
     Canvas(modifier = Modifier.fillMaxSize()) {
         val step = 3.dp.toPx()
         var y = 0f
         while (y < size.height) {
             drawLine(
-                color = Color.White.copy(alpha = 0.025f),
+                color = lineColor,
                 start = Offset(0f, y),
                 end = Offset(size.width, y),
                 strokeWidth = 1f,
@@ -483,7 +489,9 @@ private fun HeroSection(
                 }
             }
             Box(contentAlignment = Alignment.Center) {
-                // 六边形 AT 力场底纹
+                // 六边形 AT 力场底纹（Canvas lambda 非 composable 上下文，颜色提前取值）
+                val hexOuter = ZhishengOrange.copy(alpha = 0.22f)
+                val hexInner = ZhishengCyan.copy(alpha = 0.12f)
                 Canvas(modifier = Modifier.size(116.dp)) {
                     val c = center
                     val r = size.minDimension / 2f
@@ -495,7 +503,7 @@ private fun HeroSection(
                         }
                         close()
                     }
-                    drawPath(path, ZhishengOrange.copy(alpha = 0.22f), style = Stroke(1.5f))
+                    drawPath(path, hexOuter, style = Stroke(1.5f))
                     drawPath(
                         androidx.compose.ui.graphics.Path().apply {
                             val r2 = r * 0.82f
@@ -506,7 +514,7 @@ private fun HeroSection(
                             }
                             close()
                         },
-                        ZhishengCyan.copy(alpha = 0.12f),
+                        hexInner,
                         style = Stroke(1f),
                     )
                 }
@@ -603,11 +611,12 @@ private fun AlertSection(alerts: List<AlertInfo>, modifier: Modifier) {
     }
 }
 
-// 预警等级 → 着色（国标蓝/黄/橙/红；主题无黄色，就地定义）
+// 预警等级 → 着色（国标蓝/黄/橙/红；黄色按主题取色板 warning：深色荧光黄 / 浅色油墨黄）
+@Composable
 private fun alertColor(level: com.zhisheng.weather.model.AlertLevel): Color = when (level) {
     com.zhisheng.weather.model.AlertLevel.RED -> ZhishengRed
     com.zhisheng.weather.model.AlertLevel.ORANGE -> ZhishengOrange
-    com.zhisheng.weather.model.AlertLevel.YELLOW -> Color(0xFFFFD24A)
+    com.zhisheng.weather.model.AlertLevel.YELLOW -> ZhishengWarning
     com.zhisheng.weather.model.AlertLevel.BLUE -> ZhishengCyan
     com.zhisheng.weather.model.AlertLevel.UNKNOWN -> ZhishengRed
 }
@@ -644,11 +653,13 @@ private fun rememberBlink(): Boolean {
 }
 
 @Composable
-private fun BlinkDot(on: Boolean, color: Color = ZhishengRed) {
+private fun BlinkDot(on: Boolean, color: Color? = null) {
+    // 默认取主题警报红（composable getter 不能出现在默认参数表达式里，v0.0.5）
+    val c = color ?: ZhishengRed
     Box(
         Modifier
             .size(8.dp)
-            .background(if (on) color else color.copy(alpha = 0.25f)),
+            .background(if (on) c else c.copy(alpha = 0.25f)),
     )
 }
 
@@ -686,6 +697,7 @@ private fun HudCard(
     }
 }
 
+@Composable
 private fun Modifier.hudBorder() = this
     .border(1.dp, ZhishengCardBorder, RectangleShape)
     .padding(0.dp)
@@ -829,7 +841,9 @@ private fun HourlyItem(
             color = ZhishengText,
         )
         Spacer(Modifier.height(3.dp))
-        // 连续曲线：左半段接上一格中点，右半段接下一格中点
+        // 连续曲线：左半段接上一格中点，右半段接下一格中点（颜色提前取值，Canvas lambda 非 composable）
+        val curveMint = ZhishengMint
+        val curveBg = ZhishengBg
         Canvas(modifier = Modifier.fillMaxWidth().height(30.dp)) {
             val range = (maxT - minT).coerceAtLeast(1.0).toFloat()
             val top = 4f
@@ -857,7 +871,7 @@ private fun HourlyItem(
                 lineTo(pLeft?.x ?: cx, size.height)
                 close()
             }
-            drawPath(fill, ZhishengMint.copy(alpha = 0.07f))
+            drawPath(fill, curveMint.copy(alpha = 0.07f))
 
             // 折线本体
             val line = Path().apply {
@@ -865,14 +879,14 @@ private fun HourlyItem(
                 lineTo(pCur.x, pCur.y)
                 pRight?.let { lineTo(it.x, it.y) }
             }
-            drawPath(line, ZhishengMint.copy(alpha = 0.75f), style = Stroke(1.6f))
+            drawPath(line, curveMint.copy(alpha = 0.75f), style = Stroke(1.6f))
 
             // 当前小时用实心亮点强调，其余用小空心点
             if (first) {
-                drawCircle(ZhishengMint, 3.2f, pCur)
+                drawCircle(curveMint, 3.2f, pCur)
             } else {
-                drawCircle(ZhishengBg, 2.6f, pCur)
-                drawCircle(ZhishengMint.copy(alpha = 0.85f), 2.6f, pCur, style = Stroke(1.2f))
+                drawCircle(curveBg, 2.6f, pCur)
+                drawCircle(curveMint.copy(alpha = 0.85f), 2.6f, pCur, style = Stroke(1.2f))
             }
         }
         Spacer(Modifier.height(3.dp))
@@ -901,6 +915,10 @@ private fun HourlyItem(
 // —— 分钟降水：柱状雷达图 ——
 @Composable
 private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistanceKm: Double?, modifier: Modifier) {
+    // Canvas lambda 非 composable，柱色与标记线颜色提前取值
+    val barCyan = ZhishengCyan.copy(alpha = 0.85f)
+    val barBorder = ZhishengCardBorder
+    val nowLineOrange = ZhishengOrange
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
             summary?.let {
@@ -915,7 +933,7 @@ private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistan
                 minutes.forEachIndexed { i, m ->
                     val hgt = if (m.precip <= 0f) 1.5f else (m.precip / maxP) * (size.height - 4f) + 1.5f
                     drawRect(
-                        color = if (m.precip > 0f) ZhishengCyan.copy(alpha = 0.85f) else ZhishengCardBorder,
+                        color = if (m.precip > 0f) barCyan else barBorder,
                         topLeft = Offset(i * bw + bw * 0.2f, size.height - hgt),
                         size = androidx.compose.ui.geometry.Size(bw * 0.6f, hgt),
                     )
@@ -927,7 +945,7 @@ private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistan
                 val t1 = minutes.last().timeMillis
                 val frac = if (t1 > t0) (nowMillis - t0).toFloat() / (t1 - t0) else 0f
                 val nowX = frac.coerceIn(0f, 1f) * size.width
-                drawLine(ZhishengOrange, Offset(nowX, 0f), Offset(nowX, size.height), 1.4f)
+                drawLine(nowLineOrange, Offset(nowX, 0f), Offset(nowX, size.height), 1.4f)
             }
             Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                 Text("现在", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange)
@@ -989,7 +1007,7 @@ private fun DailySection(
                         // 归一化温度条
                         BoxWithConstraints(
                             Modifier.padding(horizontal = 8.dp).weight(1f).height(4.dp)
-                                .background(ZhishengCardBorder, RectangleShape)
+                                .background(ZhishengTextTertiary.copy(alpha = 0.3f), RectangleShape)
                         ) {
                             // lo/hi/w 经 tempBarParams 统一归一：源数据偶发把高低温写反（小米 from/to
                             // 语义不定），且 lo 接近 1 时需收缩宽度避免 coerceIn 下界超过上界（v0.0.3）
@@ -1024,10 +1042,15 @@ private fun DailySection(
     }
 }
 
-// 温度色：冷青 → 暖橙 线性插值
+// 温度色：两段插值 钢青 → 翡翠 → 琥珀（单段青→橙的中点会发灰发脏，v0.0.5 盘查）
+@Composable
 private fun tempColor(low: Double?): Color {
-    val t = ((low ?: 10.0) + 10.0) / 45.0
-    return colorLerp(ZhishengCyan, ZhishengOrange, t.toFloat().coerceIn(0f, 1f))
+    val t = (((low ?: 10.0) + 10.0) / 45.0).toFloat().coerceIn(0f, 1f)
+    return if (t < 0.5f) {
+        colorLerp(ZhishengCyan, ZhishengMint, t * 2f)
+    } else {
+        colorLerp(ZhishengMint, ZhishengOrange, (t - 0.5f) * 2f)
+    }
 }
 
 // —— 遥测卡格：2 列 HUD 小卡 ——
@@ -1132,12 +1155,13 @@ private fun TeleCell(
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (en == "WIND" && cur.windDirectionDeg != null) {
-                    // 风向箭头（北=上，按度数旋转）
+                    // 风向箭头（北=上，按度数旋转；颜色提前取值）
+                    val arrowCyan = ZhishengCyan
                     Canvas(Modifier.size(14.dp).rotate(cur.windDirectionDeg.toFloat() + 180f)) {
                         val c = Offset(size.width / 2, size.height / 2)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x, size.height - 1f), 1.6f)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x - 3f, 5f), 1.6f)
-                        drawLine(ZhishengCyan, Offset(c.x, 1f), Offset(c.x + 3f, 5f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x, size.height - 1f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x - 3f, 5f), 1.6f)
+                        drawLine(arrowCyan, Offset(c.x, 1f), Offset(c.x + 3f, 5f), 1.6f)
                     }
                     Spacer(Modifier.width(6.dp))
                 }
@@ -1251,6 +1275,7 @@ private fun PollutantChip(name: String, value: String?, modifier: Modifier = Mod
     }
 }
 
+@Composable
 private fun aqiColor(value: Int?): Color = when {
     value == null -> ZhishengTextTertiary
     value <= 50 -> ZhishengMint

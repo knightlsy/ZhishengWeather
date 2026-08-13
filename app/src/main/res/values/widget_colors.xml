@@ -10,4 +10,12 @@
     <color name="widget_border">#23232B</color>            <!-- ZhishengCardBorder -->
     <color name="widget_accent_cyan">#20F0FF</color>       <!-- ZhishengCyan -->
     <color name="widget_accent_orange">#FF9830</color>     <!-- ZhishengOrange -->
+
+    <!-- 浅色（清冷翡翠，与 Color.kt ZhishengLightPalette 对齐，v0.0.5）；Provider 按主题动态换肤 -->
+    <color name="widget_light_text_primary">#2E3540</color>
+    <color name="widget_light_text_secondary">#59636F</color>
+    <color name="widget_light_text_tertiary">#6F7985</color>
+    <color name="widget_light_border">#E3E6EA</color>
+    <color name="widget_light_accent_cyan">#16697A</color>
+    <color name="widget_light_accent_orange">#B45309</color>
 </resources>
