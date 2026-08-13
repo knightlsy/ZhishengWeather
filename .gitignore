@@ -23,9 +23,14 @@ icon-preview/
 icon-backup/
 docs-backup/
 HANDOFF.md
+HANDOFF_*.md
 STATUS.md
 WORKLOG.md
 PROGRESS_*.md
+RELEASE_*.md
+STABILITY_*.md
+*测试报告*.md
+*核对结果.md
 进度总结.md
 PLAN-*.md
 
