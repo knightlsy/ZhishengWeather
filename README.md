@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.5-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.5.1-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.0.5" src="https://img.shields.io/badge/当前版本-0.0.5-31C9DB?style=flat-square"/>
+  <img alt="当前版本 0.0.5" src="https://img.shields.io/badge/当前版本-0.0.5.1-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -119,13 +119,17 @@ APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来
 
 0.0.5 的重头戏是主题。深色之外新增了浅色「清冷翡翠」——冷灰纸面打底、翡冷翠做数据色，桌面小组件跟着一起换；顺手修了两个藏得比较深的毛病。
 
-- 主题三档：深色 / 浅色 / 跟随系统，切换即时生效，小组件同步换肤
+- 主题三档：深色 / 浅色 / 跟随系统，切换即时生效（小组件同步换肤在 0.0.5.1 起改为只跟系统深浅）
 - 修复「跟随系统」方向反了的问题：系统深色时 App 反而切浅色
 - 修复和风天气源预警不按国标四档着色的老问题（此前和风的预警清一色红）
 - 设置页新增 GitHub 仓库入口，欢迎顺手点个 star
 - 文字、图标、逐日温度条等浅色细节整体盘过一遍
 
 当前回归检查包括 46 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.5.md](RELEASE_0.0.5.md)。
+
+## 0.0.5.1 更新
+
+小组件小修：放大日期、更新时间、体感湿度与逐时/逐日等偏小字号；重绘添加小组件时的预览图（示范城市改为上海，与真实布局一致）；小组件主题改为只跟随系统深浅，App 内切换主题不再改变桌面小组件。详细记录见 [RELEASE_0.0.5.1.md](RELEASE_0.0.5.1.md)。
 
 ## 从源码构建
 
@@ -181,6 +185,15 @@ qw.private_key=<Ed25519 私钥，单行>
 ## 更新记录
 
 <details open>
+<summary><b>0.0.5 // COLD JADE</b></summary>
+
+- 新增「清冷翡翠」浅色主题，深色 / 浅色 / 跟随系统三档
+- 修复跟随系统方向反了、和风预警不分级两个老问题
+- 小组件双主题、设置页 GitHub 入口；46 项单元测试通过
+
+</details>
+
+<details>
 <summary><b>0.0.4 // WIDGET OVERHAUL</b></summary>
 
 - 重做三档桌面小组件的圆角、字号、图标和信息层级
