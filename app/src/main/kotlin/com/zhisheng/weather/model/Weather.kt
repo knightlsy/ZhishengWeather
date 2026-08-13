@@ -117,13 +117,23 @@ enum class AlertLevel {
     BLUE, YELLOW, ORANGE, RED, UNKNOWN
 }
 
-fun alertLevelOf(raw: String?): AlertLevel = when {
-    raw == null -> AlertLevel.UNKNOWN
-    raw.contains("红") || raw.equals("red", ignoreCase = true) -> AlertLevel.RED
-    raw.contains("橙") || raw.equals("orange", ignoreCase = true) -> AlertLevel.ORANGE
-    raw.contains("黄") || raw.equals("yellow", ignoreCase = true) -> AlertLevel.YELLOW
-    raw.contains("蓝") || raw.equals("blue", ignoreCase = true) -> AlertLevel.BLUE
-    else -> AlertLevel.UNKNOWN
+// 三源等级归一：中文色名（小米 level「黄色预警」）/ 英文色名（和风 color.code）/ 英文严重度（和风 severity）
+fun alertLevelOf(raw: String?): AlertLevel {
+    val r = raw?.trim().orEmpty()
+    return when {
+        r.isEmpty() -> AlertLevel.UNKNOWN
+        r.contains("红") || r.equals("red", ignoreCase = true) -> AlertLevel.RED
+        r.contains("橙") || r.equals("orange", ignoreCase = true) -> AlertLevel.ORANGE
+        r.contains("黄") || r.equals("yellow", ignoreCase = true) -> AlertLevel.YELLOW
+        r.contains("蓝") || r.equals("blue", ignoreCase = true) -> AlertLevel.BLUE
+        // 和风 severity 英文枚举（无 color.code 时兜底）：国内 minor→蓝 / moderate→黄 / severe→橙 / extreme→红；
+        // major/standard 为澳洲等地的补充档，就近归入橙/蓝（0.0.4 修复：此前英文枚举不匹配、全落 UNKNOWN）
+        r.equals("extreme", ignoreCase = true) -> AlertLevel.RED
+        r.equals("severe", ignoreCase = true) || r.equals("major", ignoreCase = true) -> AlertLevel.ORANGE
+        r.equals("moderate", ignoreCase = true) -> AlertLevel.YELLOW
+        r.equals("minor", ignoreCase = true) || r.equals("standard", ignoreCase = true) -> AlertLevel.BLUE
+        else -> AlertLevel.UNKNOWN
+    }
 }
 
 @Serializable

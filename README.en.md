@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.4-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.5-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.4-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.0.4" src="https://img.shields.io/badge/current-0.0.5-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -115,20 +115,17 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
 
-## Version 0.0.4
+## Version 0.0.5
 
-Version 0.0.4 responds to test feedback by rebuilding the widgets and incorporating stability fixes, followed by offline caching, background widget refresh, and a polish pass.
+Version 0.0.5 is mostly about themes. Alongside dark mode there is now a "cold jade" light theme — cool gray paper with jade as the data color — and the widgets change skin with it. It also fixes two bugs that had been hiding in plain sight.
 
-- Reworked all three widgets into 22dp rounded weather instruments with substantially larger readings and glyphs
-- Added date, feels-like, humidity, wind, rain probability, provider, and update time to widgets, with colors aligned to the app theme
-- Widgets now refresh in the background every hour; snapshots older than 3 hours show "x hours ago" and older than 24 hours show "stale"
-- Added offline caching: when the network or all providers fail, the last successful data is shown with an "x minutes ago" marker
-- Global 25s request deadline and provider circuit breaking keep dead providers from stalling every refresh
-- Included all seven stability fixes from the 0.0.3 test branch
-- Alerts are color-coded by the four-tier national scale (blue/yellow/orange/red); added rain-band distance, AQI health advice, and hourly AQI (Xiaomi provider)
-- City data corruption now self-heals from a backup; location lookup is capped at 15s and rejects low-accuracy fixes
+- Three theme modes — dark / light / follow system — applied instantly, widgets restyle to match
+- Fixed follow-system showing the opposite of the system theme
+- Fixed alerts from the QWeather provider ignoring the four-tier national color scale (they all showed red)
+- Added a GitHub repository link in Settings — stars welcome
+- A full polish pass on light-mode text, icons, and the daily temperature bars
 
-Release checks cover 41 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.4_FINAL.md](RELEASE_0.0.4_FINAL.md) for the full record.
+Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and full Release builds. See [RELEASE_0.0.5.md](RELEASE_0.0.5.md) for the full record.
 
 ## Build from source
 

@@ -243,7 +243,8 @@ object WeatherRepository {
                                 detail = al.description,
                                 level = al.severity,
                                 pubTime = al.issuedTime,
-                                severity = alertLevelOf(al.severity),
+                                // 优先官方预警色 color.code（blue/yellow/orange/red），无颜色习惯时按 severity 英文枚举兜底
+                                severity = alertLevelOf(al.color?.code ?: al.severity),
                             )
                         )
                     }

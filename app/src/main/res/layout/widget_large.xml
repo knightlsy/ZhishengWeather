@@ -15,6 +15,7 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/widget_accent_bar"
             android:layout_width="4dp"
             android:layout_height="20dp"
             android:background="@drawable/widget_accent" />
@@ -44,6 +45,7 @@
             android:textSize="12sp" />
 
         <TextView
+            android:id="@+id/widget_live_dot"
             android:layout_width="6dp"
             android:layout_height="6dp"
             android:layout_marginStart="8dp"
@@ -130,6 +132,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/widget_rule_bar"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginVertical="4dp"
@@ -147,6 +150,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/widget_rule_bar_2"
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginVertical="4dp"

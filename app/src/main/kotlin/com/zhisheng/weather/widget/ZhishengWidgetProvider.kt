@@ -6,11 +6,14 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
 import com.zhisheng.weather.MainActivity
 import com.zhisheng.weather.R
+import com.zhisheng.weather.data.SettingsRepository
+import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.data.WidgetCache
 import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.WeatherCondition
@@ -18,6 +21,7 @@ import com.zhisheng.weather.model.conditionIconRes
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // 磷光天气仪表桌面小组件（v0.0.4）
@@ -50,9 +54,17 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                 val snap = runCatching { WidgetCache.load(context) }
                     .onFailure { android.util.Log.e(TAG, "读取小组件缓存失败", it) }
                     .getOrNull()
+                // 小组件双主题（v0.0.5）：跟随 App 主题模式；SYSTEM 时按当前系统夜间态判定
+                val light = when (SettingsRepository.themeMode.first()) {
+                    ThemeMode.LIGHT -> true
+                    ThemeMode.DARK -> false
+                    ThemeMode.SYSTEM ->
+                        (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) !=
+                            Configuration.UI_MODE_NIGHT_YES
+                }
                 ids.forEach { id ->
                     runCatching {
-                        val views = build(context, manager, id, snap)
+                        val views = build(context, manager, id, snap, light)
                         manager.updateAppWidget(id, views)
                     }.onFailure {
                         // 单个实例失败不阻断其他尺寸，同时留下可诊断日志。
@@ -70,6 +82,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         manager: AppWidgetManager,
         id: Int,
         snap: WidgetSnapshot?,
+        light: Boolean,
     ): RemoteViews {
         val opts = manager.getAppWidgetOptions(id)
         val minW = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 110)
@@ -81,6 +94,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             else -> R.layout.widget_small
         }
         val v = RemoteViews(context.packageName, layout)
+        if (light) applyLightSkin(context, v) // XML 默认深色磷光，浅色按资源表整体换肤（v0.0.5）
 
         // 整块点击进 App
         val intent = Intent(context, MainActivity::class.java)
@@ -206,6 +220,32 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             }
         }
         return v
+    }
+
+    // 浅色换肤（v0.0.5）：文本色/背景/装饰条整体切换到纸面终端资源；
+    // 三种布局 id 并集一次应用，缺失 id 的动作会被 RemoteViews 静默跳过
+    private fun applyLightSkin(context: Context, v: RemoteViews) {
+        fun color(res: Int) = context.getColor(res)
+        v.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_bg_light)
+        v.setTextColor(R.id.w_city, color(R.color.widget_light_accent_orange))
+        v.setTextColor(R.id.w_date, color(R.color.widget_light_accent_cyan))
+        v.setTextColor(R.id.w_temp, color(R.color.widget_light_text_primary))
+        v.setTextColor(R.id.w_range, color(R.color.widget_light_text_secondary))
+        v.setTextColor(R.id.w_details, color(R.color.widget_light_text_tertiary))
+        v.setTextColor(R.id.w_upd, color(R.color.widget_light_border))
+        v.setTextColor(R.id.w_aqi, color(R.color.widget_light_accent_cyan))
+        listOf(R.id.h1_t, R.id.h2_t, R.id.h3_t, R.id.h4_t)
+            .forEach { v.setTextColor(it, color(R.color.widget_light_text_tertiary)) }
+        listOf(R.id.h1_v, R.id.h2_v, R.id.h3_v, R.id.h4_v)
+            .forEach { v.setTextColor(it, color(R.color.widget_light_text_primary)) }
+        listOf(R.id.d1_t, R.id.d2_t, R.id.d3_t)
+            .forEach { v.setTextColor(it, color(R.color.widget_light_text_secondary)) }
+        listOf(R.id.d1_v, R.id.d2_v, R.id.d3_v)
+            .forEach { v.setTextColor(it, color(R.color.widget_light_text_primary)) }
+        v.setInt(R.id.widget_accent_bar, "setBackgroundResource", R.drawable.widget_accent_light)
+        v.setInt(R.id.widget_rule_bar, "setBackgroundResource", R.drawable.widget_rule_light)
+        v.setInt(R.id.widget_rule_bar_2, "setBackgroundResource", R.drawable.widget_rule_light)
+        v.setInt(R.id.widget_live_dot, "setBackgroundResource", R.drawable.widget_live_dot_light)
     }
 
     private fun clock(ms: Long): String =

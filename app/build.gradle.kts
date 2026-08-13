@@ -26,9 +26,9 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260818：0.0.4 最终版（> 20260815，可覆盖安装此前内测构建）
-        versionCode = 20260818
-        versionName = "0.0.4"
+        // 20260820：0.0.5（浅色模式）——> 20260818 可覆盖安装 0.0.4
+        versionCode = 20260820
+        versionName = "0.0.5"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")

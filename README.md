@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.4-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.5-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.0.4" src="https://img.shields.io/badge/当前版本-0.0.4-31C9DB?style=flat-square"/>
+  <img alt="当前版本 0.0.5" src="https://img.shields.io/badge/当前版本-0.0.5-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -115,20 +115,17 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
 
-## 0.0.4 更新
+## 0.0.5 更新
 
-0.0.4 根据内测反馈重点重做桌面小组件，并继续合入稳定性修复；后续又补上离线缓存、小组件后台刷新与一批体验打磨。
+0.0.5 的重头戏是主题。深色之外新增了浅色「清冷翡翠」——冷灰纸面打底、翡冷翠做数据色，桌面小组件跟着一起换；顺手修了两个藏得比较深的毛病。
 
-- 三档小组件改为 22dp 圆角天气仪表，放大温度、日期、天气图标和逐时/逐日字号
-- 小组件补充日期、体感温度、湿度、风速、降水概率、来源与更新时间，配色与 App 主题统一
-- 小组件支持后台定时刷新（每小时），超过 3 小时标注「x小时前」，超过 24 小时提示过期
-- 新增离线缓存：断网或数据源全部失败时展示最近一次成功数据并标注「x 分钟前」
-- 全局请求超时（25 秒）与数据源熔断，坏掉的源不再拖慢每次刷新
-- 合入 0.0.3test 的 7 项稳定性修复
-- 预警按国标蓝/黄/橙/红四档着色；新增雨区距离、AQI 健康建议与逐时 AQI（小米源）
-- 城市数据损坏自动从备份恢复；定位整体限时 15 秒并过滤低精度结果
+- 主题三档：深色 / 浅色 / 跟随系统，切换即时生效，小组件同步换肤
+- 修复「跟随系统」方向反了的问题：系统深色时 App 反而切浅色
+- 修复和风天气源预警不按国标四档着色的老问题（此前和风的预警清一色红）
+- 设置页新增 GitHub 仓库入口，欢迎顺手点个 star
+- 文字、图标、逐日温度条等浅色细节整体盘过一遍
 
-当前回归检查包括 41 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.4_FINAL.md](RELEASE_0.0.4_FINAL.md)。
+当前回归检查包括 46 项单元测试、Android Lint、Debug / 公共版 / 满血版构建。详细记录见 [RELEASE_0.0.5.md](RELEASE_0.0.5.md)。
 
 ## 从源码构建
 
