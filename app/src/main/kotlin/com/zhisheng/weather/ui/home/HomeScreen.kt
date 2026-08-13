@@ -85,6 +85,7 @@ import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.DailyWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.MinutePrecip
+import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
@@ -324,7 +325,9 @@ private fun WeatherContent(
     val nextStagger = { stagger++ }
 
     val showHourly = data.hourly.isNotEmpty()
-    val showPrecip = prefs.showPrecip && data.rainMinutes.isNotEmpty()
+    val showPrecip = prefs.showPrecip && (
+        data.rainMinutes.isNotEmpty() || !data.rainNowcast.isNullOrBlank() || data.rainDistanceKm != null
+    )
     val showDaily = data.daily.isNotEmpty()
     val showTele = prefs.showTelemetry && data.current != null
     val showAqi = prefs.showAqi && data.aqi != null
@@ -352,7 +355,7 @@ private fun WeatherContent(
         if (showPrecip) {
             val n = nextIndex()
             item { SectionTitle(n, "分钟降水", "PRECIP") }
-            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data.rainMinutes, data.rainNowcast, data.rainDistanceKm, m) } }
+            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data.rainMinutes, data.rainDistanceKm, m) } }
         }
         if (showDaily) {
             val n = nextIndex()
@@ -520,6 +523,24 @@ private fun HeroSection(
                 }
                 WeatherIcon(cur.condition, Modifier.size(76.dp))
             }
+        }
+        Nowcast.briefingLine(data, unit, System.currentTimeMillis())?.let { raw ->
+            val line = Nowcast.tidyCopy(raw)
+            val rain = Nowcast.rainTiming(data.rainMinutes, System.currentTimeMillis())
+            val color = if (rain.hasRain || Nowcast.looksLikeIncomingRain(line)) {
+                ZhishengOrange
+            } else {
+                ZhishengMint
+            }
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = line,
+                style = MaterialTheme.typography.titleSmall,
+                color = color,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -756,10 +777,12 @@ private fun HourlySection(
             // 图例：底部两行数字分别是降水概率与风速，去掉每格的 km/h 后在此说明一次
             Spacer(Modifier.height(6.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(width = 6.dp, height = 2.dp).background(ZhishengCyan))
-                Spacer(Modifier.width(5.dp))
-                Text("降水概率", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
-                Spacer(Modifier.width(14.dp))
+                if (hourly.any { it.precipProb != null && it.precipProb > 0 }) {
+                    Box(Modifier.size(width = 6.dp, height = 2.dp).background(ZhishengCyan))
+                    Spacer(Modifier.width(5.dp))
+                    Text("降水概率", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+                    Spacer(Modifier.width(14.dp))
+                }
                 Box(Modifier.size(width = 6.dp, height = 2.dp).background(ZhishengTextTertiary))
                 Spacer(Modifier.width(5.dp))
                 Text(Fmt.windUnitLabel(windUnit), style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
@@ -900,31 +923,23 @@ private fun HourlyItem(
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary,
         )
-        // 逐时 AQI（v0.0.4：小米独有字段接入，其余源为 null 不占位）
-        h.aqi?.let { aqiV ->
-            Spacer(Modifier.height(2.dp))
-            Text(
-                text = "AQI $aqiV",
-                style = MaterialTheme.typography.labelSmall,
-                color = aqiColor(aqiV),
-            )
-        }
     }
 }
 
 // —— 分钟降水：柱状雷达图 ——
 @Composable
-private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistanceKm: Double?, modifier: Modifier) {
+private fun PrecipCard(minutes: List<MinutePrecip>, rainDistanceKm: Double?, modifier: Modifier) {
     // Canvas lambda 非 composable，柱色与标记线颜色提前取值
     val barCyan = ZhishengCyan.copy(alpha = 0.85f)
     val barBorder = ZhishengCardBorder
     val nowLineOrange = ZhishengOrange
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
-            summary?.let {
-                Text(it, style = MaterialTheme.typography.bodyMedium, color = ZhishengText)
+            Nowcast.rainTimingLabel(Nowcast.rainTiming(minutes, System.currentTimeMillis()))?.let {
+                Text(it, style = MaterialTheme.typography.bodyMedium, color = ZhishengOrange, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
             }
+            if (minutes.isNotEmpty()) {
             Canvas(modifier = Modifier.fillMaxWidth().height(34.dp)) {
                 val n = minutes.size
                 if (n == 0) return@Canvas
@@ -950,10 +965,11 @@ private fun PrecipCard(minutes: List<MinutePrecip>, summary: String?, rainDistan
             Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
                 Text("现在", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange)
                 Spacer(Modifier.weight(1f))
-                Text("+120min", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+                Text(Nowcast.horizonLabel(minutes), style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+            }
             }
             // 雨区距离（v0.0.4）：小米分钟降水 kmNum，其余源为 null 不显示
-            rainDistanceKm?.let { km ->
+            rainDistanceKm?.takeIf { it > 0.0 }?.let { km ->
                 Spacer(Modifier.height(2.dp))
                 Text(
                     "雨区距此 ${if (km == Math.floor(km)) km.toInt().toString() else String.format(Locale.US, "%.1f", km)} km",
@@ -977,11 +993,18 @@ private fun DailySection(
     val highs = daily.mapNotNull { conv(it.high, unit) }
     val weekMin = lows.minOrNull() ?: 0.0
     val weekMax = highs.maxOrNull() ?: 1.0
+    var expandedMillis by remember { mutableStateOf<Long?>(null) }
 
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
             daily.forEachIndexed { index, d ->
-                Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                val expanded = expandedMillis == d.dateMillis
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedMillis = if (expanded) null else d.dateMillis }
+                        .padding(vertical = 6.dp),
+                ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = formatWeekday(d.dateMillis, index),
@@ -1028,14 +1051,57 @@ private fun DailySection(
                             textAlign = TextAlign.End,
                         )
                     }
-                    if (d.windSpeed != null) {
-                        Row(Modifier.padding(start = 50.dp)) {
-                            Text("风 ${Fmt.wind(d.windSpeed, windUnit)}", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
-                        }
+                    if (expanded) {
+                        DailyExpanded(d, windUnit)
                     }
                 }
                 if (index < daily.size - 1) {
                     HorizontalDivider(color = ZhishengCardBorder.copy(alpha = 0.5f), thickness = 1.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DailyExpanded(d: DailyWeather, windUnit: String) {
+    Column(Modifier.padding(start = 50.dp, top = 6.dp, end = 4.dp)) {
+        d.windSpeed?.let {
+            Text("风 ${Fmt.wind(it, windUnit)}", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+            Spacer(Modifier.height(4.dp))
+        }
+        Row {
+            d.sunrise?.let {
+                Text("日出 $it", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange)
+                Spacer(Modifier.width(14.dp))
+            }
+            d.sunset?.let {
+                Text("日落 $it", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange)
+            }
+        }
+        d.precipMm?.takeIf { it > 0.0 }?.let { mm ->
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "降水 ${if (mm == Math.floor(mm)) mm.toInt().toString() else String.format(java.util.Locale.US, "%.1f", mm)} mm",
+                style = MaterialTheme.typography.labelSmall,
+                color = ZhishengCyan,
+            )
+        }
+        if (d.moonPhase != null || d.moonrise != null || d.moonset != null) {
+            Spacer(Modifier.height(4.dp))
+            Row {
+                Text(
+                    "月相 ${Fmt.moonPhaseZh(d.moonPhase) ?: "--"}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ZhishengCyan,
+                )
+                Spacer(Modifier.width(14.dp))
+                d.moonrise?.let {
+                    Text("月出 $it", style = MaterialTheme.typography.labelSmall, color = ZhishengCyan)
+                    Spacer(Modifier.width(14.dp))
+                }
+                d.moonset?.let {
+                    Text("月落 $it", style = MaterialTheme.typography.labelSmall, color = ZhishengCyan)
                 }
             }
         }

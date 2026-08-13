@@ -53,6 +53,7 @@ data class XiaomiForecastDaily(
     val weather: XiaomiDailyWeather? = null,
     val sunRiseSet: XiaomiFromToList? = null,
     val precipitationProbability: XiaomiStrList? = null,
+    val moonPhase: XiaomiStrList? = null,
     val wind: XiaomiDailyWind? = null,
 )
 
@@ -133,12 +134,23 @@ data class XiaomiForecastResult(
 @Serializable
 data class XiaomiMinutely(
     val precipitation: XiaomiMinutelyPrecip? = null,
+    val probability: XiaomiMinutelyProbability? = null,
+)
+
+@Serializable
+data class XiaomiMinutelyProbability(
+    val maxProbability: String? = null,
+    val probabilityDesc: String? = null,
+    val probabilityDescV2: String? = null,
 )
 
 @Serializable
 data class XiaomiMinutelyPrecip(
     val description: String? = null,
     val kmNum: String? = null,
+    // 未来约 120 分钟逐分钟强度（0=无雨）。此前只接了 description/kmNum，公共版国内看不到降水柱。
+    val value: List<Double>? = null,
+    val pubTime: String? = null,
 )
 
 @Serializable
