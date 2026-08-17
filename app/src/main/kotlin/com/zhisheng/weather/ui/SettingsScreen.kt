@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,10 +74,10 @@ import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════
-// 设置（v0.0.2 重做）
-// 01 数据源（自动/和风/小米/公共源）
+// 设置（v0.0.8）
+// 01 数据源（自动/小米/公共源；和风仅开发者模式）
 // 02 定位（默认关，严格可选）
-// 03 单位  04 显示模块  05 界面效果  06 关于
+// 03 单位  04 显示模块  05 界面效果  06 关于（连点版本打开开发者）
 // ═══════════════════════════════════════════════════════════
 
 @Composable
@@ -98,6 +99,7 @@ fun SettingsScreen(
     val pressureUnit by SettingsRepository.pressureUnit.collectAsState(initial = "hpa")
     val showTyphoon by SettingsRepository.showTyphoon.collectAsState(initial = true)
     val source by SettingsRepository.sourcePref.collectAsState(initial = SourcePref.AUTO)
+    val developerMode by SettingsRepository.developerMode.collectAsState(initial = false)
     val ambience by SettingsRepository.ambience.collectAsState(initial = AmbienceLevel.SUBTLE)
     val scanlines by SettingsRepository.scanlines.collectAsState(initial = true)
     val locationEnabled by SettingsRepository.locationEnabled.collectAsState(initial = false)
@@ -111,6 +113,8 @@ fun SettingsScreen(
     val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
 
     var permDenied by remember { mutableStateOf(false) }
+    var versionTaps by remember { mutableIntStateOf(0) }
+    var tapHint by remember { mutableStateOf<String?>(null) }
 
     // 权限申请器：只在用户点「定位当前城市」时触发，App 启动/刷新绝不调用
     val permLauncher = rememberLauncherForActivityResult(
@@ -154,7 +158,7 @@ fun SettingsScreen(
             SectionTitle(1, "数据源", "DATA SOURCE")
             Hint(sourceHint(source, activeSource, activeCityName, sourceLoading))
             CardBox {
-                SourcePref.entries.forEachIndexed { i, p ->
+                SourcePref.visible(developerMode).forEachIndexed { i, p ->
                     if (i > 0) HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                     SourceRow(
                         pref = p,
@@ -311,20 +315,61 @@ fun SettingsScreen(
             // ——— 06 关于 ———
             SectionTitle(6, "关于", "ABOUT")
             CardBox {
-                InfoRow("版本", "v${com.zhisheng.weather.BuildConfig.VERSION_NAME}")
-                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                InfoRow("和风凭据", if (QWeatherApi.enabled) "已配置" else "未配置")
+                InfoRow(
+                    "版本",
+                    "v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
+                    onClick = {
+                        if (developerMode) {
+                            tapHint = "开发者模式已开启。可在数据源中锁定和风天气。"
+                        } else {
+                            val n = versionTaps + 1
+                            versionTaps = n
+                            when {
+                                n >= 7 -> {
+                                    scope.launch { SettingsRepository.setDeveloperMode(true) }
+                                    tapHint = "开发者模式已开启。可在数据源中锁定和风天气。"
+                                    versionTaps = 0
+                                }
+                                n >= 3 -> tapHint = "再点 ${7 - n} 次进入开发者模式"
+                                else -> tapHint = null
+                            }
+                        }
+                    },
+                )
+                tapHint?.let { hint ->
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    Text(
+                        "> $hint",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = ZhishengMint,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    )
+                }
+                if (developerMode) {
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ToggleRow(
+                        "开发者模式",
+                        "开启后可在数据源中锁定和风天气；关掉后默认仍走小米",
+                        true,
+                    ) {
+                        scope.launch { SettingsRepository.setDeveloperMode(false) }
+                        tapHint = null
+                        versionTaps = 0
+                    }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    InfoRow("和风凭据", if (QWeatherApi.enabled) "已配置" else "未配置")
+                }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 InfoRow("权限", "仅网络；位置为可选且默认关闭")
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                // 开源引流入口（v0.0.5）：GitHub 仓库 → 浏览器
+                // 开源引流入口：Gitee 仓库 → 浏览器
                 LinkRow(
-                    "GitHub 仓库",
+                    "Gitee 仓库",
                     "开源主页 · 欢迎 star",
                 ) {
                     runCatching {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/ZhishengZZ/ZhishengWeather"))
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://gitee.com/zhisheng8888/ZhishengWeather"))
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
@@ -366,11 +411,7 @@ private fun sourceHint(
 }
 
 private fun sourceDescription(p: SourcePref): String = when (p) {
-    SourcePref.AUTO -> buildList {
-        if (QWeatherApi.enabled) add("和风")
-        add("小米")
-        add("Open-Meteo")
-    }.joinToString(" → ") + "，按可用性降级"
+    SourcePref.AUTO -> "小米 → Open-Meteo，按可用性降级"
     SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "当前构建未配置和风凭据"
     SourcePref.XIAOMI -> "免配置·国内城市优先"
     SourcePref.OPEN_METEO -> "免配置·全球覆盖"
@@ -583,9 +624,14 @@ private fun ActionRow(label: String, enabled: Boolean, color: Color, onClick: ()
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+        modifier = Modifier.fillMaxWidth()
+            .then(
+                if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick)
+                else Modifier,
+            )
+            .padding(horizontal = 14.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengTextSecondary)

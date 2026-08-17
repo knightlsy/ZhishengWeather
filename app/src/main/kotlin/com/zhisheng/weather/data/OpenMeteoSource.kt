@@ -131,6 +131,7 @@ object OpenMeteoSource {
                             high = d.temperature_2m_max?.getOrNull(i),
                             low = d.temperature_2m_min?.getOrNull(i),
                             condition = wmoToCondition(d.weather_code?.getOrNull(i), true),
+                            weatherText = wmoToCondition(d.weather_code?.getOrNull(i), true).label,
                             windSpeed = d.wind_speed_10m_max?.getOrNull(i),
                             precipProbability = d.precipitation_probability_max?.getOrNull(i)
                                 ?.let { p -> Math.round(p).toInt() },

@@ -1,0 +1,98 @@
+package com.zhisheng.weather.model
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class WeatherConsistencyTest {
+
+    private val t0 = 1_700_000_000_000L
+
+    @Test
+    fun dropPastHourlyRemovesHoursOlderThanGraceWindow() {
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.DRIZZLE),
+            hourly = listOf(
+                HourlyWeather(t0 - 3 * 3_600_000L, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 3_600_000L, 16.0, WeatherCondition.DRIZZLE),
+            ),
+        )
+        val trimmed = WeatherConsistency.dropPastHourly(data, t0)
+        assertEquals(1, trimmed.hourly.size)
+        assertEquals(t0 + 3_600_000L, trimmed.hourly[0].timeMillis)
+    }
+
+    @Test
+    fun prependsNowSlotWhenHourlyStartsInTheFuture() {
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            hourly = listOf(
+                HourlyWeather(t0 + 51 * 60_000L, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 111 * 60_000L, 14.0, WeatherCondition.OVERCAST),
+            ),
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals(WeatherCondition.DRIZZLE, aligned.hourly.first().condition)
+        assertEquals(16.0, aligned.hourly.first().temperature)
+        assertEquals(WeatherCondition.OVERCAST, aligned.hourly[1].condition)
+    }
+
+    @Test
+    fun overlaysCurrentConditionOntoTheNowHour() {
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            hourly = listOf(
+                HourlyWeather(t0, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 3_600_000L, 14.0, WeatherCondition.OVERCAST),
+            ),
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals(WeatherCondition.DRIZZLE, aligned.hourly[0].condition)
+        assertEquals(16.0, aligned.hourly[0].temperature)
+        assertEquals(WeatherCondition.OVERCAST, aligned.hourly[1].condition)
+    }
+
+    @Test
+    fun upgradesClearCurrentWhenMinuteSeriesIsWetNow() {
+        val minutes = Nowcast.minuteSeries(List(20) { 0.04f }, t0)
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.OVERCAST, weatherText = "阴"),
+            rainMinutes = minutes,
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals(WeatherCondition.DRIZZLE, aligned.current?.condition)
+        assertEquals("小雨", aligned.current?.weatherText)
+    }
+
+    @Test
+    fun dropsContradictingDryNowcastWhenRaining() {
+        val data = WeatherData(
+            current = CurrentWeather(condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            rainNowcast = "未来两小时不会下雨，您可以放心出门",
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertNull(aligned.rainNowcast)
+        assertEquals("正在下雨", Nowcast.briefingLine(aligned, "c", t0))
+    }
+
+    @Test
+    fun jinchangStyleHeroAndHourlyAgree() {
+        val minutes = Nowcast.minuteSeries(List(23) { 0.033f } + List(97) { 0f }, t0)
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            hourly = listOf(
+                HourlyWeather(t0 + 51 * 60_000L, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 111 * 60_000L, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 171 * 60_000L, 14.0, WeatherCondition.DRIZZLE),
+            ),
+            rainNowcast = "未来两小时不会下雨",
+            rainMinutes = minutes,
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals("小雨", aligned.current?.weatherText)
+        assertEquals(WeatherCondition.DRIZZLE, aligned.hourly.first().condition)
+        assertTrue(Nowcast.briefingLine(aligned, "c", t0)!!.contains("雨"))
+        assertTrue(!Nowcast.briefingLine(aligned, "c", t0)!!.contains("不会下雨"))
+    }
+}

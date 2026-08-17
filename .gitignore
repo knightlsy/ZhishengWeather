@@ -4,6 +4,7 @@ build/
 app/build/
 .kotlin/
 dist/
+dist-tmp/
 captures/
 local.properties
 *.log

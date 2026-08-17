@@ -67,7 +67,7 @@ interface QWeatherService {
 
 object QWeatherApi {
 
-    // local.properties 未配置凭据时为 false，自动走小米源
+    // 构建未配置凭据时为 false。即使为 true，默认链路也不打和风（须开发者模式锁定）。
     // v0.0.4：补 QW_KID 检查——kid 为空时 JWT 头 kid=""，服务端必 401，原判定会让用户无感降级
     val enabled: Boolean
         get() = BuildConfig.QW_HOST.isNotBlank() &&

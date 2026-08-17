@@ -3,18 +3,20 @@ package com.zhisheng.weather.model
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// 短时降水与主屏一句话（v0.0.6）：纯函数，不读系统时钟以外的环境。
+// 短时降水与主屏一句话（v0.0.8）：现在是否在下，只看「此刻」而不是序列里最早的一场雨。
 data class RainTiming(
     val rainingNow: Boolean,
     val minutesUntilStart: Int?,
+    val minutesUntilEnd: Int? = null,
 ) {
     val hasRain: Boolean get() = rainingNow || minutesUntilStart != null
 }
 
 object Nowcast {
-    const val WET_THRESHOLD = 0.03f
+    const val WET_THRESHOLD = 0.02f
     const val NOW_WINDOW_MS = 2 * 60_000L
     const val MINUTE_MS = 60_000L
+    private const val STOP_DRY_RUN = 8
 
     fun minuteSeries(
         values: List<Float>,
@@ -57,25 +59,47 @@ object Nowcast {
         minutes: List<MinutePrecip>,
         nowMillis: Long,
         wet: Float = WET_THRESHOLD,
+        currentPrecip: Boolean = false,
     ): RainTiming {
-        val firstWet = minutes.firstOrNull { it.precip >= wet } ?: return RainTiming(false, null)
-        val delta = firstWet.timeMillis - nowMillis
-        if (delta <= NOW_WINDOW_MS) return RainTiming(true, 0)
-        val mins = ((delta + 30_000L) / MINUTE_MS).toInt().coerceAtLeast(1)
-        return RainTiming(false, mins)
+        val sorted = minutes.sortedBy { it.timeMillis }
+        val seriesNow = seriesWetAt(sorted, nowMillis, wet)
+        val rainingNow = currentPrecip || seriesNow
+        if (rainingNow) {
+            val end = if (seriesNow) minutesUntilDry(sorted, nowMillis, wet) else null
+            return RainTiming(true, 0, end)
+        }
+        val start = minutesUntilWet(sorted, nowMillis, wet)
+        return RainTiming(false, start, null)
     }
 
     fun rainTimingLabel(timing: RainTiming): String? = when {
+        timing.rainingNow && timing.minutesUntilEnd != null ->
+            "${timing.minutesUntilEnd} 分钟后雨会停"
         timing.rainingNow -> "正在下雨"
         timing.minutesUntilStart != null -> "${timing.minutesUntilStart} 分钟后开始下雨"
         else -> null
     }
 
     fun briefingLine(data: WeatherData, unit: String, nowMillis: Long): String? {
-        // 接口原文优先（和风 summary / 小米 description），包括「不会下雨」——那也是两小时结论
-        data.rainNowcast?.trim()?.takeIf { it.isNotEmpty() }?.let { return tidyCopy(it) }
+        val precipNow = data.current.let { cur ->
+            cur != null && (cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05)
+        }
+        val timing = rainTiming(data.rainMinutes, nowMillis, currentPrecip = precipNow)
+        val api = data.rainNowcast?.trim()?.takeIf { it.isNotEmpty() }?.let { tidyCopy(it) }
 
-        rainTimingLabel(rainTiming(data.rainMinutes, nowMillis))?.let { return it }
+        if (timing.rainingNow) {
+            // 实况或分钟序列显示正在下雨时，接口「不会下雨」一律丢掉。
+            if (api != null && !isDryNowcast(api)) return api
+            return rainTimingLabel(timing)
+        }
+        if (timing.minutesUntilStart != null) {
+            if (api != null && !isDryNowcast(api) && looksLikeIncomingRain(api)) return api
+            return rainTimingLabel(timing)
+        }
+        if (api != null && isDryNowcast(api)) return api
+        // 雨在别处（距离文案）可以保留；近处有雨但此刻序列是干的，也让用户看到源站结论。
+        if (api != null && looksLikeIncomingRain(api)) return api
+
         severeAlert(data.alerts)?.title?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         tempDeltaLine(data, unit)?.let { return it }
         mildAlert(data.alerts)?.title?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
@@ -85,10 +109,71 @@ object Nowcast {
     fun tidyCopy(text: String): String =
         text.trim().trimEnd('~', '～').trimEnd()
 
+    internal fun isDryNowcast(text: String): Boolean {
+        if (text.isEmpty()) return false
+        return text.contains("不会下雨") || text.contains("无降水") || text.contains("不会有雨") ||
+            text.contains("无降雨") || text.contains("没有雨")
+    }
+
     internal fun looksLikeIncomingRain(text: String): Boolean {
         if (text.isEmpty()) return false
-        if (text.contains("不会下雨") || text.contains("无降水") || text.contains("不会有雨")) return false
+        if (isDryNowcast(text)) return false
+        if (text.contains("以外") || text.contains("远离")) return false
         return text.contains("雨") || text.contains("雪") || text.contains("降水")
+    }
+
+    internal fun seriesWetAt(
+        minutes: List<MinutePrecip>,
+        nowMillis: Long,
+        wet: Float = WET_THRESHOLD,
+    ): Boolean {
+        if (minutes.isEmpty()) return false
+        val window = minutes.filter { abs(it.timeMillis - nowMillis) <= NOW_WINDOW_MS }
+        if (window.isNotEmpty()) return window.any { it.precip >= wet }
+        val first = minutes.first()
+        return first.timeMillis > nowMillis &&
+            first.timeMillis - nowMillis <= NOW_WINDOW_MS &&
+            first.precip >= wet
+    }
+
+    private fun minutesUntilWet(
+        minutes: List<MinutePrecip>,
+        nowMillis: Long,
+        wet: Float,
+    ): Int? {
+        val firstWet = minutes.firstOrNull { it.timeMillis > nowMillis + NOW_WINDOW_MS && it.precip >= wet }
+            ?: return null
+        val mins = ((firstWet.timeMillis - nowMillis + 30_000L) / MINUTE_MS).toInt().coerceAtLeast(1)
+        return mins
+    }
+
+    private fun minutesUntilDry(
+        minutes: List<MinutePrecip>,
+        nowMillis: Long,
+        wet: Float,
+    ): Int? {
+        val after = minutes.filter { it.timeMillis >= nowMillis }
+        if (after.isEmpty()) return null
+        var run = 0
+        var dryStart: MinutePrecip? = null
+        for (p in after) {
+            if (p.precip < wet) {
+                if (run == 0) dryStart = p
+                run++
+                if (run >= STOP_DRY_RUN) {
+                    return ((dryStart!!.timeMillis - nowMillis + 30_000L) / MINUTE_MS).toInt()
+                        .coerceAtLeast(1)
+                }
+            } else {
+                run = 0
+                dryStart = null
+            }
+        }
+        if (run > 0 && after.last().precip < wet) {
+            return ((dryStart!!.timeMillis - nowMillis + 30_000L) / MINUTE_MS).toInt()
+                .coerceAtLeast(1)
+        }
+        return null
     }
 
     private fun severeAlert(alerts: List<AlertInfo>): AlertInfo? =

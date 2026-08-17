@@ -9,21 +9,34 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-// 数据源偏好：AUTO 按和风、小米、公共源的顺序降级；其余为手动锁定单一源。
+// 数据源偏好：AUTO 默认小米→公共源；和风只在开发者模式下可锁定。
 // 装不上和风的用户锁 OPEN_METEO 即可拿到完整体验（实况/逐时/逐日/空气质量全免 key）。
 enum class SourcePref(val key: String, val cn: String, val en: String, val desc: String) {
-    AUTO("auto", "自动优选", "AUTO", "和风→小米→公共源"),
-    QWEATHER("qweather", "和风天气", "QWEATHER", "需自备凭据·全功能"),
+    AUTO("auto", "自动优选", "AUTO", "小米→公共源"),
+    QWEATHER("qweather", "和风天气", "QWEATHER", "开发者·需凭据"),
     XIAOMI("xiaomi", "小米天气", "XIAOMI", "免配置·国内"),
     OPEN_METEO("openmeteo", "Open-Meteo", "OPEN-METEO", "免配置·全球");
 
     companion object {
         fun from(v: String?): SourcePref = entries.firstOrNull { it.key == v } ?: AUTO
+
+        // 设置页展示顺序：和风垫底，且仅开发者模式可见。
+        fun visible(developerMode: Boolean): List<SourcePref> = buildList {
+            add(AUTO)
+            add(XIAOMI)
+            add(OPEN_METEO)
+            if (developerMode) add(QWEATHER)
+        }
     }
+
+    // 未开开发者模式时，历史锁定的和风按自动优选处理（默认走小米）。
+    fun effective(developerMode: Boolean): SourcePref =
+        if (this == QWEATHER && !developerMode) AUTO else this
 
     // 离线缓存按源认领：锁了公共源就不能把上一手小米数据当成当前结果。
     fun matches(dataSource: String?): Boolean = when (this) {
@@ -77,6 +90,7 @@ object SettingsRepository {
     private val KEY_BOOT_ANIM = booleanPreferencesKey("boot_anim")
     private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
     private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+    private val KEY_DEVELOPER = booleanPreferencesKey("developer_mode")
 
     fun init(context: Context) {
         store = context.applicationContext.settingsStore
@@ -85,8 +99,13 @@ object SettingsRepository {
     // c=摄氏度 f=华氏度
     val tempUnit: Flow<String> by lazy { store.data.map { it[KEY_TEMP_UNIT] ?: "c" } }
     val showTyphoon: Flow<Boolean> by lazy { store.data.map { it[KEY_SHOW_TYPHOON] ?: true } }
+    val developerMode: Flow<Boolean> by lazy {
+        store.data.map { it[KEY_DEVELOPER] ?: false }.distinctUntilChanged()
+    }
     val sourcePref: Flow<SourcePref> by lazy {
-        store.data.map { SourcePref.from(it[KEY_SOURCE]) }.distinctUntilChanged()
+        store.data.map { prefs ->
+            SourcePref.from(prefs[KEY_SOURCE]).effective(prefs[KEY_DEVELOPER] ?: false)
+        }.distinctUntilChanged()
     }
     val ambience: Flow<AmbienceLevel> by lazy { store.data.map { AmbienceLevel.from(it[KEY_AMBIENCE]) } }
     val scanlines: Flow<Boolean> by lazy { store.data.map { it[KEY_SCANLINES] ?: true } }
@@ -111,6 +130,9 @@ object SettingsRepository {
     suspend fun setTempUnit(unit: String) = store.edit { it[KEY_TEMP_UNIT] = unit }
     suspend fun setShowTyphoon(show: Boolean) = store.edit { it[KEY_SHOW_TYPHOON] = show }
     suspend fun setSourcePref(p: SourcePref) = store.edit { it[KEY_SOURCE] = p.key }
+    suspend fun setDeveloperMode(v: Boolean) = store.edit { it[KEY_DEVELOPER] = v }
+    // 城市搜索 / 逆地理：未开开发者模式绝不打和风接口，满血版也一样。
+    suspend fun qweatherUnlocked(): Boolean = QWeatherApi.enabled && developerMode.first()
     suspend fun purgeRetiredProviderData() = store.edit { prefs ->
         // 0.0.4 内测构建曾保存过这一组第三方凭据；正式移除功能时同步擦除旧值。
         listOf("caiyun_token", "caiyun_app_key", "caiyun_app_secret", "caiyun_credential")

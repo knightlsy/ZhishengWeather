@@ -84,7 +84,6 @@ import com.zhisheng.weather.model.AqiInfo
 import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.DailyWeather
 import com.zhisheng.weather.model.HourlyWeather
-import com.zhisheng.weather.model.MinutePrecip
 import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
@@ -355,7 +354,7 @@ private fun WeatherContent(
         if (showPrecip) {
             val n = nextIndex()
             item { SectionTitle(n, "分钟降水", "PRECIP") }
-            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data.rainMinutes, data.rainDistanceKm, m) } }
+            item { Stagger(nextStagger(), entered) { m -> PrecipCard(data, m) } }
         }
         if (showDaily) {
             val n = nextIndex()
@@ -526,7 +525,11 @@ private fun HeroSection(
         }
         Nowcast.briefingLine(data, unit, System.currentTimeMillis())?.let { raw ->
             val line = Nowcast.tidyCopy(raw)
-            val rain = Nowcast.rainTiming(data.rainMinutes, System.currentTimeMillis())
+            val rain = Nowcast.rainTiming(
+                data.rainMinutes,
+                System.currentTimeMillis(),
+                currentPrecip = cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05,
+            )
             val color = if (rain.hasRain || Nowcast.looksLikeIncomingRain(line)) {
                 ZhishengOrange
             } else {
@@ -850,9 +853,9 @@ private fun HourlyItem(
         modifier = Modifier.width(itemW),
     ) {
         Text(
-            text = if (first) "现在" else formatHour(h.timeMillis),
+            text = if (isCurrentHour(h.timeMillis)) "现在" else formatHour(h.timeMillis),
             style = MaterialTheme.typography.labelSmall,
-            color = if (first) ZhishengMint else ZhishengTextTertiary,
+            color = if (isCurrentHour(h.timeMillis)) ZhishengMint else ZhishengTextTertiary,
         )
         Spacer(Modifier.height(6.dp))
         WeatherIcon(h.condition, Modifier.size(24.dp))
@@ -928,14 +931,21 @@ private fun HourlyItem(
 
 // —— 分钟降水：柱状雷达图 ——
 @Composable
-private fun PrecipCard(minutes: List<MinutePrecip>, rainDistanceKm: Double?, modifier: Modifier) {
+private fun PrecipCard(data: WeatherData, modifier: Modifier) {
+    val minutes = data.rainMinutes
+    val rainDistanceKm = data.rainDistanceKm
+    val precipNow = data.current.let { cur ->
+        cur != null && (cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05)
+    }
     // Canvas lambda 非 composable，柱色与标记线颜色提前取值
     val barCyan = ZhishengCyan.copy(alpha = 0.85f)
     val barBorder = ZhishengCardBorder
     val nowLineOrange = ZhishengOrange
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
-            Nowcast.rainTimingLabel(Nowcast.rainTiming(minutes, System.currentTimeMillis()))?.let {
+            Nowcast.rainTimingLabel(
+                Nowcast.rainTiming(minutes, System.currentTimeMillis(), currentPrecip = precipNow),
+            )?.let {
                 Text(it, style = MaterialTheme.typography.bodyMedium, color = ZhishengOrange, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(8.dp))
             }
@@ -1066,6 +1076,10 @@ private fun DailySection(
 @Composable
 private fun DailyExpanded(d: DailyWeather, windUnit: String) {
     Column(Modifier.padding(start = 50.dp, top = 6.dp, end = 4.dp)) {
+        d.weatherText?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.labelSmall, color = ZhishengMint)
+            Spacer(Modifier.height(4.dp))
+        }
         d.windSpeed?.let {
             Text("风 ${Fmt.wind(it, windUnit)}", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
             Spacer(Modifier.height(4.dp))
@@ -1128,6 +1142,7 @@ private fun TelemetryGrid(
     prefs: com.zhisheng.weather.ui.DisplayPrefs,
     modifier: Modifier,
 ) {
+    // 没数的格不画：小米实况没有 1 时降水，硬留第九格会 -- 还在右侧留空（v0.0.7）。
     val items = listOf(
         Triple("湿度", "HUMIDITY", cur.humidity?.let { "${it.roundToInt()}%" }),
         Triple("风向风速", "WIND", windLabel(cur, prefs.windUnit)),
@@ -1138,14 +1153,18 @@ private fun TelemetryGrid(
         Triple("云量", "CLOUD", cur.cloudCover?.let { "${it.roundToInt()}%" }),
         Triple("阵风", "GUST", Fmt.wind(cur.windGust, prefs.windUnit)),
         Triple("1时降水", "PRECIP", cur.precipMm?.let { String.format(Locale.US, "%.1f mm", it) }),
-    )
+    ).mapNotNull { (cn, en, value) -> value?.let { Triple(cn, en, it) } }
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         items.chunked(2).forEach { rowItems ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowItems.forEach { (cn, en, value) ->
-                    TeleCell(cn, en, value, cur, Modifier.weight(1f))
+                if (rowItems.size == 1) {
+                    val (cn, en, value) = rowItems[0]
+                    TeleCell(cn, en, value, cur, Modifier.fillMaxWidth())
+                } else {
+                    rowItems.forEach { (cn, en, value) ->
+                        TeleCell(cn, en, value, cur, Modifier.weight(1f))
+                    }
                 }
-                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -1204,7 +1223,7 @@ private fun TelemetryGrid(
 private fun TeleCell(
     cn: String,
     en: String,
-    value: String?,
+    value: String,
     cur: CurrentWeather,
     modifier: Modifier = Modifier,
 ) {
@@ -1232,7 +1251,7 @@ private fun TeleCell(
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
-                    value ?: "--",
+                    value,
                     style = MaterialTheme.typography.titleMedium,
                     color = ZhishengText,
                     fontWeight = FontWeight.Bold,
@@ -1732,6 +1751,9 @@ private fun CityDrawer(
 
 private val hourFmt = DateTimeFormatter.ofPattern("H时")
 private val timeFmt = DateTimeFormatter.ofPattern("MM-dd HH:mm")
+
+private fun isCurrentHour(epoch: Long, now: Long = System.currentTimeMillis()): Boolean =
+    kotlin.math.abs(epoch - now) <= 40 * 60_000L
 
 private fun formatHour(epoch: Long): String {
     val zoned = Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault())

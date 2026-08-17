@@ -61,32 +61,9 @@ object CityRepository {
         locationKey = "101010100",
     )
 
-    // 搜索城市（和风 GeoAPI 主，小米兜底）
+    // 搜索城市：默认小米 → Open-Meteo；和风 Geo 仅开发者模式且前两源都空时才打。
     suspend fun search(query: String): List<City> {
         if (query.isBlank()) return emptyList()
-        if (QWeatherApi.enabled) {
-            // 透传 CancellationException：被取消的搜索不再继续跑小米兜底（v0.0.1）
-            val qw = try {
-                QWeatherApi.service.cityLookup(query)
-            } catch (ce: kotlinx.coroutines.CancellationException) {
-                throw ce
-            } catch (_: Exception) {
-                null
-            }
-            val qwList = qw?.location?.mapNotNull { loc ->
-                val lat = loc.lat?.toDoubleOrNull() ?: return@mapNotNull null
-                val lon = loc.lon?.toDoubleOrNull() ?: return@mapNotNull null
-                City(
-                    name = loc.name ?: "",
-                    affiliation = listOf(loc.adm1, loc.adm2)
-                        .filter { !it.isNullOrBlank() }.distinct().joinToString("·"),
-                    latitude = lat,
-                    longitude = lon,
-                    locationKey = loc.id ?: "$lon,$lat",
-                )
-            }.orEmpty()
-            if (qwList.isNotEmpty()) return qwList
-        }
         val xiaomi = try {
             XiaomiApi.instance.searchCity(query)
                 .filter { it.status == 0 }
@@ -108,9 +85,28 @@ object CityRepository {
             emptyList()
         }
         if (xiaomi.isNotEmpty()) return xiaomi
-        // 最后落公共源 Geocoding：和风无凭据 + 小米不可达（海外网络）时仍能搜到城市，
-        // 否则这类用户连一个城市都加不进来（v0.0.2）
-        return OpenMeteoSource.searchCity(query)
+        val om = OpenMeteoSource.searchCity(query)
+        if (om.isNotEmpty()) return om
+        if (!SettingsRepository.qweatherUnlocked()) return emptyList()
+        val qw = try {
+            QWeatherApi.service.cityLookup(query)
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
+        } catch (_: Exception) {
+            null
+        }
+        return qw?.location?.mapNotNull { loc ->
+            val lat = loc.lat?.toDoubleOrNull() ?: return@mapNotNull null
+            val lon = loc.lon?.toDoubleOrNull() ?: return@mapNotNull null
+            City(
+                name = loc.name ?: "",
+                affiliation = listOf(loc.adm1, loc.adm2)
+                    .filter { !it.isNullOrBlank() }.distinct().joinToString("·"),
+                latitude = lat,
+                longitude = lon,
+                locationKey = loc.id ?: "$lon,$lat",
+            )
+        }.orEmpty()
     }
 
     // 已保存城市

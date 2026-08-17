@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit
 
 // 小组件后台刷新（v0.0.4）：周期性拉取当前选中城市，更新 WidgetCache 并刷新桌面。
 // 此前小组件数据完全依赖「打开 App」才会更新——几天不开 App 桌面就停留在旧天气。
-// 走主 App 同一条数据链路：公共版自然落在小米/Open-Meteo 免 key 源，满血版可用和风凭据。
+// 走主 App 同一条数据链路：默认小米/Open-Meteo；和风仅开发者锁定时才会打。
 class WidgetSyncWorker(
     appContext: Context,
     params: WorkerParameters,
