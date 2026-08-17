@@ -117,9 +117,11 @@ The APK is distributed through Gitee. Android may ask you to allow the current a
 
 ## Version 0.0.8
 
-This release is about one thing: the same moment in weather has to say the same thing everywhere on screen.
+It was raining in Jinchang. The big type said light rain; the line under it said it would not rain. The first hourly cell was labeled Now, but it was already the next hour's overcast. That is what this release fixes.
 
-If it is drizzling now, the line under the big temperature cannot say "no rain". The first hourly column is no longer labeled "now" when it is actually the next hour. Minute precipitation looks at this minute, not the first wet point in a two-hour series. Daily icons use the more severe of day and night weather, and the expanded row can show "sunny turning to thunderstorms". China phenomenon codes and AccuWeather icon numbers are split by location key so cloudy is not read as light rain.
+If rain is falling, the briefing says so. If it has stopped, the app no longer stays on "raining". Only the hour closest to now is labeled Now. A day that is sunny by day and stormy at night uses the more serious of the two, and the expanded row can show sunny turning to thunderstorms. Xiaomi's China weather codes and AccuWeather icon numbers are no longer mixed, so overcast is not read as drizzle.
+
+Regression checks are in the unit tests and the public build. Notifications are not in this release.
 
 ## Version 0.0.6
 
@@ -132,7 +134,7 @@ Version 0.0.5 is mostly about themes. Alongside dark mode there is now a "cold j
 - Three theme modes — dark / light / follow system — applied instantly, widgets restyle to match
 - Fixed follow-system showing the opposite of the system theme
 - Fixed alerts from the QWeather provider ignoring the four-tier national color scale (they all showed red)
-- Added a GitHub repository link in Settings — stars welcome
+- Added an open-source repository link in Settings — stars welcome
 - A full polish pass on light-mode text, icons, and the daily temperature bars
 
 Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and full Release builds.
@@ -195,6 +197,17 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
+<summary><b>0.0.8 // DATA</b></summary>
+
+- Briefing no longer says "no rain" while it is raining
+- Hourly "Now" only marks the current hour
+- Minute precipitation follows this minute; stopped rain is not kept as raining
+- Daily uses the more serious of day/night weather; expanded row can show sunny turning to thunderstorms
+- Xiaomi China codes and AccuWeather icon numbers are no longer mixed
+
+</details>
+
+<details>
 <summary><b>0.0.6 // NOWCAST</b></summary>
 
 - One-line briefing under the big temperature: rain timing, alerts, tomorrow's swing
