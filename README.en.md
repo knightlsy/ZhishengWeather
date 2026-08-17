@@ -117,11 +117,15 @@ The APK is distributed through Gitee. Android may ask you to allow the current a
 
 ## Version 0.0.8
 
-It was raining in Jinchang. The big type said light rain; the line under it said it would not rain. The first hourly cell was labeled Now, but it was already the next hour's overcast. That is what this release fixes.
+This update mainly fixes inconsistent weather display.
 
-If rain is falling, the briefing says so. If it has stopped, the app no longer stays on "raining". Only the hour closest to now is labeled Now. A day that is sunny by day and stormy at night uses the more serious of the two, and the expanded row can show sunny turning to thunderstorms. Xiaomi's China weather codes and AccuWeather icon numbers are no longer mixed, so overcast is not read as drizzle.
+1. Fixed the home screen still saying "no rain" while it is raining
+2. Fixed the hourly forecast labeling the next hour as "Now"
+3. Improved short-term precipitation status so it no longer stays on "raining" after rain has stopped
+4. Improved daily weather display: when day and night conditions differ, the more significant weather is shown, and the expanded row can show phrases such as "sunny turning to thunderstorms"
+5. Fixed overcast being shown as light rain
 
-Regression checks are in the unit tests and the public build. Notifications are not in this release.
+Notifications are not included in this version.
 
 ## Version 0.0.6
 
@@ -199,11 +203,11 @@ After location is enabled and permission is granted, the app rechecks the city a
 <details open>
 <summary><b>0.0.8 // DATA</b></summary>
 
-- Briefing no longer says "no rain" while it is raining
-- Hourly "Now" only marks the current hour
-- Minute precipitation follows this minute; stopped rain is not kept as raining
-- Daily uses the more serious of day/night weather; expanded row can show sunny turning to thunderstorms
-- Xiaomi China codes and AccuWeather icon numbers are no longer mixed
+- Fixed the home screen still saying "no rain" while it is raining
+- Fixed the hourly forecast labeling the next hour as "Now"
+- Improved short-term precipitation status after rain has stopped
+- Improved daily weather display when day and night conditions differ
+- Fixed overcast being shown as light rain
 
 </details>
 
