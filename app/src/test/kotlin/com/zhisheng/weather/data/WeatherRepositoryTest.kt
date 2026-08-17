@@ -37,4 +37,21 @@ class WeatherRepositoryTest {
         assertEquals(false, SourcePref.QWEATHER.matches("OPEN-METEO"))
         assertEquals(true, SourcePref.OPEN_METEO.matches("OPEN-METEO"))
     }
+
+    @Test
+    fun qweatherStaysHiddenUntilDeveloperMode() {
+        assertEquals(
+            listOf(SourcePref.AUTO, SourcePref.XIAOMI, SourcePref.OPEN_METEO),
+            SourcePref.visible(developerMode = false),
+        )
+        assertEquals(SourcePref.QWEATHER, SourcePref.visible(developerMode = true).last())
+    }
+
+    @Test
+    fun qweatherLockFallsBackToAutoWithoutDeveloperMode() {
+        assertEquals(SourcePref.AUTO, SourcePref.QWEATHER.effective(developerMode = false))
+        assertEquals(SourcePref.QWEATHER, SourcePref.QWEATHER.effective(developerMode = true))
+        assertEquals(SourcePref.AUTO, SourcePref.AUTO.effective(developerMode = false))
+        assertEquals(SourcePref.XIAOMI, SourcePref.XIAOMI.effective(developerMode = false))
+    }
 }

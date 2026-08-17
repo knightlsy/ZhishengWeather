@@ -118,7 +118,7 @@ object LocationSource {
         System.currentTimeMillis() - location.time in 0..15 * 60_000L
 
     // 坐标 → 中文城市。小米 geo 接口免 key 且直接给 locationKey + 归属地，优先用；
-    // 失败退和风 GeoAPI（按坐标 lookup）。两者都失败则如实报错，不猜城市。
+    // 失败且已开开发者模式时才退和风 GeoAPI。两者都失败则如实报错，不猜城市。
     private suspend fun reverseGeocode(lat: Double, lon: Double): City? =
         xiaomiReverse(lat, lon) ?: qweatherReverse(lat, lon)
 
@@ -142,7 +142,7 @@ object LocationSource {
     }
 
     private suspend fun qweatherReverse(lat: Double, lon: Double): City? {
-        if (!QWeatherApi.enabled) return null
+        if (!SettingsRepository.qweatherUnlocked()) return null
         return try {
             val loc = QWeatherApi.service
                 .cityLookup(String.format(java.util.Locale.US, "%.2f,%.2f", lon, lat))

@@ -13,6 +13,7 @@ import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
 import com.zhisheng.weather.model.Nowcast
+import com.zhisheng.weather.model.WeatherConsistency
 import com.zhisheng.weather.model.alertLevelOf
 import com.zhisheng.weather.model.wmoToCondition
 import kotlinx.coroutines.async
@@ -20,11 +21,10 @@ import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
-// 天气仓储：和风天气为主源（并行 7 路），小米源补昨日复盘/台风，
-// 和风不可用（未配置凭据/网络失败）时整体回退小米源。
+// 天气仓储：默认小米为主源，Open-Meteo 兜底；和风只在开发者锁定时走。
 object WeatherRepository {
 
-    // AUTO 走熔断降级链（v0.0.4）；手动锁定时只打那一个源，
+    // AUTO 走熔断降级链（v0.0.7 起小米→公共源）；手动锁定时只打那一个源，
     // 失败就如实报错，不静默串到别的源（用户选了就该看到那个源的真实状态）。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
@@ -38,20 +38,15 @@ object WeatherRepository {
             SourcePref.OPEN_METEO -> OpenMeteoSource.fetch(city)
             SourcePref.AUTO -> autoChain(city)
         }
-        // 逐日不足 15 天用 Open-Meteo 补齐（海外城市小米源天数少的兜底）
-        return densifyPrecip(backfillHourly(backfillDaily(data, city), city))
+        // 先丢掉已经过去的逐时，再决定要不要用公共源补齐；最后对齐「现在」。
+        val trimmed = WeatherConsistency.dropPastHourly(data)
+        return WeatherConsistency.align(
+            densifyPrecip(backfillHourly(backfillDaily(trimmed, city), city)),
+        )
     }
 
-    // AUTO 链：down 的源直接跳过，不再白等超时；失败留痕并计入熔断计数
+    // AUTO 链：小米 → Open-Meteo。和风不在默认链里（v0.0.7）。
     private suspend fun autoChain(city: City): WeatherData {
-        if (QWeatherApi.enabled && !SourceHealth.isDown(SourceHealth.QWEATHER)) {
-            val d = fetchQWeather(city)
-            if (d != null) {
-                SourceHealth.recordSuccess(SourceHealth.QWEATHER)
-                return d
-            }
-            SourceHealth.recordFailure(SourceHealth.QWEATHER)
-        }
         if (!SourceHealth.isDown(SourceHealth.XIAOMI)) {
             val d = fetchXiaomi(city)
             if (d.error == null && d.current != null) {
@@ -60,7 +55,6 @@ object WeatherRepository {
             }
             SourceHealth.recordFailure(SourceHealth.XIAOMI)
         }
-        // 全部 down / 全部失败：最后硬试小米，再落公共源（保留原兜底行为）
         return fetchXiaomi(city).ifFailed { OpenMeteoSource.fetch(city) }
     }
 
@@ -175,6 +169,7 @@ object WeatherRepository {
                         low = dd.temperatureMin?.value,
                         // 逐日行代表整天，固定用白天条件（不取 icon 的夜间变体）
                         condition = WeatherCondition.fromQwCode(dd.daytime?.condition?.code),
+                        weatherText = dd.daytime?.condition?.text,
                         windSpeed = speedKmh(dd.daytime?.wind?.speed),
                         precipProbability = dd.daytime?.precipitation?.probability,
                         precipMm = dd.daytime?.precipitation?.amount?.value,
@@ -187,7 +182,7 @@ object WeatherRepository {
                 }?.let { addAll(it) }
                 // 和风最多 10 天，超出部分用小米源续上
                 val qwCount = size
-                s?.let { mapXiaomiDaily(it) }?.drop(qwCount)?.let { addAll(it) }
+                s?.let { mapXiaomiDaily(it, city.locationKey) }?.drop(qwCount)?.let { addAll(it) }
             }.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
 
             WeatherData(
@@ -290,7 +285,7 @@ object WeatherRepository {
                         high = it.tempMax?.toDoubleOrNull(),
                         low = it.tempMin?.toDoubleOrNull(),
                         aqi = it.aqi?.toIntOrNull(),
-                        condition = WeatherCondition.fromCode(it.weatherEnd),
+                        condition = WeatherCondition.fromXiaomi(it.weatherEnd, city.locationKey),
                     )
                 },
                 typhoons = s?.typhoon?.mapNotNull { t ->
@@ -346,7 +341,7 @@ object WeatherRepository {
                 days = 15,
             )
         } ?: throw java.io.IOException("小米源请求失败")
-        val data = mapXiaomiToWeatherData(result)
+        val data = mapXiaomiToWeatherData(result, city.locationKey)
         // 小米源 moonPhase 恒空：本地计算补上，日月卡月相行不再整行消失
         val withMoon = data.copy(
             daily = data.daily.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
@@ -462,6 +457,7 @@ object WeatherRepository {
                     high = om.temperature_2m_max?.getOrNull(i),
                     low = om.temperature_2m_min?.getOrNull(i),
                     condition = wmoToCondition(om.weather_code?.getOrNull(i), true),
+                    weatherText = wmoToCondition(om.weather_code?.getOrNull(i), true).label,
                     windSpeed = om.wind_speed_10m_max?.getOrNull(i),
                     precipProbability = om.precipitation_probability_max?.getOrNull(i)?.let { Math.round(it).toInt() },
                     precipMm = om.precipitation_sum?.getOrNull(i),
@@ -522,7 +518,10 @@ object WeatherRepository {
     }
 
     // 小米源逐日映射（15 天）
-    private fun mapXiaomiDaily(r: XiaomiForecastResult): List<DailyWeather> {
+    private fun mapXiaomiDaily(
+        r: XiaomiForecastResult,
+        locationKey: String? = null,
+    ): List<DailyWeather> {
         val dailyWindSpeed = r.forecastDaily?.wind?.speed?.value
         val dailyPrecip = r.forecastDaily?.precipitationProbability?.value
         val dailySun = r.forecastDaily?.sunRiseSet?.value
@@ -549,9 +548,14 @@ object WeatherRepository {
                         dateMillis = start + i * 86400_000L,
                         high = hiT,
                         low = loT,
-                        condition = WeatherCondition.fromCode(w?.from),
+                        condition = WeatherCondition.moreSignificant(
+                            WeatherCondition.fromXiaomi(w?.from, locationKey),
+                            WeatherCondition.fromXiaomi(w?.to, locationKey),
+                        ),
+                        weatherText = WeatherCondition.turnPhrase(w?.from, w?.to, locationKey),
                         windSpeed = dailyWindSpeed?.getOrNull(i)?.from?.toDoubleOrNull(),
-                        precipProbability = dailyPrecip?.getOrNull(i)?.toIntOrNull(),
+                        precipProbability = dailyPrecip?.getOrNull(i)?.toIntOrNull()
+                            ?.takeIf { it > 0 },
                         sunrise = formatClock(sun?.from),
                         sunset = formatClock(sun?.to),
                         moonPhase = dailyMoon?.getOrNull(i),
@@ -561,13 +565,16 @@ object WeatherRepository {
         }
     }
 
-    private fun mapXiaomiToWeatherData(r: XiaomiForecastResult): WeatherData {
+    private fun mapXiaomiToWeatherData(
+        r: XiaomiForecastResult,
+        locationKey: String? = null,
+    ): WeatherData {
         val current = r.current?.let { cur ->
             CurrentWeather(
                 temperature = cur.temperature?.value?.toDoubleOrNull(),
                 feelsLike = cur.feelsLike?.value?.toDoubleOrNull(),
-                condition = WeatherCondition.fromCode(cur.weather),
-                weatherText = WeatherCondition.fromCode(cur.weather).label,
+                condition = WeatherCondition.fromXiaomi(cur.weather, locationKey),
+                weatherText = WeatherCondition.xiaomiLabel(cur.weather, locationKey),
                 humidity = cur.humidity?.value?.toDoubleOrNull(),
                 // 小米风速带 unit 字段：km/h 透传，m/s 换算（v0.0.1）
                 windSpeed = cur.wind?.speed?.let { w ->
@@ -602,7 +609,10 @@ object WeatherRepository {
                     HourlyWeather(
                         timeMillis = start + i * 3600_000L,
                         temperature = temps?.getOrNull(i)?.toDouble(),
-                        condition = WeatherCondition.fromCode(codes?.getOrNull(i)?.toString()),
+                        condition = WeatherCondition.fromXiaomi(
+                            codes?.getOrNull(i)?.toString(),
+                            locationKey,
+                        ),
                         windSpeed = hourlyWind?.getOrNull(i)?.speed?.toDoubleOrNull(),
                         aqi = hourlyAqi?.getOrNull(i),
                     )
@@ -610,7 +620,7 @@ object WeatherRepository {
             }
         }
 
-        val daily = mapXiaomiDaily(r)
+        val daily = mapXiaomiDaily(r, locationKey)
 
         val aqi = r.aqi?.let { a ->
             AqiInfo(
@@ -656,7 +666,7 @@ object WeatherRepository {
                     high = it.tempMax?.toDoubleOrNull(),
                     low = it.tempMin?.toDoubleOrNull(),
                     aqi = it.aqi?.toIntOrNull(),
-                    condition = WeatherCondition.fromCode(it.weatherEnd),
+                    condition = WeatherCondition.fromXiaomi(it.weatherEnd, locationKey),
                 )
             },
             typhoons = r.typhoon?.mapNotNull { t ->

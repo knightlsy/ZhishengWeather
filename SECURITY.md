@@ -11,8 +11,8 @@
 
 - **不要**通过公开 Issue 报告安全问题
   *Do **not** report security issues in public issues.*
-- 首选通道：仓库 **Security → Advisories → Report a vulnerability**（私密漏洞上报）
-  *Preferred channel: **Security → Advisories → Report a vulnerability** in this repository (private reporting).*
+- 首选通道：通过 Gitee 私信维护者，或开仅维护者可见的安全相关 Issue
+  *Preferred channel: Gitee private message to the maintainer, or a security issue visible only to maintainers.*
 - 备选通道：私信维护者
   *Fallback: message the maintainer directly.*
 - 报告应包含：受影响版本、复现步骤、影响面评估、修复建议（如有）

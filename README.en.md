@@ -7,15 +7,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/ZhishengZZ/ZhishengWeather/releases/latest">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.6-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+  <a href="https://gitee.com/zhisheng8888/ZhishengWeather/releases">
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.8-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml"><img alt="Build" src="https://github.com/ZhishengZZ/ZhishengWeather/actions/workflows/build.yml/badge.svg?branch=main&style=flat-square"/></a>
+  <a href="https://gitee.com/zhisheng8888/ZhishengWeather"><img alt="Gitee" src="https://gitee.com/zhisheng8888/ZhishengWeather/badge/star.svg?theme=dark"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.6" src="https://img.shields.io/badge/current-0.0.6-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.0.8" src="https://img.shields.io/badge/current-0.0.8-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -68,11 +68,11 @@ Fields that a provider does not supply stay empty; the app does not fill them wi
 
 ## Public and full builds
 
-GitHub Releases provide the public APK, which works immediately after installation. The full build must be compiled from source with your own QWeather developer credentials.
+Gitee Releases provide the public APK, which works immediately after installation. The full build must be compiled from source with your own QWeather developer credentials.
 
 | | Public build | Full build |
 |:--|:--|:--|
-| Get it | Download from [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest) | Clone and build the source |
+| Get it | Download from [Releases](https://gitee.com/zhisheng8888/ZhishengWeather/releases) | Clone and build the source |
 | Default data path | Xiaomi Weather + Open-Meteo | QWeather first, with Xiaomi and Open-Meteo as supplements |
 | Extra setup | None | QWeather Ed25519 credentials |
 | Main difference | Everyday weather works out of the box | QWeather alerts, minute precipitation, and life indices are available according to account permissions |
@@ -109,11 +109,17 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 ## Install
 
-1. Download the latest public APK from [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases/latest).
+1. Download the latest public APK from [Releases](https://gitee.com/zhisheng8888/ZhishengWeather/releases).
 2. Install it on Android 8.0 or later.
 3. The first launch shows Beijing. Use search to save your own cities.
 
-The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+The APK is distributed through Gitee. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+
+## Version 0.0.8
+
+This release is about one thing: the same moment in weather has to say the same thing everywhere on screen.
+
+If it is drizzling now, the line under the big temperature cannot say "no rain". The first hourly column is no longer labeled "now" when it is actually the next hour. Minute precipitation looks at this minute, not the first wet point in a two-hour series. Daily icons use the more severe of day and night weather, and the expanded row can show "sunny turning to thunderstorms". China phenomenon codes and AccuWeather icon numbers are split by location key so cloudy is not read as light rain.
 
 ## Version 0.0.6
 
@@ -140,7 +146,7 @@ A widget polish pass: date, update time, feels-like, and hourly/daily text got a
 You need JDK 17 and Android SDK 34. The Gradle Wrapper is included.
 
 ```bash
-git clone https://github.com/ZhishengZZ/ZhishengWeather.git
+git clone https://gitee.com/zhisheng8888/ZhishengWeather.git
 cd ZhishengWeather
 ```
 
@@ -229,7 +235,7 @@ After location is enabled and permission is granted, the app rechecks the city a
 
 **0.0.1 Preview** was the first public build, with the phosphor-terminal interface, 15 weather glyphs, three-provider data path, and public build task.
 
-See [Releases](https://github.com/ZhishengZZ/ZhishengWeather/releases) for complete version notes.
+See [Releases](https://gitee.com/zhisheng8888/ZhishengWeather/releases) for complete version notes.
 
 ## License
 

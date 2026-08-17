@@ -8,8 +8,8 @@ import com.zhisheng.weather.widget.WidgetSyncWorker
 class ZhishengApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        CityRepository.init(this)
         SettingsRepository.init(this)
+        CityRepository.init(this)
         // 小组件后台刷新周期任务（v0.0.4）：KEEP 策略保证不因每次启动重置周期
         WidgetSyncWorker.schedule(this)
     }

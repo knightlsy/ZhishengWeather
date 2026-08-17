@@ -48,14 +48,14 @@ class NowcastTest {
     }
 
     @Test
-    fun briefingPrefersApiNowcastOverComputedTiming() {
+    fun briefingPrefersComputedTimingWhenSeriesHasRain() {
         val values = MutableList(20) { 0f }
         values[10] = 0.5f
         val data = WeatherData(
             rainNowcast = "距离最近的降雨约在38公里以外~",
             rainMinutes = Nowcast.minuteSeries(values, t0),
         )
-        assertEquals("距离最近的降雨约在38公里以外", Nowcast.briefingLine(data, "c", t0))
+        assertEquals("10 分钟后开始下雨", Nowcast.briefingLine(data, "c", t0))
     }
 
     @Test
@@ -129,9 +129,39 @@ class NowcastTest {
     }
 
     @Test
-    fun looksLikeIncomingRainRejectsNegatives() {
+    fun looksLikeIncomingRainRejectsNegativesAndFarAway() {
         assertFalse(Nowcast.looksLikeIncomingRain("未来两小时无降水"))
+        assertFalse(Nowcast.looksLikeIncomingRain("距离最近的降雨约在38公里以外"))
         assertTrue(Nowcast.looksLikeIncomingRain("35分钟后有雨"))
+        assertTrue(Nowcast.looksLikeIncomingRain("正在下雨"))
+    }
+
+    @Test
+    fun rainTimingIgnoresRainThatAlreadyEnded() {
+        val values = MutableList(40) { if (it < 10) 0.2f else 0f }
+        val timing = Nowcast.rainTiming(Nowcast.minuteSeries(values, t0), t0 + 25 * 60_000L)
+        assertFalse(timing.rainingNow)
+        assertNull(timing.minutesUntilStart)
+        assertNull(Nowcast.rainTimingLabel(timing))
+    }
+
+    @Test
+    fun briefingKeepsRainingWhenApiSaysNoRain() {
+        val data = WeatherData(
+            current = CurrentWeather(condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            rainNowcast = "未来两小时不会下雨，放心出门吧",
+            rainMinutes = Nowcast.minuteSeries(List(120) { 0f }, t0),
+        )
+        assertEquals("正在下雨", Nowcast.briefingLine(data, "c", t0))
+    }
+
+    @Test
+    fun rainTimingReportsMinutesUntilEnd() {
+        val values = MutableList(40) { if (it < 23) 0.03f else 0f }
+        val timing = Nowcast.rainTiming(Nowcast.minuteSeries(values, t0), t0)
+        assertTrue(timing.rainingNow)
+        assertEquals(23, timing.minutesUntilEnd)
+        assertEquals("23 分钟后雨会停", Nowcast.rainTimingLabel(timing))
     }
 
     @Test
