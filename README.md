@@ -7,13 +7,13 @@
 </p>
 
 <p align="center">
-  <a href="https://gitee.com/zhisheng8888/ZhishengWeather/releases">
+  <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
     <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.8-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://gitee.com/zhisheng8888/ZhishengWeather"><img alt="Gitee" src="https://gitee.com/zhisheng8888/ZhishengWeather/badge/star.svg?theme=dark"/></a>
+  <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
   <img alt="当前版本 0.0.8" src="https://img.shields.io/badge/当前版本-0.0.8-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
@@ -68,11 +68,11 @@
 
 ## 公共版和满血版
 
-Gitee Release 提供公共版 APK，安装后就能使用。满血版需要自己从源码构建，并填写个人的和风天气开发者凭据。
+GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自己从源码构建，并填写个人的和风天气开发者凭据。
 
 | | 公共版 | 满血版 |
 |:--|:--|:--|
-| 获取方式 | [Release](https://gitee.com/zhisheng8888/ZhishengWeather/releases) 下载 | 拉取源码自行构建 |
+| 获取方式 | [Release](https://github.com/zhishengplus/ZhishengWeather/releases) 下载 | 拉取源码自行构建 |
 | 默认数据链路 | 小米天气 + Open-Meteo | 和风天气为主，小米和 Open-Meteo 补充 |
 | 额外配置 | 不需要 | 和风 Ed25519 凭据 |
 | 主要差别 | 常用天气功能可直接使用 | 可使用和风提供的预警、逐分钟降水和生活指数，具体范围取决于账号权限 |
@@ -109,11 +109,11 @@ Gitee Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 ## 安装
 
-1. 从 [Releases](https://gitee.com/zhisheng8888/ZhishengWeather/releases) 下载最新公共版 APK。
+1. 从 [Releases](https://github.com/zhishengplus/ZhishengWeather/releases) 下载最新公共版 APK。
 2. 安装到 Android 8.0 或更高版本的设备。
 3. 首次打开默认显示北京，可通过搜索保存自己的城市。
 
-APK 只在 Gitee 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
+APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
 
 ## 0.0.8 更新
 
@@ -154,7 +154,7 @@ APK 只在 Gitee 发布。Android 可能提示允许当前应用安装未知来�
 需要 JDK 17 和 Android SDK 34。仓库包含 Gradle Wrapper。
 
 ```bash
-git clone https://gitee.com/zhisheng8888/ZhishengWeather.git
+git clone https://github.com/zhishengplus/ZhishengWeather.git
 cd ZhishengWeather
 ```
 
@@ -263,11 +263,11 @@ qw.private_key=<Ed25519 私钥，单行>
 
 **0.0.1 Preview**：首次公开预览，包含磷光终端界面、15 枚天气图标、三源数据链路和公共版构建方式。
 
-完整版本记录见 [Releases](https://gitee.com/zhisheng8888/ZhishengWeather/releases)。
+完整版本记录见 [Releases](https://github.com/zhishengplus/ZhishengWeather/releases)。
 
 ## 许可
 
-- 代码使用 [MIT License](LICENSE)。欢迎提交 [Issue](https://gitee.com/zhisheng8888/ZhishengWeather/issues) 和 PR。
+- 代码使用 [MIT License](LICENSE)。欢迎提交 [Issue](https://github.com/zhishengplus/ZhishengWeather/issues) 和 PR。
 - 界面、启动图标、天气图标和终端文案为枳生天气项目素材，引用时请保留来源。
 - 天气数据版权归 [和风天气](https://www.qweather.com/)、[Open-Meteo](https://open-meteo.com/) 和小米天气，数据仅供参考。
 - 使用和风主源时请保管好个人凭据，不要提交到公开仓库。

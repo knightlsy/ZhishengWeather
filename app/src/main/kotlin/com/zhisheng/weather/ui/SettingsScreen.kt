@@ -362,14 +362,14 @@ fun SettingsScreen(
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 InfoRow("权限", "仅网络；位置为可选且默认关闭")
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                // 开源引流入口：Gitee 仓库 → 浏览器
+                // 开源引流入口：GitHub 仓库 → 浏览器
                 LinkRow(
-                    "Gitee 仓库",
+                    "GitHub 仓库",
                     "开源主页 · 欢迎 star",
                 ) {
                     runCatching {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://gitee.com/zhisheng8888/ZhishengWeather"))
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/zhishengplus/ZhishengWeather"))
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
