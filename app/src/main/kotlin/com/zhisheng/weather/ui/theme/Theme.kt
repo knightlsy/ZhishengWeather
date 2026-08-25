@@ -6,6 +6,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
+import com.zhisheng.weather.data.AccentTone
 
 // 枳生天气 · 双主题（v0.0.5）：isLight 决定纸面/磷光两套色板与 M3 colorScheme
 private fun darkScheme(p: ZhishengPalette) = darkColorScheme(
@@ -51,8 +52,17 @@ private fun lightScheme(p: ZhishengPalette) = lightColorScheme(
 )
 
 @Composable
-fun ZhishengWeatherTheme(isLight: Boolean = false, content: @Composable () -> Unit) {
-    val palette = if (isLight) ZhishengLightPalette else ZhishengDarkPalette
+fun ZhishengWeatherTheme(
+    isLight: Boolean = false,
+    accentTone: AccentTone = AccentTone.STANDARD,
+    content: @Composable () -> Unit,
+) {
+    val palette = when {
+        isLight && accentTone == AccentTone.SOFT -> ZhishengLightSoftAccentPalette
+        isLight -> ZhishengLightPalette
+        accentTone == AccentTone.SOFT -> ZhishengDarkSoftAccentPalette
+        else -> ZhishengDarkPalette
+    }
     CompositionLocalProvider(LocalZhishengPalette provides palette) {
         MaterialTheme(
             colorScheme = if (isLight) lightScheme(palette) else darkScheme(palette),

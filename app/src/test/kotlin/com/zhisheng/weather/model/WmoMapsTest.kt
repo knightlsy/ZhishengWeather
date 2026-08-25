@@ -25,13 +25,15 @@ class WmoMapsTest {
         assertEquals(WeatherCondition.RAIN, wmoToCondition(80, true))
         assertEquals(WeatherCondition.SNOW, wmoToCondition(85, false))
         assertEquals(WeatherCondition.THUNDERSTORM, wmoToCondition(95, true))
-        assertEquals(WeatherCondition.THUNDERSTORM, wmoToCondition(99, false))
+        assertEquals(WeatherCondition.HAIL, wmoToCondition(99, false))
+        assertEquals(WeatherCondition.FREEZING_DRIZZLE, wmoToCondition(56, true))
+        assertEquals(WeatherCondition.FREEZING_RAIN, wmoToCondition(67, false))
     }
 
     @Test
-    fun unknownCodesFallBackToCloudy() {
-        assertEquals(WeatherCondition.CLOUDY, wmoToCondition(999, true))
-        assertEquals(WeatherCondition.CLOUDY, wmoToCondition(-1, false))
-        assertEquals(WeatherCondition.CLOUDY, wmoToCondition(null, true))
+    fun unknownCodesStayUnknown() {
+        assertEquals(WeatherCondition.UNKNOWN, wmoToCondition(999, true))
+        assertEquals(WeatherCondition.UNKNOWN, wmoToCondition(-1, false))
+        assertEquals(WeatherCondition.UNKNOWN, wmoToCondition(null, true))
     }
 }

@@ -1,3 +1,8 @@
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
+/* Hallmark · component: settings hierarchy · genre: atmospheric · theme: existing Zhisheng terminal
+ * states: default · focus · active · disabled · loading · error · success
+ * contrast: pass
+ */
 package com.zhisheng.weather.ui
 
 import android.Manifest
@@ -25,6 +30,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,10 +44,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,14 +55,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.zhisheng.weather.data.AccentTone
 import com.zhisheng.weather.data.AmbienceLevel
+import com.zhisheng.weather.data.CaiyunApi
+import com.zhisheng.weather.data.HomeModule
 import com.zhisheng.weather.data.LocationSource
 import com.zhisheng.weather.data.QWeatherApi
+import com.zhisheng.weather.data.SecretStore
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
 import com.zhisheng.weather.data.ThemeMode
@@ -66,7 +77,6 @@ import com.zhisheng.weather.ui.theme.ZhishengCardBorder
 import com.zhisheng.weather.ui.theme.ZhishengCyan
 import com.zhisheng.weather.ui.theme.ZhishengMint
 import com.zhisheng.weather.ui.theme.ZhishengOrange
-import com.zhisheng.weather.ui.theme.ZhishengRed
 import com.zhisheng.weather.ui.theme.ZhishengSurface
 import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
@@ -74,10 +84,8 @@ import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════
-// 设置（v0.0.8）
-// 01 数据源（自动/小米/公共源；和风仅开发者模式）
-// 02 定位（默认关，严格可选）
-// 03 单位  04 显示模块  05 界面效果  06 关于（连点版本打开开发者）
+// 设置（v0.1.0）
+// 天气来源（含开发者数据源接入）→ 位置 → 主屏显示 → 界面 → 关于
 // ═══════════════════════════════════════════════════════════
 
 @Composable
@@ -90,6 +98,8 @@ fun SettingsScreen(
     activeSource: String?,
     activeCityName: String?,
     sourceLoading: Boolean,
+    onAtmosphereLab: () -> Unit,
+    onShowWhatsNew: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -100,7 +110,7 @@ fun SettingsScreen(
     val showTyphoon by SettingsRepository.showTyphoon.collectAsState(initial = true)
     val source by SettingsRepository.sourcePref.collectAsState(initial = SourcePref.AUTO)
     val developerMode by SettingsRepository.developerMode.collectAsState(initial = false)
-    val ambience by SettingsRepository.ambience.collectAsState(initial = AmbienceLevel.SUBTLE)
+    val ambience by SettingsRepository.ambience.collectAsState(initial = AmbienceLevel.VIVID)
     val scanlines by SettingsRepository.scanlines.collectAsState(initial = true)
     val locationEnabled by SettingsRepository.locationEnabled.collectAsState(initial = false)
     val showAqi by SettingsRepository.showAqi.collectAsState(initial = true)
@@ -111,10 +121,22 @@ fun SettingsScreen(
     val bootAnim by SettingsRepository.bootAnim.collectAsState(initial = true)
     val keepScreenOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
     val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
+    val accentTone by SettingsRepository.accentTone.collectAsState(initial = AccentTone.STANDARD)
+    val moduleOrder by SettingsRepository.moduleOrder.collectAsState(initial = HomeModule.defaultOrder)
+    val qwRt by SecretStore.qwRuntimeFlow.collectAsState(initial = SecretStore.qwRuntime)
+    val caiyunRt by SecretStore.caiyunRuntimeFlow.collectAsState(initial = SecretStore.caiyunRuntime)
 
     var permDenied by remember { mutableStateOf(false) }
-    var versionTaps by remember { mutableIntStateOf(0) }
-    var tapHint by remember { mutableStateOf<String?>(null) }
+    // 0.0.9-debug 修复：原为普通 remember，Activity 配置变更重建时向导弹窗
+    // 静默消失，而保留的 ProviderSetupViewModel 仍停在中间步骤——重开后旧步骤
+    // 残留、验证态悬空。saveable 让弹窗随重建恢复，配合向导内的 DisposableEffect
+    // 取消验证与 FocusRequester 步进守卫，重建路径闭环。
+    var wizard by rememberSaveable { mutableStateOf<ProviderWizardKind?>(null) }
+    var showContributors by remember { mutableStateOf(false) }
+    var showCommunityGroup by remember { mutableStateOf(false) }
+    var developerToolsExpanded by rememberSaveable { mutableStateOf(false) }
+    var moduleOrderExpanded by rememberSaveable { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
 
     // 权限申请器：只在用户点「定位当前城市」时触发，App 启动/刷新绝不调用
     val permLauncher = rememberLauncherForActivityResult(
@@ -133,7 +155,7 @@ fun SettingsScreen(
             .statusBarsPadding().navigationBarsPadding(),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
@@ -151,35 +173,102 @@ fun SettingsScreen(
         }
 
         Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp),
         ) {
-            // ——— 01 数据源 ———
-            SectionTitle(1, "数据源", "DATA SOURCE")
-            Hint(sourceHint(source, activeSource, activeCityName, sourceLoading))
+            SectionTitle(1, "天气来源", "DATA SOURCE", sourceHint(source, activeSource, activeCityName, sourceLoading))
             CardBox {
-                SourcePref.visible(developerMode).forEachIndexed { i, p ->
+                listOf(SourcePref.AUTO, SourcePref.XIAOMI, SourcePref.OPEN_METEO).forEachIndexed { i, p ->
                     if (i > 0) HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                     SourceRow(
                         pref = p,
                         description = sourceDescription(p),
                         selected = source == p,
-                        status = sourceStatus(
-                            p,
-                            source == p,
-                            activeSource,
-                            sourceLoading,
-                        ),
+                        status = sourceStatus(p, source == p, activeSource, sourceLoading),
                         onClick = { scope.launch { SettingsRepository.setSourcePref(p) } },
                     )
                 }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                // 开关前后保持同一棵组件树：只切换可用状态，杜绝重排导致的页面跳动。
+                ToggleRow(
+                    "开发者模式",
+                    if (developerMode) "已开启·可使用彩云、和风与氛围实验室" else "开启彩云、和风接入与天气效果预览",
+                    developerMode,
+                ) {
+                    if (developerMode) developerToolsExpanded = false
+                    scope.launch { SettingsRepository.setDeveloperMode(!developerMode) }
+                }
+                listOf(SourcePref.CAIYUN, SourcePref.QWEATHER).forEach { p ->
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    SourceRow(
+                        pref = p,
+                        description = sourceDescription(p),
+                        selected = source == p,
+                        status = if (developerMode) {
+                            sourceStatus(p, source == p, activeSource, sourceLoading)
+                        } else {
+                            "需开启" to false
+                        },
+                        enabled = developerMode,
+                        onClick = { scope.launch { SettingsRepository.setSourcePref(p) } },
+                    )
+                }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                ActionRow(
+                    label = if (developerToolsExpanded) {
+                        "> 收起开发者工具"
+                    } else {
+                        "> 数据源接入 / 氛围实验室"
+                    },
+                    enabled = developerMode,
+                    color = ZhishengCyan,
+                ) { developerToolsExpanded = !developerToolsExpanded }
+                if (developerToolsExpanded && developerMode) {
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    InlineGroupLabel("接入管理", "凭据只保存在本机")
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = if (CaiyunApi.enabled) "> 彩云天气 · 已配置 · 重新配置" else "> 彩云天气 · 接入",
+                        enabled = true,
+                        color = ZhishengCyan,
+                    ) { wizard = ProviderWizardKind.CAIYUN }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = "> 清除本机彩云 Token",
+                        enabled = caiyunRt.ready,
+                        color = ZhishengOrange,
+                    ) { scope.launch { SecretStore.clearCaiyun() } }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = if (QWeatherApi.enabled) "> 和风天气 · 已配置 · 重新配置" else "> 和风天气 · 接入",
+                        enabled = true,
+                        color = ZhishengCyan,
+                    ) { wizard = ProviderWizardKind.QWEATHER }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = "> 清除本机和风凭据",
+                        enabled = qwRt.ready,
+                        color = ZhishengOrange,
+                    ) { scope.launch { SecretStore.clearQw() } }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    InlineGroupLabel("效果预览", "模拟数据不会写入主页")
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = "> 氛围实验室 · 预览全部天气效果",
+                        enabled = true,
+                        color = ZhishengMint,
+                    ) { onAtmosphereLab() }
+                }
             }
 
-            // ——— 02 定位 ———
-            SectionTitle(2, "定位", "LOCATION")
-            Hint(
+            SectionTitle(
+                2,
+                "位置",
+                "LOCATION",
                 if (locationEnabled) "已开启。授权后会在打开 App 时自动复核所在城市；不会在后台持续定位。"
-                else "关闭状态下 App 不申请、也不读取任何位置权限。"
+                else "关闭时不申请、也不读取位置权限。",
             )
             CardBox {
                 ToggleRow(
@@ -213,18 +302,18 @@ fun SettingsScreen(
                             } else {
                                 ZhishengOrange
                             },
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
                     if (permDenied) {
                         HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                             Text(
                                 "> 已拒绝位置权限，定位不可用（手动搜索城市不受影响）",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = ZhishengOrange,
                             )
-                            Spacer(Modifier.height(6.dp))
+                            Spacer(Modifier.height(8.dp))
                             Text(
                                 "[ 去系统设置授权 ]",
                                 style = MaterialTheme.typography.labelMedium,
@@ -238,8 +327,8 @@ fun SettingsScreen(
                 }
             }
 
-            // ——— 03 单位 ———
-            SectionTitle(3, "单位", "UNITS")
+            SectionTitle(3, "主屏显示", "DISPLAY", "调整单位和首页区块；关闭不用的模块可以缩短页面。")
+            InlineGroupLabel("单位")
             CardBox {
                 SegmentRow(
                     "温度", listOf("摄氏 °C" to "c", "华氏 °F" to "f"), tempUnit,
@@ -254,9 +343,8 @@ fun SettingsScreen(
                 ) { scope.launch { SettingsRepository.setPressureUnit(it) } }
             }
 
-            // ——— 04 显示模块 ———
-            SectionTitle(4, "显示模块", "MODULES")
-            Hint("关掉用不上的区块，主屏更短。")
+            Spacer(Modifier.height(8.dp))
+            InlineGroupLabel("模块")
             CardBox {
                 ToggleRow("分钟降水", "未来两小时降水柱图", showPrecip) {
                     scope.launch { SettingsRepository.setShowPrecip(!showPrecip) }
@@ -283,20 +371,54 @@ fun SettingsScreen(
                 }
             }
 
-            // ——— 05 界面效果 ———
-            SectionTitle(5, "界面效果", "VISUAL")
-            Hint("磷光深色之外可切纸面浅色（v0.0.5）；氛围层只在背景绘制，不遮挡读数，嫌费电可以关。")
+            Spacer(Modifier.height(8.dp))
+            InlineGroupLabel("模块布局", "排序工具默认收起，减少设置页干扰")
+            CardBox {
+                ActionRow(
+                    label = if (moduleOrderExpanded) "> 收起模块排序" else "> 调整主页模块顺序",
+                    enabled = true,
+                    color = ZhishengCyan,
+                ) { moduleOrderExpanded = !moduleOrderExpanded }
+                if (moduleOrderExpanded) {
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ActionRow(
+                        label = "> 恢复默认顺序",
+                        enabled = moduleOrder != HomeModule.defaultOrder,
+                        color = ZhishengOrange,
+                    ) {
+                        scope.launch { SettingsRepository.setModuleOrder(HomeModule.defaultOrder) }
+                    }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ModuleOrderEditor(moduleOrder) { from, to ->
+                        val next = moduleOrder.toMutableList().apply {
+                            add(to, removeAt(from))
+                        }
+                        scope.launch { SettingsRepository.setModuleOrder(next) }
+                    }
+                }
+            }
+
+            SectionTitle(4, "界面", "VISUAL", "主题与动效只影响显示，不改变天气数据。")
             CardBox {
                 SegmentRow(
                     "主题模式",
                     listOf("深色" to "dark", "浅色" to "light", "跟随系统" to "system"),
                     themeMode.key,
+                    hint = "深色是磷光终端，浅色是纸面终端",
                 ) { v -> scope.launch { SettingsRepository.setThemeMode(ThemeMode.from(v)) } }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                SegmentRow(
+                    "强调色亮度",
+                    listOf("标准" to "standard", "柔和" to "soft"),
+                    accentTone.key,
+                    hint = "同时调整数据绿与线框蓝；柔和档降低发光亮度",
+                ) { v -> scope.launch { SettingsRepository.setAccentTone(AccentTone.from(v)) } }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
                     "天气氛围层",
                     listOf("关闭" to "off", "克制" to "subtle", "明显" to "vivid"),
                     ambience.key,
+                    hint = "每种天气一套终端动效，画在读数之下；克制近乎静止，明显有磷光拖尾",
                 ) { v -> scope.launch { SettingsRepository.setAmbience(AmbienceLevel.from(v)) } }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 ToggleRow("CRT 扫描线", "整屏细横纹，终端质感", scanlines) {
@@ -312,57 +434,29 @@ fun SettingsScreen(
                 }
             }
 
-            // ——— 06 关于 ———
-            SectionTitle(6, "关于", "ABOUT")
+            SectionTitle(5, "关于", "ABOUT", "版本、权限与开源信息。")
             CardBox {
                 InfoRow(
                     "版本",
-                    "v${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
-                    onClick = {
-                        if (developerMode) {
-                            tapHint = "开发者模式已开启。可在数据源中锁定和风天气。"
-                        } else {
-                            val n = versionTaps + 1
-                            versionTaps = n
-                            when {
-                                n >= 7 -> {
-                                    scope.launch { SettingsRepository.setDeveloperMode(true) }
-                                    tapHint = "开发者模式已开启。可在数据源中锁定和风天气。"
-                                    versionTaps = 0
-                                }
-                                n >= 3 -> tapHint = "再点 ${7 - n} 次进入开发者模式"
-                                else -> tapHint = null
-                            }
-                        }
-                    },
+                    "v${com.zhisheng.weather.BuildConfig.VERSION_NAME} · 查看更新",
+                    onClick = onShowWhatsNew,
                 )
-                tapHint?.let { hint ->
-                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                    Text(
-                        "> $hint",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = ZhishengMint,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    )
-                }
-                if (developerMode) {
-                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                    ToggleRow(
-                        "开发者模式",
-                        "开启后可在数据源中锁定和风天气；关掉后默认仍走小米",
-                        true,
-                    ) {
-                        scope.launch { SettingsRepository.setDeveloperMode(false) }
-                        tapHint = null
-                        versionTaps = 0
-                    }
-                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                    InfoRow("和风凭据", if (QWeatherApi.enabled) "已配置" else "未配置")
-                }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 InfoRow("权限", "仅网络；位置为可选且默认关闭")
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                // 开源引流入口：GitHub 仓库 → 浏览器
+                ActionRow(
+                    label = "> 社区贡献者名单 · ${CommunityContributors.size} 位",
+                    enabled = true,
+                    color = ZhishengMint,
+                ) { showContributors = true }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                if (CommunityQqGroup.isNotBlank()) {
+                    LinkRow(
+                        "用户交流 QQ 群",
+                        "$CommunityQqGroup · 点开群二维码",
+                    ) { showCommunityGroup = true }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                }
                 LinkRow(
                     "GitHub 仓库",
                     "开源主页 · 欢迎 star",
@@ -376,7 +470,7 @@ fun SettingsScreen(
                 }
             }
 
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(24.dp))
             Text(
                 "枳生天气 · 数据终端",
                 style = MaterialTheme.typography.labelSmall,
@@ -384,12 +478,22 @@ fun SettingsScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Text(
-                "数据来源：和风天气 / 小米天气 / Open-Meteo",
+                "数据来源：和风天气 / 彩云天气 / 小米天气 / Open-Meteo",
                 style = MaterialTheme.typography.labelSmall,
                 color = ZhishengTextTertiary.copy(alpha = 0.75f),
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 28.dp),
             )
         }
+    }
+
+    wizard?.let { kind ->
+        ProviderWizard(kind = kind, onClose = { wizard = null })
+    }
+    if (showContributors) {
+        ContributorsDialog(onClose = { showContributors = false })
+    }
+    if (showCommunityGroup) {
+        CommunityGroupDialog(onClose = { showCommunityGroup = false })
     }
 }
 
@@ -412,7 +516,8 @@ private fun sourceHint(
 
 private fun sourceDescription(p: SourcePref): String = when (p) {
     SourcePref.AUTO -> "小米 → Open-Meteo，按可用性降级"
-    SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "当前构建未配置和风凭据"
+    SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "在下方接入"
+    SourcePref.CAIYUN -> if (CaiyunApi.enabled) "Token 已配置·本机接入" else "在下方填写 Token"
     SourcePref.XIAOMI -> "免配置·国内城市优先"
     SourcePref.OPEN_METEO -> "免配置·全球覆盖"
 }
@@ -428,6 +533,7 @@ private fun sourceStatus(
     return when (pref) {
         SourcePref.AUTO -> if (selected && activeSource != null) "使用中" to true else "可用" to true
         SourcePref.QWEATHER -> if (QWeatherApi.enabled) "已配置" to true else "未配置" to false
+        SourcePref.CAIYUN -> if (CaiyunApi.enabled) "已配置" to true else "未配置" to false
         SourcePref.XIAOMI -> "可用" to true
         SourcePref.OPEN_METEO -> "可用" to true
     }
@@ -435,6 +541,7 @@ private fun sourceStatus(
 
 private fun sourceMatches(pref: SourcePref, activeSource: String?): Boolean = when (pref) {
     SourcePref.QWEATHER -> activeSource == "QWEATHER"
+    SourcePref.CAIYUN -> activeSource == "CAIYUN"
     SourcePref.XIAOMI -> activeSource == "XIAOMI"
     SourcePref.OPEN_METEO -> activeSource == "OPEN-METEO"
     SourcePref.AUTO -> false
@@ -442,6 +549,7 @@ private fun sourceMatches(pref: SourcePref, activeSource: String?): Boolean = wh
 
 private fun sourceName(activeSource: String?): String? = when (activeSource) {
     "QWEATHER" -> "和风天气"
+    "CAIYUN" -> "彩云天气"
     "XIAOMI" -> "小米天气"
     "OPEN-METEO" -> "Open-Meteo"
     else -> activeSource
@@ -458,27 +566,43 @@ private fun openAppSettings(context: Context) {
 }
 
 @Composable
-private fun SectionTitle(index: Int, title: String, en: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 2.dp, top = 20.dp, bottom = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("%02d//".format(java.util.Locale.US, index), style = MaterialTheme.typography.titleSmall, color = ZhishengOrange, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.width(6.dp))
-        Text(title, style = MaterialTheme.typography.titleSmall, color = ZhishengTextSecondary, letterSpacing = 2.sp)
-        Spacer(Modifier.width(8.dp))
-        Text(en, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary, letterSpacing = 1.5.sp)
+private fun SectionTitle(index: Int, title: String, en: String, description: String) {
+    Column(Modifier.fillMaxWidth().padding(start = 2.dp, top = 24.dp, bottom = 8.dp, end = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "%02d//".format(index),
+                style = MaterialTheme.typography.titleSmall,
+                color = ZhishengOrange,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                color = ZhishengTextSecondary,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(en, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary, letterSpacing = 1.5.sp)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(description, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
     }
 }
 
 @Composable
-private fun Hint(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelSmall,
-        color = ZhishengTextTertiary,
-        modifier = Modifier.padding(start = 2.dp, bottom = 8.dp, end = 8.dp),
-    )
+private fun InlineGroupLabel(label: String, detail: String? = null) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = ZhishengOrange, fontWeight = FontWeight.Bold)
+        if (!detail.isNullOrBlank()) {
+            Spacer(Modifier.weight(1f))
+            Text(detail, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+        }
+    }
 }
 
 @Composable
@@ -498,27 +622,35 @@ private fun SourceRow(
     description: String,
     selected: Boolean,
     status: Pair<String, Boolean>,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .clickable(role = Role.RadioButton) { onClick() }
+            .clickable(enabled = enabled, role = Role.RadioButton) { onClick() }
             // v0.0.4：TalkBack 播报选中状态
-            .semantics { this.selected = selected }
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .semantics {
+                this.selected = selected
+                if (!enabled) disabled()
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier.size(width = 3.dp, height = 22.dp)
-                .background(if (selected) ZhishengMint else ZhishengCardBorder)
+                .background(if (selected && enabled) ZhishengMint else ZhishengCardBorder)
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     pref.cn,
                     style = MaterialTheme.typography.titleSmall,
-                    color = if (selected) ZhishengMint else ZhishengText,
+                    color = when {
+                        !enabled -> ZhishengTextTertiary
+                        selected -> ZhishengMint
+                        else -> ZhishengText
+                    },
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 )
                 Spacer(Modifier.width(8.dp))
@@ -529,9 +661,9 @@ private fun SourceRow(
         Text(
             status.first,
             style = MaterialTheme.typography.labelMedium,
-            color = if (status.second) ZhishengCyan else ZhishengOrange,
+            color = if (!enabled) ZhishengTextTertiary else if (status.second) ZhishengCyan else ZhishengOrange,
         )
-        if (selected) {
+        if (selected && enabled) {
             Spacer(Modifier.width(8.dp))
             Text("[✓]", style = MaterialTheme.typography.labelMedium, color = ZhishengMint)
         }
@@ -544,10 +676,16 @@ private fun SegmentRow(
     label: String,
     options: List<Pair<String, String>>,
     current: String,
+    hint: String? = null,
     onPick: (String) -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 11.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengText)
+        // 分档选项也该有一句说明：开关行一直有，分档行原来没有，
+        // 用户只能靠猜「克制」和「明显」差在哪（v0.0.9）。
+        if (hint != null) {
+            Text(hint, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+        }
         Spacer(Modifier.height(8.dp))
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -562,7 +700,7 @@ private fun SegmentRow(
                         .border(1.dp, if (on) ZhishengMint else ZhishengCardBorder, RectangleShape)
                         .clickable(role = Role.RadioButton) { onPick(value) }
                         .semantics { this.selected = on }
-                        .padding(vertical = 9.dp),
+                        .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -581,10 +719,9 @@ private fun SegmentRow(
 private fun ToggleRow(label: String, hint: String, checked: Boolean, onToggle: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            // 行级不再声明 Role.Switch（v0.0.4）：内部 Switch 已提供开关语义，
-            // 双重 role 会让 TalkBack 重复播报
-            .clickable { onToggle() }
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            // 单一 toggleable 事件源：Switch 只负责绘制，避免父子点击同时触发。
+            .toggleable(value = checked, role = Role.Switch) { onToggle() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -593,9 +730,9 @@ private fun ToggleRow(label: String, hint: String, checked: Boolean, onToggle: (
         }
         Switch(
             checked = checked,
-            onCheckedChange = { onToggle() },
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.Black,
+                checkedThumbColor = ZhishengBg,
                 checkedTrackColor = ZhishengMint,
                 uncheckedThumbColor = ZhishengTextTertiary,
                 uncheckedTrackColor = ZhishengCardBorder,
@@ -606,11 +743,57 @@ private fun ToggleRow(label: String, hint: String, checked: Boolean, onToggle: (
 }
 
 @Composable
+private fun ModuleOrderEditor(
+    order: List<HomeModule>,
+    onMove: (from: Int, to: Int) -> Unit,
+) {
+    order.forEachIndexed { index, module ->
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "%02d".format(index + 1),
+                style = MaterialTheme.typography.labelSmall,
+                color = ZhishengOrange,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(module.cn, style = MaterialTheme.typography.titleSmall, color = ZhishengText)
+                Text(module.en, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary, letterSpacing = 1.sp)
+            }
+            Text(
+                "[↑]",
+                style = MaterialTheme.typography.titleSmall,
+                color = if (index > 0) ZhishengCyan else ZhishengCardBorder,
+                modifier = Modifier
+                    .clickable(enabled = index > 0, role = Role.Button, onClickLabel = "${module.cn}上移") {
+                        onMove(index, index - 1)
+                    }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+            Text(
+                "[↓]",
+                style = MaterialTheme.typography.titleSmall,
+                color = if (index < order.lastIndex) ZhishengMint else ZhishengCardBorder,
+                modifier = Modifier
+                    .clickable(enabled = index < order.lastIndex, role = Role.Button, onClickLabel = "${module.cn}下移") {
+                        onMove(index, index + 1)
+                    }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            )
+        }
+        if (index < order.lastIndex) HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+    }
+}
+
+@Composable
 private fun ActionRow(label: String, enabled: Boolean, color: Color, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth()
             .clickable(enabled = enabled, role = Role.Button) { onClick() }
-            .padding(horizontal = 14.dp, vertical = 15.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -619,6 +802,8 @@ private fun ActionRow(label: String, enabled: Boolean, color: Color, onClick: ()
             color = if (enabled) color else ZhishengTextTertiary,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp,
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         )
     }
 }
@@ -631,7 +816,7 @@ private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null)
                 if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick)
                 else Modifier,
             )
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(label, style = MaterialTheme.typography.titleSmall, color = ZhishengTextSecondary)
@@ -647,7 +832,7 @@ private fun LinkRow(label: String, sub: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 13.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column {

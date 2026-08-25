@@ -48,4 +48,15 @@ class AlertLevelTest {
         assertEquals(AlertLevel.RED, alertLevelOf(" red "))
         assertEquals(AlertLevel.BLUE, alertLevelOf(" 蓝色预警 "))
     }
+
+    // 彩云 v2.6 预警 code：4 位字符串，前 2 位类型、后 2 位级别（0.0.9-debug 接入）
+    @Test
+    fun caiyunFourDigitCodes() {
+        assertEquals(AlertLevel.BLUE, alertLevelOf("0501"))   // 大风蓝色
+        assertEquals(AlertLevel.YELLOW, alertLevelOf("0902")) // 雷电黄色
+        assertEquals(AlertLevel.ORANGE, alertLevelOf("0103")) // 台风橙色
+        assertEquals(AlertLevel.RED, alertLevelOf("0204"))    // 暴雨红色
+        assertEquals(AlertLevel.UNKNOWN, alertLevelOf("1300")) // 白色（国标四档外）
+        assertEquals(AlertLevel.UNKNOWN, alertLevelOf("0299")) // 非法级别
+    }
 }

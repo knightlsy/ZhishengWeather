@@ -13,10 +13,13 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-feature android:name="android.hardware.location" android:required="false" />
     <uses-feature android:name="android.hardware.location.network" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
 
     <application
         android:name=".ZhishengApplication"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -37,7 +40,17 @@
                 android:resource="@xml/shortcuts" />
         </activity>
 
-        <!-- 桌面小组件：三档规格各一个入口（2x2 / 4x2 / 4x4），共用同一套渲染逻辑 -->
+        <!-- 桌面小组件：五档硬件终端规格，共用同一套快照与配色逻辑。 -->
+        <receiver
+            android:name=".widget.ZhishengWidgetNano"
+            android:exported="false"
+            android:label="@string/widget_label_nano">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info_nano" />
+        </receiver>
+
         <receiver
             android:name=".widget.ZhishengWidgetSmall"
             android:exported="false"
@@ -72,6 +85,16 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_info_large" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ZhishengWidgetTower"
+            android:exported="false"
+            android:label="@string/widget_label_tower">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_info_tower" />
         </receiver>
     </application>
 

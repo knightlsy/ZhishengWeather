@@ -6,7 +6,7 @@ import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.MinutePrecip
 import com.zhisheng.weather.model.WeatherData
-import com.zhisheng.weather.model.wmoToCondition
+import com.zhisheng.weather.model.wmoProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -84,11 +84,12 @@ object OpenMeteoSource {
             // is_day 缺失时按城市本地小时兜底判昼夜，避免夜间显示太阳（v0.0.4：原 null 恒判白天）
             val isDay = cur?.is_day?.let { it != 0 } ?: isDayAt(System.currentTimeMillis(), offsetMs)
             val current = cur?.let {
+                val profile = wmoProfile(it.weather_code, isDay)
                 CurrentWeather(
                     temperature = it.temperature_2m,
                     feelsLike = it.apparent_temperature,
-                    condition = wmoToCondition(it.weather_code, isDay),
-                    weatherText = wmoToCondition(it.weather_code, isDay).label,
+                    condition = profile.condition,
+                    weatherText = profile.condition.label,
                     humidity = it.relative_humidity_2m,
                     windSpeed = it.wind_speed_10m,
                     windDirectionDeg = it.wind_direction_10m,
@@ -98,7 +99,10 @@ object OpenMeteoSource {
                     dewPoint = it.dew_point_2m,
                     cloudCover = it.cloud_cover,
                     windGust = it.wind_gusts_10m,
-                    precipMm = it.precipitation,
+                    precipMm = it.precipitation?.let { mm ->
+                        com.zhisheng.weather.model.Nowcast.accumulatedMmToRate(mm.toFloat(), 15).toDouble()
+                    },
+                    profile = profile,
                 )
             }
 
@@ -107,13 +111,17 @@ object OpenMeteoSource {
                 h.time?.mapIndexedNotNull { i, t ->
                     val e = epochOf(t) ?: return@mapIndexedNotNull null
                     // 逐时保留当前整点及以后
-                    if (e < nowMs - 3_600_000L) null else HourlyWeather(
+                    if (e < nowMs - 3_600_000L) null else {
+                        val profile = wmoProfile(h.weather_code?.getOrNull(i), isDayAt(e, offsetMs))
+                        HourlyWeather(
                         timeMillis = e,
                         temperature = h.temperature_2m?.getOrNull(i),
-                        condition = wmoToCondition(h.weather_code?.getOrNull(i), isDayAt(e, offsetMs)),
+                        condition = profile.condition,
                         windSpeed = h.wind_speed_10m?.getOrNull(i),
                         precipProb = h.precipitation_probability?.getOrNull(i)?.let { p -> Math.round(p).toInt() },
+                        profile = profile,
                     )
+                    }
                 }?.take(24)
             } ?: emptyList()
 
@@ -125,19 +133,21 @@ object OpenMeteoSource {
                     } catch (_: Exception) {
                         return@mapIndexedNotNull null
                     }
+                    val profile = wmoProfile(d.weather_code?.getOrNull(i), true)
                     MoonCalc.enrich(
                         com.zhisheng.weather.model.DailyWeather(
                             dateMillis = e,
                             high = d.temperature_2m_max?.getOrNull(i),
                             low = d.temperature_2m_min?.getOrNull(i),
-                            condition = wmoToCondition(d.weather_code?.getOrNull(i), true),
-                            weatherText = wmoToCondition(d.weather_code?.getOrNull(i), true).label,
+                            condition = profile.condition,
+                            weatherText = profile.condition.label,
                             windSpeed = d.wind_speed_10m_max?.getOrNull(i),
                             precipProbability = d.precipitation_probability_max?.getOrNull(i)
                                 ?.let { p -> Math.round(p).toInt() },
                             precipMm = d.precipitation_sum?.getOrNull(i),
                             sunrise = clockOf(d.sunrise?.getOrNull(i)),
                             sunset = clockOf(d.sunset?.getOrNull(i)),
+                            profile = profile,
                         ),
                         lat,
                         lon,
@@ -150,7 +160,11 @@ object OpenMeteoSource {
                 mm.time?.mapIndexedNotNull { i, t ->
                     val e = epochOf(t) ?: return@mapIndexedNotNull null
                     if (e < nowMs - 900_000L) null
-                    else MinutePrecip(e, mm.precipitation?.getOrNull(i)?.toFloat() ?: 0f)
+                    // minutely_15.precipitation 是 15 分钟累计毫米；统一换成 mm/h。
+                    else MinutePrecip(e, com.zhisheng.weather.model.Nowcast.accumulatedMmToRate(
+                        mm.precipitation?.getOrNull(i)?.toFloat() ?: 0f,
+                        15,
+                    ))
                 }?.take(8)
             } ?: emptyList()
 
@@ -177,6 +191,8 @@ object OpenMeteoSource {
                 // 不编 rainNowcast：接口没有短时降水文案。主屏一句话走分钟序列/温差。
                 rainMinutes = if (precip.size >= 2) precip else emptyList(),
                 dataSource = "OPEN-METEO",
+                blockSources = mapOf("current" to "OPEN-METEO", "hourly" to "OPEN-METEO", "daily" to "OPEN-METEO", "minutely" to "OPEN-METEO"),
+                utcOffsetSeconds = m.utc_offset_seconds,
             )
         }
     } catch (ce: kotlinx.coroutines.CancellationException) {

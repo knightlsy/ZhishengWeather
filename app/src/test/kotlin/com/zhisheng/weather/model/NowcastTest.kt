@@ -7,6 +7,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NowcastTest {
+    @Test
+    fun accumulatedPrecipitationNormalizesToMillimetresPerHour() {
+        assertEquals(1.2f, Nowcast.accumulatedMmToRate(0.1f, 5), 0.0001f)
+        assertEquals(0.4f, Nowcast.accumulatedMmToRate(0.1f, 15), 0.0001f)
+        assertEquals(0f, Nowcast.accumulatedMmToRate(-1f, 5), 0.0001f)
+    }
 
     private val t0 = 1_700_000_000_000L
 
@@ -82,9 +88,51 @@ class NowcastTest {
     }
 
     @Test
-    fun briefingKeepsNoRainNowcastFromApi() {
+    fun briefingSkipsDryNowcastFromApi() {
         val data = WeatherData(rainNowcast = "未来两小时不会下雨，放心出门吧")
-        assertEquals("未来两小时不会下雨，放心出门吧", Nowcast.briefingLine(data, "c", t0))
+        assertNull(Nowcast.briefingLine(data, "c", t0))
+    }
+
+    @Test
+    fun precipCardHidesDrySeriesAndDryCopy() {
+        val dry = WeatherData(
+            rainNowcast = "未来两小时不会下雨",
+            rainMinutes = Nowcast.minuteSeries(List(120) { 0f }, t0),
+        )
+        assertFalse(Nowcast.shouldShowPrecipCard(dry, t0))
+        val wet = WeatherData(
+            rainMinutes = Nowcast.minuteSeries(List(120) { if (it == 20) 0.3f else 0f }, t0),
+        )
+        assertTrue(Nowcast.shouldShowPrecipCard(wet, t0))
+    }
+
+    @Test
+    fun caiyunMinuteModuleStaysAvailableWhenForecastIsDry() {
+        val caiyunDry = WeatherData(
+            dataSource = "CAIYUN",
+            rainMinutes = Nowcast.minuteSeries(List(120) { 0f }, t0),
+        )
+        assertTrue(Nowcast.shouldShowPrecipModule(caiyunDry, t0))
+
+        val noPaidMinuteBlock = WeatherData(dataSource = "CAIYUN")
+        assertFalse(Nowcast.shouldShowPrecipModule(noPaidMinuteBlock, t0))
+    }
+
+    @Test
+    fun precipChartScaleKeepsLightRainReadable() {
+        assertEquals(0f, Nowcast.precipChartCeiling(emptyList()))
+        assertEquals(
+            0.05f,
+            Nowcast.precipChartCeiling(Nowcast.minuteSeries(listOf(0.01f, 0.04f), t0)),
+        )
+        assertEquals(
+            0.25f,
+            Nowcast.precipChartCeiling(Nowcast.minuteSeries(listOf(0.08f, 0.21f), t0)),
+        )
+        assertEquals(
+            2f,
+            Nowcast.precipChartCeiling(Nowcast.minuteSeries(listOf(0.8f, 1.4f), t0)),
+        )
     }
 
     @Test
@@ -162,6 +210,17 @@ class NowcastTest {
         assertTrue(timing.rainingNow)
         assertEquals(23, timing.minutesUntilEnd)
         assertEquals("23 分钟后雨会停", Nowcast.rainTimingLabel(timing))
+    }
+
+    @Test
+    fun briefingAndPrecipCardShareComputedStopTime() {
+        val values = MutableList(40) { if (it < 29) 0.03f else 0f }
+        val data = WeatherData(
+            current = CurrentWeather(condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+            rainNowcast = "半小时后雨渐停",
+            rainMinutes = Nowcast.minuteSeries(values, t0),
+        )
+        assertEquals("29 分钟后雨会停", Nowcast.briefingLine(data, "c", t0))
     }
 
     @Test

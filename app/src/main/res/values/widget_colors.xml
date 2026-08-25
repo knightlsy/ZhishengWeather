@@ -18,4 +18,12 @@
     <color name="widget_light_border">#E3E6EA</color>
     <color name="widget_light_accent_cyan">#16697A</color>
     <color name="widget_light_accent_orange">#B45309</color>
+    <color name="widget_light_icon_sun">#C87812</color>
+    <color name="widget_light_icon_moon">#526A88</color>
+    <color name="widget_light_icon_cloud">#66717E</color>
+    <color name="widget_light_icon_rain">#176C82</color>
+    <color name="widget_light_icon_storm">#93600F</color>
+    <color name="widget_light_icon_snow">#527D91</color>
+    <color name="widget_light_icon_haze">#8A6810</color>
+    <color name="widget_light_icon_wind">#287080</color>
 </resources>

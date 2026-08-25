@@ -7,6 +7,7 @@ import com.zhisheng.weather.R
 // widget/ZhishengWidgetProvider.iconRes()——两处曾各自维护同一张 15 项映射，
 // 新增条件枚举时编译器在此兜底。
 fun conditionIconRes(condition: WeatherCondition?): Int? = when (condition) {
+    WeatherCondition.UNKNOWN -> null
     WeatherCondition.CLEAR -> R.drawable.weather_sun
     WeatherCondition.CLEAR_NIGHT -> R.drawable.weather_moon
     WeatherCondition.PARTLY_CLOUDY -> R.drawable.weather_cloud_sun
@@ -16,6 +17,8 @@ fun conditionIconRes(condition: WeatherCondition?): Int? = when (condition) {
     WeatherCondition.RAIN -> R.drawable.weather_rain
     WeatherCondition.DRIZZLE -> R.drawable.weather_drizzle
     WeatherCondition.THUNDERSTORM -> R.drawable.weather_bolt
+    WeatherCondition.HAIL -> R.drawable.weather_sleet
+    WeatherCondition.FREEZING_RAIN, WeatherCondition.FREEZING_DRIZZLE -> R.drawable.weather_sleet
     WeatherCondition.SNOW -> R.drawable.weather_snow
     WeatherCondition.SLEET -> R.drawable.weather_sleet
     WeatherCondition.FOG -> R.drawable.weather_fog

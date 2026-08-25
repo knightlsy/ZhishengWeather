@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.0.8-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.1.0-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.0.8" src="https://img.shields.io/badge/current-0.0.8-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.1.0" src="https://img.shields.io/badge/current-0.1.0-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -59,10 +59,10 @@ The interface uses a phosphor-terminal look: black background, thin dividers, cy
 - A 24-hour forecast, 15-day high/low outlook, and the next two hours of precipitation
 - Weather alerts, six air-pollutant readings, and common life indices
 - Sunrise, sunset, moon phase, moonrise, moonset, and yesterday's weather
-- Saved cities and home-screen widgets in 2x2, 4x2, and 4x4 sizes
+- Saved cities with a hold-and-slide city deck, reorderable home modules, and five terminal-watch widget sizes
 - Launcher shortcuts for refresh, city search, and settings
 
-Rain, snow, fog, and thunderstorms each have an optional background effect. Intensity is adjustable, and every effect can be turned off. Temperature, wind-speed, and pressure units are configured separately. Page sections can also be hidden.
+Every weather condition has its own background effect, drawn beneath the readings. Intensity is adjustable, and every effect can be turned off. Temperature, wind-speed, and pressure units are configured separately. Page sections can also be hidden.
 
 Fields that a provider does not supply stay empty; the app does not fill them with estimates.
 
@@ -81,19 +81,20 @@ The public build is the right choice for normal use. The full build cannot be di
 
 ## Data providers
 
-The app connects to QWeather, Xiaomi Weather, and Open-Meteo. Settings can select a provider manually or use Auto, and show which provider actually returned the selected city's data.
+The app connects to QWeather, Caiyun, Xiaomi Weather, and Open-Meteo. Settings can select a provider manually or use Auto, and show which provider actually returned the selected city's data.
 
 | Provider | Setup | Main coverage |
 |:--|:--|:--|
-| QWeather | Personal developer credentials | Current conditions, alerts, hourly/daily, minute precipitation, AQI, life indices |
+| QWeather | Lab wizard, or compile-time `local.properties` | Current conditions, alerts, hourly/daily, minute precipitation, AQI, life indices |
+| Caiyun | Lab Token | Current/hourly/daily, minute precipitation, AQI, alerts |
 | Xiaomi Weather | None | Weather in China, city search, yesterday's weather, and typhoon support data |
 | Open-Meteo | None | Global current/hourly/daily, AQI, 15-minute precipitation, and gap filling |
 
-Auto tries QWeather in a full build, then Xiaomi Weather and Open-Meteo. If the primary feed returns too few hourly entries, the app rebuilds the timeline in the city's local time and fills it to 24 hours with Open-Meteo. Daily forecasts use the same approach to reach 15 days.
+Auto tries Xiaomi Weather, then Open-Meteo. QWeather and Caiyun stay out of Auto and are only used after they are unlocked in developer mode. If the primary feed returns too few hourly entries, the app rebuilds the timeline in the city's local time and fills it to 24 hours with Open-Meteo. Daily forecasts use the same approach to reach 15 days.
 
 Moon phase is calculated on-device for the selected city's date. If the provider does not return moonrise or moonset, the app calculates them from the date and coordinates without making another request.
 
-QWeather requests use Ed25519-signed JWTs. The `-PpublicBuild` task clears the QWeather configuration during the build, so the public APK and repository contain no developer credentials.
+QWeather requests use Ed25519-signed JWTs, or an API KEY. The `-PpublicBuild` task clears compile-time credentials. Tokens entered in the lab stay on the device, out of backups and out of the public APK.
 
 ## Icons
 
@@ -114,6 +115,39 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 3. The first launch shows Beijing. Use search to save your own cities.
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+
+## Version 0.1.0
+
+Version 0.1.0 is a major update to home interaction, weather effects, data providers, and widgets.
+
+### Cities and home screen
+
+- With two or more saved cities, long-press the breathing light at the bottom to open the city deck. After the haptic pulse, keep holding, slide left or right, and release on the centered city
+- Push the open deck upward until the second haptic pulse to pin it, then release your thumb, browse, and tap a city
+- Reorder home weather modules in Settings, or restore the default order with one action
+- A three-page update guide appears once on first launch. Open it again by tapping Settings → About → Version
+
+### Weather effects and interface
+
+- Clear day, clear night, partly cloudy, overcast, rain, sleet, snow, thunderstorms, fog, haze, sand, and wind each have a distinct terminal background with smooth condition transitions
+- Rain uses a data-rain layer. Ambience stays behind the readings, has adjustable intensity, and can be disabled
+- Developer mode includes a simulated-weather preview for every ambience without changing the real home screen
+- Settings are reorganized; dimmer green and blue accent options are available, and light-mode icons use condition-appropriate colors
+
+### Data and presentation
+
+- Added Caiyun Weather, plus guided setup and connection tests for QWeather JWT / API KEY and Caiyun Token
+- Home high/low values follow the time of day. Missing provider data stays empty rather than being estimated
+- Unified minute precipitation, rain trend, precipitation probability, and wind direction presentation; fixed invalid percentages, distorted precipitation cards, and conflicting summaries
+- The minute-precipitation card stays hidden when dry, and feels-like temperature is omitted when it is effectively the same as air temperature
+
+### Widgets and community
+
+- Widgets now come in five sizes: 4×1, 2×2, 4×2, 2×4, and 4×4, with terminal-device frames and breathing status lights
+- Fixed fluorescent-green sun, cloud, and precipitation icons in light mode
+- Added a community contributors list under About
+
+Notifications are still not included.
 
 ## Version 0.0.8
 
@@ -146,6 +180,12 @@ Release checks cover 46 unit tests, Android Lint, and Debug, public Release, and
 ## Version 0.0.5.1
 
 A widget polish pass: date, update time, feels-like, and hourly/daily text got a size bump; the widget-picker previews are redrawn (sample city is now Shanghai, matching the real layouts); widgets now follow only the system dark mode — switching the in-app theme no longer restyles the desktop widgets.
+
+## Contributing
+
+Report reproducible problems through [GitHub Issues](https://github.com/zhishengplus/ZhishengWeather/issues). Include the app version, phone model, Android version, active provider, and necessary screenshots; redact Tokens, API keys, and other private credentials.
+
+Community contributors: `PPQ1028`, `Uinuan1`, `KZzzzo`, `睡觉了寂`, `微生之最`, `r1file`, `vsqesy3721`, `茉莉羽`, `陈大橙`, `飞667`, `一杯冰美式、、`, `M1ralce`, `紅星照耀中國`, `我爱跑步`, and `河鱼天雁`.
 
 ## Build from source
 
@@ -192,7 +232,7 @@ After location is enabled and permission is granted, the app rechecks the city a
 
 ## Known limitations
 
-- The public build has no QWeather credentials, so official alerts and life indices may be unavailable
+- The public build ships without QWeather credentials; they can be added in the lab. Official alerts and life indices depend on account permissions
 - Open-Meteo short-term precipitation uses 15-minute intervals rather than minute-by-minute radar nowcasting
 - Typhoon and yesterday's weather depend on an auxiliary feed; those sections stay empty when it returns nothing
 - Alerts are deduplicated by exact title, so differently worded copies of one alert may both appear
@@ -201,6 +241,18 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
+<summary><b>0.1.0 // CITY DECK</b></summary>
+
+- Bottom city deck with hold-and-slide switching or an upward push to pin and tap
+- Reorderable home modules with a restore-default action
+- Per-condition terminal ambience, developer preview, and dimmer accent options
+- Guided QWeather / Caiyun setup with connection tests and consistent weather presentation
+- Five terminal-device widgets with breathing status lights and light-mode colors
+- First-launch update guide and community contributors
+
+</details>
+
+<details>
 <summary><b>0.0.8 // DATA</b></summary>
 
 - Fixed the home screen still saying "no rain" while it is raining

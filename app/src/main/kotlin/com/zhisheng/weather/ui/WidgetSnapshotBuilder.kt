@@ -41,8 +41,10 @@ object WidgetSnapshotBuilder {
                 feelsLike = t(data.current?.feelsLike),
                 humidity = data.current?.humidity?.roundToInt(),
                 windText = Fmt.wind(data.current?.windSpeed, windUnit).orEmpty(),
-                rainChance = data.hourly.firstOrNull()?.precipProb
-                    ?: data.daily.firstOrNull()?.precipProbability,
+                rainChance = (
+                    data.hourly.firstOrNull()?.precipProb
+                        ?: data.daily.firstOrNull()?.precipProbability
+                    )?.takeIf { it in 1..100 },
                 text = data.current?.weatherText ?: data.current?.condition?.label.orEmpty(),
                 conditionName = data.current?.condition?.name.orEmpty(),
                 aqi = data.aqi?.value,

@@ -44,12 +44,20 @@
             android:textColor="@color/widget_accent_cyan"
             android:textSize="14sp" />
 
-        <TextView
+        <ViewFlipper
             android:id="@+id/widget_live_dot"
-            android:layout_width="6dp"
-            android:layout_height="6dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/widget_live_dot" />
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="4dp"
+            android:autoStart="true"
+            android:animateFirstView="true"
+            android:flipInterval="900"
+            android:inAnimation="@android:anim/fade_in"
+            android:outAnimation="@android:anim/fade_out">
+            <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_dim" />
+            <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_mid" />
+            <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_bright" />
+        </ViewFlipper>
 
         <TextView
             android:id="@+id/w_upd"

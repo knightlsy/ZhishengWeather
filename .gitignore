@@ -7,6 +7,7 @@ dist/
 dist-tmp/
 captures/
 local.properties
+app/src/main/res/drawable-nodpi/qq_group_qr.jpg
 *.log
 
 # ===== IDE =====
@@ -20,6 +21,9 @@ keystore/*.jks
 !keystore/public.jks
 
 # ===== 开发过程产物（仅本地保留） =====
+.hallmark/
+DESIGN.md
+PROJECT_STRUCTURE_*.md
 icon-preview/
 icon-backup/
 docs-backup/

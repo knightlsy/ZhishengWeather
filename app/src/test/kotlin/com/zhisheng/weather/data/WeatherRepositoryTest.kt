@@ -32,9 +32,14 @@ class WeatherRepositoryTest {
     @Test
     fun lockedSourceDoesNotAcceptAnotherProvidersCache() {
         assertEquals(true, SourcePref.AUTO.matches("XIAOMI"))
+        assertEquals(true, SourcePref.AUTO.matches("OPEN-METEO"))
+        assertEquals(false, SourcePref.AUTO.matches("CAIYUN"))
+        assertEquals(false, SourcePref.AUTO.matches("QWEATHER"))
         assertEquals(true, SourcePref.XIAOMI.matches("XIAOMI"))
         assertEquals(false, SourcePref.OPEN_METEO.matches("XIAOMI"))
         assertEquals(false, SourcePref.QWEATHER.matches("OPEN-METEO"))
+        assertEquals(true, SourcePref.CAIYUN.matches("CAIYUN"))
+        assertEquals(false, SourcePref.CAIYUN.matches("XIAOMI"))
         assertEquals(true, SourcePref.OPEN_METEO.matches("OPEN-METEO"))
     }
 
@@ -44,13 +49,24 @@ class WeatherRepositoryTest {
             listOf(SourcePref.AUTO, SourcePref.XIAOMI, SourcePref.OPEN_METEO),
             SourcePref.visible(developerMode = false),
         )
-        assertEquals(SourcePref.QWEATHER, SourcePref.visible(developerMode = true).last())
+        assertEquals(
+            listOf(
+                SourcePref.AUTO,
+                SourcePref.XIAOMI,
+                SourcePref.OPEN_METEO,
+                SourcePref.CAIYUN,
+                SourcePref.QWEATHER,
+            ),
+            SourcePref.visible(developerMode = true),
+        )
     }
 
     @Test
     fun qweatherLockFallsBackToAutoWithoutDeveloperMode() {
         assertEquals(SourcePref.AUTO, SourcePref.QWEATHER.effective(developerMode = false))
         assertEquals(SourcePref.QWEATHER, SourcePref.QWEATHER.effective(developerMode = true))
+        assertEquals(SourcePref.AUTO, SourcePref.CAIYUN.effective(developerMode = false))
+        assertEquals(SourcePref.CAIYUN, SourcePref.CAIYUN.effective(developerMode = true))
         assertEquals(SourcePref.AUTO, SourcePref.AUTO.effective(developerMode = false))
         assertEquals(SourcePref.XIAOMI, SourcePref.XIAOMI.effective(developerMode = false))
     }

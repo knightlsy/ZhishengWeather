@@ -17,6 +17,11 @@ fun lp(key: String, def: String = ""): String = localProps.getProperty(key, def)
 // 公开版构建开关：./gradlew assembleRelease -PpublicBuild
 // 强制和风凭据为空 + 换用随库公开证书，保证 Release 分发的 APK 不含个人凭据
 val publicBuild = providers.gradleProperty("publicBuild").isPresent
+// 官方分发包可在构建时注入社区群号；默认留空，公开源码不包含外部联系信息。
+val communityQqGroup = providers.gradleProperty("communityQqGroup")
+    .orElse("")
+    .get()
+    .filter(Char::isDigit)
 
 android {
     namespace = "com.zhisheng.weather"
@@ -26,14 +31,15 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260817：0.0.8 数据联动与准确性
-        versionCode = 20260824
-        versionName = "0.0.8"
+        // 20260825：0.1.0 模块排序 / 城市卡组 / 终端腕表小组件
+        versionCode = 20260826
+        versionName = "0.1.0"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
         buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid")}\"")
         buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) "" else lp("qw.private_key")}\"")
+        buildConfigField("String", "COMMUNITY_QQ_GROUP", "\"$communityQqGroup\"")
     }
 
     signingConfigs {
@@ -60,6 +66,13 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
+        }
+        create("performance") {
+            initWith(getByName("release"))
+            // 真机性能验收：非调试构建，但沿用 debug 证书，可无损覆盖开发机上的 Debug 包。
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            matchingFallbacks += listOf("release")
         }
     }
 

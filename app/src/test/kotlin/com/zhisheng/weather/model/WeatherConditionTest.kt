@@ -15,10 +15,32 @@ class WeatherConditionTest {
         assertEquals(WeatherCondition.DRIZZLE, WeatherCondition.fromCode("7"))
         assertEquals(WeatherCondition.RAIN, WeatherCondition.fromCode("08"))
         assertEquals(WeatherCondition.THUNDERSTORM, WeatherCondition.fromCode("4"))
+        assertEquals(WeatherCondition.HAIL, WeatherCondition.fromCode("5"))
+        assertEquals(WeatherCondition.FREEZING_RAIN, WeatherCondition.fromCode("19"))
         assertEquals(WeatherCondition.SAND, WeatherCondition.fromCode("20"))
         assertEquals("小雨", WeatherCondition.chinaLabel("07"))
         assertEquals("中雨", WeatherCondition.chinaLabel("8"))
         assertEquals("晴转雷阵雨", WeatherCondition.turnPhrase("0", "4"))
+    }
+
+    @Test
+    fun qweatherSpecialCodesDoNotCollapse() {
+        assertEquals(WeatherCondition.RAIN, WeatherCondition.fromQwCode("350"))
+        assertEquals(WeatherCondition.HAIL, WeatherCondition.fromQwCode("304"))
+        assertEquals(WeatherCondition.FREEZING_RAIN, WeatherCondition.fromQwCode("313"))
+        assertEquals(WeatherCondition.SLEET, WeatherCondition.fromQwCode("456"))
+        assertEquals(WeatherCondition.SNOW, WeatherCondition.fromQwCode("457"))
+        assertEquals(WeatherCondition.FOG, WeatherCondition.fromQwCode("514"))
+        assertEquals(WeatherCondition.FOG, WeatherCondition.fromQwCode("515"))
+        assertEquals(WeatherCondition.UNKNOWN, WeatherCondition.fromQwCode("999"))
+    }
+
+    @Test
+    fun profilesPreserveIntensityAndModifiers() {
+        assertEquals(WeatherIntensity.EXTREME, WeatherCondition.qwProfile("312", null).intensity)
+        assertTrue(WeatherCondition.qwProfile("300", null).shower)
+        assertTrue(WeatherCondition.qwProfile("313", null).freezing)
+        assertEquals(ThermalModifier.HOT, WeatherCondition.qwProfile("900", null).thermal)
     }
 
     @Test

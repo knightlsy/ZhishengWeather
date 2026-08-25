@@ -28,6 +28,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.zhisheng.weather.data.AccentTone
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.model.City
@@ -35,10 +36,15 @@ import com.zhisheng.weather.ui.SearchScreen
 import com.zhisheng.weather.ui.WeatherViewModel
 import com.zhisheng.weather.ui.home.HomeScreen
 import com.zhisheng.weather.ui.SettingsScreen
+import com.zhisheng.weather.ui.AtmosphereLabScreen
+import com.zhisheng.weather.ui.WhatsNewDialog
+import com.zhisheng.weather.ui.WhatsNewPreferenceFile
+import com.zhisheng.weather.ui.WhatsNewSeenKey
+import com.zhisheng.weather.ui.WhatsNewVersion
 import com.zhisheng.weather.ui.theme.ZhishengWeatherTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
-private enum class Screen { HOME, SEARCH, SETTINGS }
+private enum class Screen { HOME, SEARCH, SETTINGS, ATMOSPHERE_LAB }
 private data class ShortcutCommand(val action: String? = null, val sequence: Long = 0L)
 
 class MainActivity : ComponentActivity() {
@@ -65,6 +71,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             // 主题模式（v0.0.5）：深色 / 浅色 / 跟随系统三档，切换立即生效
             val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
+            val accentTone by SettingsRepository.accentTone.collectAsState(initial = AccentTone.STANDARD)
             val systemDark = isSystemInDarkTheme()
             val isLight = when (themeMode) {
                 ThemeMode.LIGHT -> true
@@ -72,10 +79,11 @@ class MainActivity : ComponentActivity() {
                 // 跟随系统：系统深色→深色板（此前直接取 systemDark，方向反了，跟随系统会显示相反主题）
                 ThemeMode.SYSTEM -> !systemDark
             }
-            ZhishengWeatherTheme(isLight = isLight) {
+            ZhishengWeatherTheme(isLight = isLight, accentTone = accentTone) {
                 val vm: WeatherViewModel = viewModel()
                 // rememberSaveable：旋转/进程重建后仍停在原来那屏（v0.0.2）
                 var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
+                var showWhatsNew by rememberSaveable { mutableStateOf(shouldShowWhatsNew()) }
                 val uiState by vm.uiState.collectAsState()
                 val command by shortcutCommand.collectAsState()
 
@@ -111,7 +119,7 @@ class MainActivity : ComponentActivity() {
 
                 // 系统返回键：搜索/设置页退回主屏，而不是直接退出 App（v0.0.2）
                 BackHandler(enabled = screen != Screen.HOME) {
-                    screen = Screen.HOME
+                    screen = if (screen == Screen.ATMOSPHERE_LAB) Screen.SETTINGS else Screen.HOME
                 }
 
                 // 每次打开 / 回到前台都拉最新天气（10 分钟内同城不重复拉）
@@ -143,6 +151,12 @@ class MainActivity : ComponentActivity() {
                             activeSource = uiState.weather?.dataSource,
                             activeCityName = uiState.selectedCity?.name,
                             sourceLoading = uiState.loading,
+                            onAtmosphereLab = { screen = Screen.ATMOSPHERE_LAB },
+                            onShowWhatsNew = { showWhatsNew = true },
+                        )
+                        Screen.ATMOSPHERE_LAB -> AtmosphereLabScreen(
+                            initialLevel = uiState.prefs.ambience,
+                            onBack = { screen = Screen.SETTINGS },
                         )
                         Screen.SEARCH -> SearchScreen(
                             onCityPicked = { city: City ->
@@ -157,6 +171,14 @@ class MainActivity : ComponentActivity() {
                             onSettingsClick = { screen = Screen.SETTINGS },
                         )
                     }
+                }
+                if (showWhatsNew) {
+                    WhatsNewDialog(
+                        onClose = {
+                            markWhatsNewSeen()
+                            showWhatsNew = false
+                        },
+                    )
                 }
             }
         }
@@ -188,6 +210,17 @@ class MainActivity : ComponentActivity() {
         val color = if (light) R.color.splash_light else R.color.splash_dark
         window.setBackgroundDrawableResource(color)
         window.navigationBarColor = getColor(color)
+    }
+
+    private fun shouldShowWhatsNew(): Boolean =
+        getSharedPreferences(WhatsNewPreferenceFile, MODE_PRIVATE)
+            .getString(WhatsNewSeenKey, null) != WhatsNewVersion
+
+    private fun markWhatsNewSeen() {
+        getSharedPreferences(WhatsNewPreferenceFile, MODE_PRIVATE)
+            .edit()
+            .putString(WhatsNewSeenKey, WhatsNewVersion)
+            .apply()
     }
 
     private companion object {

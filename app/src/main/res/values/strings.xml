@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">枳生天气</string>
     <string name="widget_name">枳生天气</string>
-    <string name="widget_terminal">ZHISHENG WEATHER TERMINAL</string>
     <string name="widget_update_placeholder">尚未同步</string>
     <string name="widget_sync_hint">打开 App 同步数据</string>
     <string name="widget_stale_hours">%1$d小时前</string>
@@ -15,9 +14,13 @@
     <string name="widget_label_small">枳生天气 · 小</string>
     <string name="widget_label_medium">枳生天气 · 中</string>
     <string name="widget_label_large">枳生天气 · 大</string>
+    <string name="widget_label_nano">枳生天气 · 横向腕表</string>
+    <string name="widget_label_tower">枳生天气 · 竖向终端</string>
     <string name="widget_desc_small">大字号实况 · 日期 · 高低温 · 体感湿度</string>
     <string name="widget_desc_medium">大字号实况 · 日期 · 体感湿度 · 未来四小时</string>
     <string name="widget_desc_large">完整实况 · 日期 · 体感湿度风速 · 逐时 · 三日 · AQI</string>
+    <string name="widget_desc_nano">4×1 横向腕表 · 城市 · 实况 · 呼吸状态灯</string>
+    <string name="widget_desc_tower">2×4 竖向终端 · 大图标 · 大温度 · 呼吸状态灯</string>
     <string name="shortcut_refresh_short">刷新天气</string>
     <string name="shortcut_refresh_long">立即刷新当前城市</string>
     <string name="shortcut_search_short">搜索城市</string>

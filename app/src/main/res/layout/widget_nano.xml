@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 4x1：腕表横屏。单行完成城市、天气、温度和呼吸状态灯。 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="9dp">
+
+    <TextView
+        android:id="@+id/widget_accent_bar"
+        android:layout_width="4dp"
+        android:layout_height="34dp"
+        android:background="@drawable/widget_accent" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical">
+        <TextView
+            android:id="@+id/w_city"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:maxLines="1"
+            android:text="@string/widget_name"
+            android:textColor="@color/widget_accent_orange"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+        <TextView
+            android:id="@+id/w_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxLines="1"
+            android:text="@string/widget_date_placeholder"
+            android:textColor="@color/widget_accent_cyan"
+            android:textSize="10sp" />
+        <TextView
+            android:id="@+id/w_range"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_value_placeholder"
+            android:textColor="@color/widget_text_tertiary"
+            android:textSize="10sp" />
+        <TextView
+            android:id="@+id/w_details"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:text="@string/widget_details_placeholder"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/w_temp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="monospace"
+        android:maxLines="1"
+        android:text="@string/widget_value_placeholder"
+        android:textColor="@color/widget_text_primary"
+        android:textSize="38sp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/w_icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="5dp"
+        android:contentDescription="@string/widget_icon_desc"
+        android:src="@drawable/weather_cloud" />
+
+    <ViewFlipper
+        android:id="@+id/widget_live_dot"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:layout_marginStart="2dp"
+        android:autoStart="true"
+        android:flipInterval="900"
+        android:inAnimation="@android:anim/fade_in"
+        android:outAnimation="@android:anim/fade_out">
+        <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_dim" />
+        <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_mid" />
+        <ImageView android:layout_width="match_parent" android:layout_height="match_parent" android:contentDescription="@null" android:src="@drawable/widget_breath_bright" />
+    </ViewFlipper>
+</LinearLayout>

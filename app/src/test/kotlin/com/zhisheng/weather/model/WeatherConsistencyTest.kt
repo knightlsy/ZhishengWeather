@@ -54,6 +54,32 @@ class WeatherConsistencyTest {
     }
 
     @Test
+    fun futureSlotIsNotMislabelledAsNow() {
+        val data = WeatherData(
+            current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.CLEAR),
+            hourly = listOf(HourlyWeather(t0 + 20 * 60_000L, 12.0, WeatherCondition.RAIN)),
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals(t0, aligned.hourly.first().timeMillis)
+        assertEquals(WeatherCondition.CLEAR, aligned.hourly.first().condition)
+        assertEquals(WeatherCondition.RAIN, aligned.hourly[1].condition)
+    }
+
+    @Test
+    fun snowNowcastDoesNotTurnIntoRain() {
+        val minutes = Nowcast.minuteSeries(
+            List(12) { 0.4f },
+            t0,
+            phase = PrecipitationPhase.SNOW,
+        )
+        val aligned = WeatherConsistency.align(
+            WeatherData(current = CurrentWeather(condition = WeatherCondition.OVERCAST), rainMinutes = minutes),
+            t0,
+        )
+        assertEquals(WeatherCondition.SNOW, aligned.current?.condition)
+    }
+
+    @Test
     fun upgradesClearCurrentWhenMinuteSeriesIsWetNow() {
         val minutes = Nowcast.minuteSeries(List(20) { 0.04f }, t0)
         val data = WeatherData(

@@ -22,7 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 // 磷光天气仪表桌面小组件（v0.0.4）
-// 三个 Provider = 桌面选择器里三个独立条目（2x2 / 4x2 / 4x4）；
+// 五个 Provider = 桌面选择器里五个独立条目（4x1 / 2x2 / 4x2 / 2x4 / 4x4）；
 // 每个仍可拉伸，布局按实际尺寸自适应。
 // 数据来自 WidgetCache（主 App 抓取后写入），小组件本身不发网络请求。
 open class ZhishengWidgetProvider : AppWidgetProvider() {
@@ -83,9 +83,14 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
 
         val layout = forcedLayout ?: when {
             minW >= 250 && minH >= 250 -> R.layout.widget_large
+            minW < 180 && minH >= 220 -> R.layout.widget_tower
             minW >= 250 -> R.layout.widget_medium
             else -> R.layout.widget_small
         }
+        val hasUpdate = layout != R.layout.widget_small && layout != R.layout.widget_nano
+        val hasHourly = layout == R.layout.widget_medium || layout == R.layout.widget_large
+        val hasDaily = layout == R.layout.widget_large
+        val spacious = layout == R.layout.widget_large
         val v = RemoteViews(context.packageName, layout)
         if (light) applyLightSkin(context, v) // XML 默认深色磷光，浅色按资源表整体换肤（v0.0.5）
 
@@ -102,7 +107,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
 
         v.setTextViewText(R.id.w_date, dateLabel())
         // 2x2 布局已移除 w_upd 控件（主动舍弃更新时间，v0.0.4）；其余档位正常显示
-        if (layout != R.layout.widget_small) v.setViewVisibility(R.id.w_upd, View.VISIBLE)
+        if (hasUpdate) v.setViewVisibility(R.id.w_upd, View.VISIBLE)
 
         if (snap == null || snap.temp == null) {
             // 空态兜底文案资源化（v0.0.4）
@@ -110,18 +115,19 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             v.setTextViewText(R.id.w_temp, context.getString(R.string.widget_value_placeholder))
             v.setTextViewText(R.id.w_range, context.getString(R.string.widget_sync_hint))
             v.setTextViewText(R.id.w_details, context.getString(R.string.widget_details_placeholder))
-            if (layout != R.layout.widget_small) {
+            if (hasUpdate) {
                 v.setTextViewText(R.id.w_upd, context.getString(R.string.widget_update_placeholder))
             }
-            if (layout != R.layout.widget_small) {
+            if (hasHourly) {
                 listOf(R.id.h1_i, R.id.h2_i, R.id.h3_i, R.id.h4_i)
                     .forEach { v.setViewVisibility(it, View.INVISIBLE) }
             }
-            if (layout == R.layout.widget_large) {
+            if (hasDaily) {
                 listOf(R.id.d1_i, R.id.d2_i, R.id.d3_i)
                     .forEach { v.setViewVisibility(it, View.INVISIBLE) }
                 v.setViewVisibility(R.id.w_aqi, View.GONE)
             }
+            applyIconTone(context, v, R.id.w_icon, "CLOUDY", light)
             return v
         }
 
@@ -138,17 +144,18 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             },
         )
         v.setImageViewResource(R.id.w_icon, iconRes(snap.conditionName))
+        applyIconTone(context, v, R.id.w_icon, snap.conditionName, light)
         v.setTextViewText(
             R.id.w_details,
             buildList {
-                snap.feelsLike?.let { add(if (layout == R.layout.widget_large) "体感 $it°" else "体感$it°") }
-                snap.humidity?.let { add(if (layout == R.layout.widget_large) "湿度 $it%" else "湿度$it%") }
-                if (layout == R.layout.widget_large && snap.windText.isNotBlank()) add("风 ${snap.windText}")
+                snap.feelsLike?.let { add(if (spacious) "体感 $it°" else "体感$it°") }
+                snap.humidity?.let { add(if (spacious) "湿度 $it%" else "湿度$it%") }
+                if (spacious && snap.windText.isNotBlank()) add("风 ${snap.windText}")
             }
-                .joinToString(if (layout == R.layout.widget_large) "  ·  " else " · ")
+                .joinToString(if (spacious) "  ·  " else " · ")
                 .ifBlank { "体感 --  ·  湿度 --" },
         )
-        if (layout != R.layout.widget_small) {
+        if (hasUpdate) {
             v.setTextViewText(
                 R.id.w_upd,
                 listOfNotNull(sourceShort(snap.source), timeLabel(context, snap))
@@ -157,7 +164,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             )
         }
 
-        if (layout != R.layout.widget_small) {
+        if (hasHourly) {
             val hourIds = listOf(
                 Triple(R.id.h1_t, R.id.h1_i, R.id.h1_v),
                 Triple(R.id.h2_t, R.id.h2_i, R.id.h2_v),
@@ -174,12 +181,13 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                     v.setTextViewText(tId, h.label)
                     v.setTextViewText(vId, h.temp?.let { "$it°" } ?: "--")
                     v.setImageViewResource(iId, iconRes(h.conditionName))
+                    applyIconTone(context, v, iId, h.conditionName, light)
                     v.setViewVisibility(iId, View.VISIBLE)
                 }
             }
         }
 
-        if (layout == R.layout.widget_large) {
+        if (hasDaily) {
             val dayIds = listOf(
                 Triple(R.id.d1_t, R.id.d1_i, R.id.d1_v),
                 Triple(R.id.d2_t, R.id.d2_i, R.id.d2_v),
@@ -198,6 +206,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                         if (d.high != null && d.low != null) "${d.low}° ~ ${d.high}°" else "--",
                     )
                     v.setImageViewResource(iId, iconRes(d.conditionName))
+                    applyIconTone(context, v, iId, d.conditionName, light)
                     v.setViewVisibility(iId, View.VISIBLE)
                 }
             }
@@ -216,7 +225,7 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
     }
 
     // 浅色换肤（v0.0.5）：文本色/背景/装饰条整体切换到纸面终端资源；
-    // 三种布局 id 并集一次应用，缺失 id 的动作会被 RemoteViews 静默跳过
+    // 五种布局 id 并集一次应用，缺失 id 的动作会被 RemoteViews 静默跳过
     private fun applyLightSkin(context: Context, v: RemoteViews) {
         fun color(res: Int) = context.getColor(res)
         v.setInt(R.id.widget_root, "setBackgroundResource", R.drawable.widget_bg_light)
@@ -238,7 +247,6 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         v.setInt(R.id.widget_accent_bar, "setBackgroundResource", R.drawable.widget_accent_light)
         v.setInt(R.id.widget_rule_bar, "setBackgroundResource", R.drawable.widget_rule_light)
         v.setInt(R.id.widget_rule_bar_2, "setBackgroundResource", R.drawable.widget_rule_light)
-        v.setInt(R.id.widget_live_dot, "setBackgroundResource", R.drawable.widget_live_dot_light)
     }
 
     private fun clock(ms: Long): String =
@@ -274,6 +282,32 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         runCatching { WeatherCondition.valueOf(name) }.getOrNull()
     ) ?: R.drawable.weather_cloud
 
+    // 浅色桌面不能继续使用深色主题的荧光青绿图标。保留图形 alpha，按天气语义换成
+    // 纸面仪表色：太阳琥珀、降水钢青、云冷灰、雷暴铜黄，避免“所有天气一片绿”。
+    private fun applyIconTone(context: Context, views: RemoteViews, id: Int, name: String, light: Boolean) {
+        if (!light) return
+        val condition = runCatching { WeatherCondition.valueOf(name) }.getOrNull()
+        val colorRes = when (condition) {
+            WeatherCondition.CLEAR -> R.color.widget_light_icon_sun
+            WeatherCondition.CLEAR_NIGHT,
+            WeatherCondition.PARTLY_CLOUDY_NIGHT -> R.color.widget_light_icon_moon
+            WeatherCondition.DRIZZLE,
+            WeatherCondition.RAIN,
+            WeatherCondition.SLEET,
+            WeatherCondition.FREEZING_DRIZZLE,
+            WeatherCondition.FREEZING_RAIN -> R.color.widget_light_icon_rain
+            WeatherCondition.THUNDERSTORM -> R.color.widget_light_icon_storm
+            WeatherCondition.SNOW,
+            WeatherCondition.HAIL -> R.color.widget_light_icon_snow
+            WeatherCondition.HAZE,
+            WeatherCondition.SAND -> R.color.widget_light_icon_haze
+            WeatherCondition.FOG,
+            WeatherCondition.WIND -> R.color.widget_light_icon_wind
+            else -> R.color.widget_light_icon_cloud
+        }
+        views.setInt(id, "setColorFilter", context.getColor(colorRes))
+    }
+
     companion object {
         private const val TAG = "ZhishengWidget"
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -285,6 +319,8 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
                 ZhishengWidgetSmall::class.java,
                 ZhishengWidgetMedium::class.java,
                 ZhishengWidgetLarge::class.java,
+                ZhishengWidgetNano::class.java,
+                ZhishengWidgetTower::class.java,
             ).forEach { cls ->
                 val ids = mgr.getAppWidgetIds(ComponentName(context, cls))
                 if (ids.isNotEmpty()) {
@@ -309,4 +345,12 @@ class ZhishengWidgetMedium : ZhishengWidgetProvider() {
 
 class ZhishengWidgetLarge : ZhishengWidgetProvider() {
     override val forcedLayout = R.layout.widget_large
+}
+
+class ZhishengWidgetNano : ZhishengWidgetProvider() {
+    override val forcedLayout = R.layout.widget_nano
+}
+
+class ZhishengWidgetTower : ZhishengWidgetProvider() {
+    override val forcedLayout = R.layout.widget_tower
 }
