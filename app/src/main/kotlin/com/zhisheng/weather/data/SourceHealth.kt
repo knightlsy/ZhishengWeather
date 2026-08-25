@@ -12,6 +12,7 @@ object SourceHealth {
     const val QWEATHER = "qweather"
     const val XIAOMI = "xiaomi"
     const val OPEN_METEO = "openmeteo"
+    const val CAIYUN = "caiyun"
 
     private val failures = mutableMapOf<String, Int>()
     private val downUntil = mutableMapOf<String, Long>()

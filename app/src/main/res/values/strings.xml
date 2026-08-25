@@ -2,7 +2,6 @@
 <resources>
     <string name="app_name">枳生天气</string>
     <string name="widget_name">枳生天气</string>
-    <string name="widget_terminal">ZHISHENG WEATHER TERMINAL</string>
     <string name="widget_update_placeholder">尚未同步</string>
     <string name="widget_sync_hint">打开 App 同步数据</string>
     <string name="widget_stale_hours">%1$d小时前</string>

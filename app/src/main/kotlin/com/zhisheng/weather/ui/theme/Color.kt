@@ -43,6 +43,13 @@ val ZhishengDarkPalette = ZhishengPalette(
     textTertiary = Color(0xFF95A395),  // 注释灰（约 5.4:1，≥ AA 4.5:1）
 )
 
+// 深色柔和强调：只收绿色与蓝色的发光亮度，色相和语义不变。
+// 它不是把整页蒙灰，正文、橙色标题和警报层级仍保持原来的清晰度。
+val ZhishengDarkSoftAccentPalette = ZhishengDarkPalette.copy(
+    mint = Color(0xFF32C267),
+    cyan = Color(0xFF2FAFC3),
+)
+
 // v0.0.5 重做：清冷翡翠（冷灰极简）。
 // 冷调纸面：底最深 → 面板 → 卡片纯白，三级明度拉开；发丝边代替粗边框，留白感。
 // 信号色主次与深色版对齐：翡翠绿(主数据) > 钢青(线框/图标) > 琥珀(标签，小面积)，
@@ -61,6 +68,12 @@ val ZhishengLightPalette = ZhishengPalette(
     text = Color(0xFF2E3540),          // 石墨蓝灰（≈11:1；纯黑在纸面上太硬）
     textSecondary = Color(0xFF59636F), // 冷灰（约 6:1）
     textTertiary = Color(0xFF6F7985),  // 注释灰（约 4.5:1）
+)
+
+
+val ZhishengLightSoftAccentPalette = ZhishengLightPalette.copy(
+    mint = Color(0xFF0B6857),
+    cyan = Color(0xFF145B6B),
 )
 
 val LocalZhishengPalette = staticCompositionLocalOf { ZhishengDarkPalette }

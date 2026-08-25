@@ -1,6 +1,5 @@
 package com.zhisheng.weather.data
 
-import com.zhisheng.weather.BuildConfig
 import java.util.Locale
 import kotlinx.serialization.json.Json
 import okhttp3.Interceptor
@@ -67,37 +66,38 @@ interface QWeatherService {
 
 object QWeatherApi {
 
-    // 构建未配置凭据时为 false。即使为 true，默认链路也不打和风（须开发者模式锁定）。
-    // v0.0.4：补 QW_KID 检查——kid 为空时 JWT 头 kid=""，服务端必 401，原判定会让用户无感降级
     val enabled: Boolean
-        get() = BuildConfig.QW_HOST.isNotBlank() &&
-            BuildConfig.QW_PROJECT_ID.isNotBlank() &&
-            BuildConfig.QW_KID.isNotBlank() &&
-            BuildConfig.QW_PRIVATE_KEY.isNotBlank()
+        get() = SecretStore.resolvedQw().ready
 
     private val json = Json {
         ignoreUnknownKeys = true
         isLenient = true
     }
 
+    @Volatile private var cachedHost: String? = null
+    @Volatile private var cachedService: QWeatherService? = null
+
     private val authInterceptor = Interceptor { chain ->
         val req = chain.request()
-        val token = QwAuth.token()
-        val first = if (token != null) {
-            req.newBuilder().header("Authorization", "Bearer $token").build()
-        } else {
-            req
+        val creds = SecretStore.resolvedQw()
+        val authed = when {
+            creds.jwtReady -> {
+                val token = QwAuth.token()
+                if (token != null) req.newBuilder().header("Authorization", "Bearer $token").build() else req
+            }
+            creds.keyReady -> req.newBuilder().header("X-QW-Api-Key", creds.apiKey).build()
+            else -> req
         }
-        var resp = chain.proceed(first)
-        // 401 = token 被拒（时钟漂移/凭据作废）：作废缓存重签一次再试（v0.0.1）
-        if (resp.code == 401 && token != null) {
+        var resp = chain.proceed(authed)
+        if (resp.code == 401 && creds.jwtReady) {
             resp.close()
             QwAuth.invalidate()
             val t2 = QwAuth.token()
-            if (t2 != null) {
-                resp = chain.proceed(req.newBuilder().header("Authorization", "Bearer $t2").build())
+            resp = if (t2 != null) {
+                chain.proceed(req.newBuilder().header("Authorization", "Bearer $t2").build())
+            } else {
+                chain.proceed(req)
             }
-            // t2 == null：直接返回 401 响应；原实现会重放带旧 token 的请求（注定再 401 的浪费请求，v0.0.4）
         }
         resp
     }
@@ -108,14 +108,30 @@ object QWeatherApi {
         .readTimeout(12, TimeUnit.SECONDS)
         .build()
 
-    val service: QWeatherService by lazy {
-        Retrofit.Builder()
-            .baseUrl(BuildConfig.QW_HOST.trimEnd('/') + "/")
-            .client(okHttp)
-            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
-            .build()
-            .create(QWeatherService::class.java)
+    fun invalidateClient() {
+        cachedHost = null
+        cachedService = null
     }
+
+    val service: QWeatherService
+        get() {
+            val host = SecretStore.resolvedQw().host.trimEnd('/').ifBlank { "https://n1.qweatherapi.com" }
+            val existing = cachedService
+            if (existing != null && cachedHost == host) return existing
+            synchronized(this) {
+                val again = cachedService
+                if (again != null && cachedHost == host) return again
+                val created = Retrofit.Builder()
+                    .baseUrl(host.trimEnd('/') + "/")
+                    .client(okHttp)
+                    .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+                    .build()
+                    .create(QWeatherService::class.java)
+                cachedHost = host
+                cachedService = created
+                return created
+            }
+        }
 
     fun lat(v: Double) = String.format(Locale.US, "%.2f", v)
     fun lonLat(c: com.zhisheng.weather.model.City) =

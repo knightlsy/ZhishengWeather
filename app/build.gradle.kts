@@ -26,9 +26,9 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260817：0.0.8 数据联动与准确性
-        versionCode = 20260824
-        versionName = "0.0.8"
+        // 20260821：0.0.9 时刻高低温 / 实验室 / 运行时凭据
+        versionCode = 20260825
+        versionName = "0.0.9"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
@@ -60,6 +60,13 @@ android {
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("release")
+        }
+        create("performance") {
+            initWith(getByName("release"))
+            // 真机性能验收：非调试构建，但沿用 debug 证书，可无损覆盖开发机上的 Debug 包。
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            matchingFallbacks += listOf("release")
         }
     }
 

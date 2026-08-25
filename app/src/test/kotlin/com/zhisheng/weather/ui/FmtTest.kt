@@ -16,6 +16,15 @@ class FmtTest {
     }
 
     @Test
+    fun probabilityRejectsOutOfRangeValuesBeforeTheyReachLayout() {
+        assertEquals("60%", Fmt.probability(60))
+        assertEquals("100%", Fmt.probability(100))
+        assertNull(Fmt.probability(0))
+        assertNull(Fmt.probability(6000))
+        assertNull(Fmt.probability(null))
+    }
+
+    @Test
     fun windConvertsToMetersPerSecond() {
         assertEquals("1.0 m/s", Fmt.wind(3.6, "ms"))
         assertEquals("1.0", Fmt.windValue(3.6, "ms"))

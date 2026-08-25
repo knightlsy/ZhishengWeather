@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
-    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.8-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.0.9-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.0.8" src="https://img.shields.io/badge/当前版本-0.0.8-31C9DB?style=flat-square"/>
+  <img alt="当前版本 0.0.9" src="https://img.shields.io/badge/当前版本-0.0.9-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -62,7 +62,7 @@
 - 多城市收藏，2x2 / 4x2 / 4x4 三种桌面小组件
 - 长按应用图标可刷新天气、搜索城市或打开设置
 
-雨、雪、雾和雷暴各有一套背景氛围效果，强度可调，也可以完全关闭。温度、风速和气压单位分别设置；不用的页面模块可以单独隐藏。
+每种天气各有一套背景氛围效果，画在读数之下，强度可调，也可以完全关闭。温度、风速和气压单位分别设置；不用的页面模块可以单独隐藏。
 
 数据源没有提供的字段会留空，不用估算值补齐。
 
@@ -81,19 +81,20 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 ## 数据源怎么工作
 
-项目接入了和风天气、小米天气和 Open-Meteo。设置页可以选择自动优选，也可以固定使用某个数据源，并会显示当前城市实际返回数据的来源。
+项目接入了和风天气、彩云天气、小米天气和 Open-Meteo。设置页可以选择自动优选，也可以固定使用某个数据源，并会显示当前城市实际返回数据的来源。
 
 | 数据源 | 配置 | 主要内容 |
 |:--|:--|:--|
-| 和风天气 | 需要个人开发者凭据 | 实况、预警、逐时逐日、分钟降水、空气质量、生活指数 |
+| 和风天气 | 实验室接入，或构建期写入 `local.properties` | 实况、预警、逐时逐日、分钟降水、空气质量、生活指数 |
+| 彩云天气 | 实验室填写 Token | 实况、逐时逐日、分钟降水、空气质量、预警 |
 | 小米天气 | 不需要 | 国内天气、城市搜索、昨日天气和台风辅助数据 |
 | Open-Meteo | 不需要 | 全球实况、逐时逐日、空气质量、15 分钟降水和缺项补充 |
 
-自动模式会按可用性依次尝试和风（满血版）、小米和 Open-Meteo。主源逐时或逐日数据不足时，会用 Open-Meteo 补足。
+自动优选走小米 → Open-Meteo。和风与彩云不进入自动链，只在开发者模式锁定后使用。主源逐时或逐日数据不足时，会用 Open-Meteo 补足。
 
 月相在本机按城市日期计算。数据源没有月出、月落时，应用会根据日期和城市坐标补算，不再发起额外请求。
 
-和风接口使用 Ed25519 签名 JWT。`-PpublicBuild` 会在构建阶段清空和风配置，公开 APK 和仓库都不包含开发者凭据。
+和风接口使用 Ed25519 签名 JWT，也可填 API KEY。`-PpublicBuild` 会在构建阶段清空编译期凭据；用户在实验室填写的凭据只存在本机，不进备份、不进公共 APK。
 
 ## 图标
 
@@ -114,6 +115,17 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 3. 首次打开默认显示北京，可通过搜索保存自己的城市。
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
+
+## 0.0.9 更新
+
+主屏按时刻切换高低温；没雨就不再占降水卡。天气氛围层重做，每种天气一套终端动效。连点版本号仍可打开开发者模式，随后可在本机接入和风或彩云。
+
+1. 国内白天 10:00–20:00：10 点前昨低+今高，白天今天高/低，20 点后夜低+明高；没有数就空着
+2. 没雨不显示分钟降水卡；体感与气温差不到 1.5°C 时不显示体感
+3. 氛围层重做：晴、晴夜、多云、阴、小雨、雨、雨夹雪、雪、雷阵雨、雾、霾、沙尘、大风各一套，换天气是淡入淡出，读数不被挡住
+4. 开发者模式可分步接入和风（JWT 或 API KEY）和彩云（一个 Token），测通才算接入
+
+本版本仍未加入通知功能；“设置 → 关于”已加入社区贡献者名单：PPQ1028、Uinuan1、KZzzzo、睡觉了寂、微生之最、vsqesy3721、茉莉羽、陈大橙、的飞667。
 
 ## 0.0.8 更新
 
@@ -194,7 +206,7 @@ qw.private_key=<Ed25519 私钥，单行>
 
 ## 已知限制
 
-- 公共版不含和风凭据，官方预警和生活指数可能缺失
+- 公共版默认不含和风凭据；可在实验室自行接入。官方预警和生活指数取决于账号权限
 - Open-Meteo 的短时降水为 15 分钟粒度，不是逐分钟雷达临近预报
 - 台风和昨日天气依赖辅助数据源，接口无返回时对应区域为空
 - 跨数据源预警按标题去重；标题不同的同一条预警可能重复出现
@@ -203,6 +215,17 @@ qw.private_key=<Ed25519 私钥，单行>
 ## 更新记录
 
 <details open>
+<summary><b>0.0.9 // LAB</b></summary>
+
+- 主屏高低温跟时刻走；没数就空
+- 没雨不占降水卡；体感差不到 1.5°C 不显示
+- 氛围层重做：十三种天气各一套终端动效，换天气淡入淡出
+- 关掉系统动画即视为关掉氛围层的动，只留一层静态底纹
+- 实验室可自助接入和风 / 彩云
+
+</details>
+
+<details>
 <summary><b>0.0.8 // DATA</b></summary>
 
 - 修复降雨时主界面仍提示「不会下雨」的问题

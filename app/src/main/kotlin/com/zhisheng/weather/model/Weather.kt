@@ -30,6 +30,7 @@ data class CurrentWeather(
     val cloudCover: Double? = null,
     val windGust: Double? = null,
     val precipMm: Double? = null,
+    val profile: WeatherProfile? = null,
 )
 
 @Serializable
@@ -40,12 +41,14 @@ data class HourlyWeather(
     val windSpeed: Double? = null,
     val precipProb: Int? = null,
     val aqi: Int? = null,
+    val profile: WeatherProfile? = null,
 )
 
 @Serializable
 data class MinutePrecip(
     val timeMillis: Long,
     val precip: Float,
+    val phase: PrecipitationPhase = PrecipitationPhase.RAIN,
 )
 
 @Serializable
@@ -80,6 +83,7 @@ data class DailyWeather(
     val precipMm: Double? = null,
     // 白天转夜间文案（「晴转雷阵雨」）；仅有一种现象时与 condition.label 相同
     val weatherText: String? = null,
+    val profile: WeatherProfile? = null,
 )
 
 @Serializable
@@ -120,11 +124,25 @@ enum class AlertLevel {
     BLUE, YELLOW, ORANGE, RED, UNKNOWN
 }
 
-// 三源等级归一：中文色名（小米 level「黄色预警」）/ 英文色名（和风 color.code）/ 英文严重度（和风 severity）
+// 三源等级归一：中文色名（小米 level「黄色预警」）/ 英文色名（和风 color.code）/
+// 英文严重度（和风 severity）/ 彩云 4 位预警码（如 "0902" = 雷电黄色，后两位为级别）。
 fun alertLevelOf(raw: String?): AlertLevel {
     val r = raw?.trim().orEmpty()
+    if (r.isEmpty()) return AlertLevel.UNKNOWN
+    // 彩云 v2.6 alert.content[].code：4 位字符串，前 2 位类型、后 2 位级别
+    //（00 白 / 01 蓝 / 02 黄 / 03 橙 / 04 红）。原实现只认色名/英文枚举，
+    // 彩云全部预警都落 UNKNOWN、被当成红色渲染（0.0.9-debug 修复）。
+    if (r.length == 4 && r.all { it.isDigit() }) {
+        return when (r.substring(2)) {
+            "00" -> AlertLevel.UNKNOWN // 白色预警（v2.6 新增档），国标四档外不上色
+            "01" -> AlertLevel.BLUE
+            "02" -> AlertLevel.YELLOW
+            "03" -> AlertLevel.ORANGE
+            "04" -> AlertLevel.RED
+            else -> AlertLevel.UNKNOWN
+        }
+    }
     return when {
-        r.isEmpty() -> AlertLevel.UNKNOWN
         r.contains("红") || r.equals("red", ignoreCase = true) -> AlertLevel.RED
         r.contains("橙") || r.equals("orange", ignoreCase = true) -> AlertLevel.ORANGE
         r.contains("黄") || r.equals("yellow", ignoreCase = true) -> AlertLevel.YELLOW
@@ -157,11 +175,14 @@ data class WeatherData(
     // 雨区距离（km）：小米分钟降水 kmNum，仅该源返回时非空（v0.0.4）
     val rainDistanceKm: Double? = null,
     val dataSource: String? = null,
+    val blockSources: Map<String, String> = emptyMap(),
+    val utcOffsetSeconds: Int? = null,
     val error: String? = null,
 )
 
 @Serializable
 enum class WeatherCondition(val label: String) {
+    UNKNOWN("未知"),
     CLEAR("晴"),
     CLEAR_NIGHT("晴"),
     PARTLY_CLOUDY("多云"),
@@ -171,6 +192,9 @@ enum class WeatherCondition(val label: String) {
     RAIN("雨"),
     DRIZZLE("小雨"),
     THUNDERSTORM("雷阵雨"),
+    HAIL("冰雹"),
+    FREEZING_RAIN("冻雨"),
+    FREEZING_DRIZZLE("冻毛毛雨"),
     SNOW("雪"),
     SLEET("雨夹雪"),
     FOG("雾"),
@@ -179,53 +203,102 @@ enum class WeatherCondition(val label: String) {
     WIND("大风");
 
     val isPrecipitation: Boolean
-        get() = this == RAIN || this == DRIZZLE || this == THUNDERSTORM || this == SNOW || this == SLEET
+        get() = this == RAIN || this == DRIZZLE || this == THUNDERSTORM || this == HAIL ||
+            this == FREEZING_RAIN || this == FREEZING_DRIZZLE || this == SNOW || this == SLEET
+
+    val significanceRank: Int get() = rank(this)
 
     companion object {
         // 中国天气现象编码（GB/T 天气现象）。小米 weathercn 源用这套，不是 AccuWeather 图标号。
-        fun fromCode(code: String?): WeatherCondition = when (norm(code)) {
-            "0" -> CLEAR
-            "1" -> PARTLY_CLOUDY
-            "2" -> OVERCAST
-            "3", "8", "9", "10", "11", "12", "22", "23", "24", "25" -> RAIN
-            "4", "5" -> THUNDERSTORM
-            "7", "21" -> DRIZZLE
-            "6", "19" -> SLEET
-            "13", "14", "15", "16", "17", "26", "27", "28" -> SNOW
-            "18", "32", "49", "57", "58" -> FOG
-            "20", "29", "30", "31" -> SAND
-            "53", "54", "55", "56" -> HAZE
-            else -> CLOUDY
+        fun fromCode(code: String?): WeatherCondition = chinaProfile(code).condition
+
+        fun chinaProfile(code: String?): WeatherProfile {
+            val raw = norm(code)
+            return when (raw) {
+                "0" -> profile(CLEAR, raw, "CHINA")
+                "1" -> profile(PARTLY_CLOUDY, raw, "CHINA")
+                "2" -> profile(OVERCAST, raw, "CHINA")
+                "3" -> profile(RAIN, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN, shower = true)
+                "4" -> profile(THUNDERSTORM, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN, shower = true, thunder = true)
+                "5" -> profile(HAIL, raw, "CHINA", WeatherIntensity.HEAVY, PrecipitationPhase.HAIL, shower = true, thunder = true)
+                "6" -> profile(SLEET, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.MIXED)
+                "7", "21" -> profile(DRIZZLE, raw, "CHINA", WeatherIntensity.LIGHT, PrecipitationPhase.RAIN)
+                "8", "22" -> profile(RAIN, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN)
+                "9", "23" -> profile(RAIN, raw, "CHINA", WeatherIntensity.HEAVY, PrecipitationPhase.RAIN)
+                "10", "11", "12", "24", "25" -> profile(RAIN, raw, "CHINA", WeatherIntensity.EXTREME, PrecipitationPhase.RAIN)
+                "13" -> profile(SNOW, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW, shower = true)
+                "14", "26" -> profile(SNOW, raw, "CHINA", WeatherIntensity.LIGHT, PrecipitationPhase.SNOW)
+                "15", "27" -> profile(SNOW, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW)
+                "16", "28" -> profile(SNOW, raw, "CHINA", WeatherIntensity.HEAVY, PrecipitationPhase.SNOW)
+                "17" -> profile(SNOW, raw, "CHINA", WeatherIntensity.EXTREME, PrecipitationPhase.SNOW)
+                "19" -> profile(FREEZING_RAIN, raw, "CHINA", WeatherIntensity.MODERATE, PrecipitationPhase.FREEZING_RAIN, freezing = true)
+                "18" -> profile(FOG, raw, "CHINA", WeatherIntensity.LIGHT)
+                "32", "57" -> profile(FOG, raw, "CHINA", WeatherIntensity.HEAVY)
+                "49", "58" -> profile(FOG, raw, "CHINA", WeatherIntensity.EXTREME)
+                "29" -> profile(SAND, raw, "CHINA", WeatherIntensity.LIGHT)
+                "30" -> profile(SAND, raw, "CHINA", WeatherIntensity.MODERATE)
+                "20", "31" -> profile(SAND, raw, "CHINA", WeatherIntensity.HEAVY)
+                "53" -> profile(HAZE, raw, "CHINA", WeatherIntensity.LIGHT)
+                "54" -> profile(HAZE, raw, "CHINA", WeatherIntensity.MODERATE)
+                "55" -> profile(HAZE, raw, "CHINA", WeatherIntensity.HEAVY)
+                "56" -> profile(HAZE, raw, "CHINA", WeatherIntensity.EXTREME)
+                else -> profile(UNKNOWN, raw, "CHINA")
+            }
         }
 
         // 小米 locationKey：weathercn 用国标现象码；accu 用 AccuWeather 图标号。两套数字重叠（18=雾 vs 雨），必须按前缀分支。
         fun fromXiaomi(code: String?, locationKey: String?): WeatherCondition =
-            if (locationKey.orEmpty().startsWith("accu:", ignoreCase = true)) fromAccu(code)
-            else fromCode(code)
+            xiaomiProfile(code, locationKey).condition
 
-        fun fromAccu(code: String?): WeatherCondition = when (norm(code)) {
-            "1", "2", "30" -> CLEAR
-            "33", "34" -> CLEAR_NIGHT
-            "3", "4", "5", "6" -> PARTLY_CLOUDY
-            "35", "36", "37", "38" -> PARTLY_CLOUDY_NIGHT
-            "7", "8" -> OVERCAST
-            "11" -> FOG
-            "12", "13", "14", "18", "39", "40" -> RAIN
-            "15", "16", "17", "41", "42" -> THUNDERSTORM
-            "19", "20", "21", "22", "23", "43", "44" -> SNOW
-            "24", "25", "26", "29" -> SLEET
-            "32" -> WIND
-            else -> CLOUDY
+        fun xiaomiProfile(code: String?, locationKey: String?): WeatherProfile =
+            if (locationKey.orEmpty().startsWith("accu:", ignoreCase = true)) accuProfile(code)
+            else chinaProfile(code)
+
+        fun fromAccu(code: String?): WeatherCondition = accuProfile(code).condition
+
+        fun accuProfile(code: String?): WeatherProfile {
+            val raw = norm(code)
+            return when (raw) {
+                "1", "2" -> profile(CLEAR, raw, "ACCU")
+                "33", "34" -> profile(CLEAR_NIGHT, raw, "ACCU")
+                "3", "4", "6" -> profile(PARTLY_CLOUDY, raw, "ACCU")
+                "35", "36", "38" -> profile(PARTLY_CLOUDY_NIGHT, raw, "ACCU")
+                "5", "37" -> profile(HAZE, raw, "ACCU", WeatherIntensity.LIGHT)
+                "7", "8" -> profile(OVERCAST, raw, "ACCU")
+                "11" -> profile(FOG, raw, "ACCU")
+                "12" -> profile(DRIZZLE, raw, "ACCU", WeatherIntensity.LIGHT, PrecipitationPhase.RAIN)
+                "13", "14", "39", "40" -> profile(RAIN, raw, "ACCU", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN, shower = true)
+                "18" -> profile(RAIN, raw, "ACCU", WeatherIntensity.HEAVY, PrecipitationPhase.RAIN)
+                "15", "16", "17", "41", "42" -> profile(THUNDERSTORM, raw, "ACCU", WeatherIntensity.HEAVY, PrecipitationPhase.RAIN, shower = true, thunder = true)
+                "19", "20", "21", "22", "23", "43", "44" -> profile(SNOW, raw, "ACCU", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW, shower = raw in setOf("21", "23", "43", "44"))
+                "24" -> profile(FREEZING_RAIN, raw, "ACCU", WeatherIntensity.LIGHT, PrecipitationPhase.FREEZING_RAIN, freezing = true)
+                "25" -> profile(SLEET, raw, "ACCU", WeatherIntensity.MODERATE, PrecipitationPhase.MIXED)
+                "26" -> profile(FREEZING_RAIN, raw, "ACCU", WeatherIntensity.MODERATE, PrecipitationPhase.FREEZING_RAIN, freezing = true)
+                "29" -> profile(SLEET, raw, "ACCU", WeatherIntensity.MODERATE, PrecipitationPhase.MIXED)
+                "30" -> profile(UNKNOWN, raw, "ACCU", thermal = ThermalModifier.HOT)
+                "31" -> profile(UNKNOWN, raw, "ACCU", thermal = ThermalModifier.COLD)
+                "32" -> profile(WIND, raw, "ACCU")
+                else -> profile(UNKNOWN, raw, "ACCU")
+            }
         }
 
         fun chinaLabel(code: String?): String {
-            val n = norm(code) ?: return CLOUDY.label
-            return CHINA_LABELS[n] ?: fromCode(code).label
+            val n = norm(code) ?: return UNKNOWN.label
+            return CHINA_LABELS[n] ?: UNKNOWN.label
         }
 
         fun xiaomiLabel(code: String?, locationKey: String?): String =
-            if (locationKey.orEmpty().startsWith("accu:", ignoreCase = true)) fromAccu(code).label
+            if (locationKey.orEmpty().startsWith("accu:", ignoreCase = true)) accuLabel(code)
             else chinaLabel(code)
+
+        private fun accuLabel(code: String?): String = when (norm(code)) {
+            "5", "37" -> "薄雾"
+            "24" -> "冰"
+            "26" -> "冻雨"
+            "30" -> "炎热"
+            "31" -> "寒冷"
+            else -> fromAccu(code).label
+        }
 
         fun turnPhrase(fromCode: String?, toCode: String?, locationKey: String? = null): String {
             val a = xiaomiLabel(fromCode, locationKey)
@@ -237,7 +310,10 @@ enum class WeatherCondition(val label: String) {
             if (rank(a) >= rank(b)) a else b
 
         private fun rank(c: WeatherCondition): Int = when (c) {
+            HAIL -> 100
             THUNDERSTORM -> 90
+            FREEZING_RAIN -> 85
+            FREEZING_DRIZZLE -> 82
             SLEET -> 80
             SNOW -> 75
             RAIN -> 70
@@ -250,6 +326,7 @@ enum class WeatherCondition(val label: String) {
             CLOUDY -> 18
             PARTLY_CLOUDY, PARTLY_CLOUDY_NIGHT -> 10
             CLEAR, CLEAR_NIGHT -> 0
+            UNKNOWN -> -1
         }
 
         internal fun norm(code: String?): String? {
@@ -276,27 +353,80 @@ enum class WeatherCondition(val label: String) {
 
         // 和风 condition：icon 带昼夜变体（100 晴日 / 150 晴夜），code 恒为白天码。
         // 优先 icon，缺失时退回 code（v0.0.2：修复夜间显示太阳）
-        fun fromQw(icon: String?, code: String?): WeatherCondition =
-            fromQwCode(icon?.takeIf { it.isNotBlank() } ?: code)
+        fun fromQw(icon: String?, code: String?): WeatherCondition = qwProfile(icon, code).condition
 
         // 和风天气图标码 → 条件（1xx 白天 / 15x 夜间 / 3xx 雨 / 4xx 雪 / 5xx 视程）
-        fun fromQwCode(code: String?): WeatherCondition = when (code) {
-            "100" -> CLEAR
-            "150" -> CLEAR_NIGHT
-            "101", "102", "103" -> PARTLY_CLOUDY
-            "151", "152", "153" -> PARTLY_CLOUDY_NIGHT
-            "104" -> OVERCAST
-            "302", "303" -> THUNDERSTORM
-            "304" -> THUNDERSTORM
-            "309", "399" -> DRIZZLE
-            "300", "301", "305", "306", "307", "308", "310", "311", "312", "313",
-            "314", "315", "316", "317", "318" -> RAIN
-            "404", "405" -> SLEET
-            "400", "401", "402", "403", "406", "407", "408", "409", "410", "499" -> SNOW
-            "500", "501", "509", "510" -> FOG
-            "503", "504", "507", "508" -> SAND
-            "502", "511", "512", "513", "514", "515" -> HAZE
-            else -> CLOUDY
+        fun fromQwCode(code: String?): WeatherCondition = qwProfile(code, null).condition
+
+        fun qwProfile(icon: String?, code: String?): WeatherProfile {
+            val raw = norm(icon?.takeIf { it.isNotBlank() } ?: code)
+            return when (raw) {
+                "100" -> profile(CLEAR, raw, "QWEATHER")
+                "150" -> profile(CLEAR_NIGHT, raw, "QWEATHER")
+                "101", "102", "103" -> profile(PARTLY_CLOUDY, raw, "QWEATHER")
+                "151", "152", "153" -> profile(PARTLY_CLOUDY_NIGHT, raw, "QWEATHER")
+                "104" -> profile(OVERCAST, raw, "QWEATHER")
+                "300", "301", "350", "351" -> profile(RAIN, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN, shower = true)
+                "302", "303" -> profile(THUNDERSTORM, raw, "QWEATHER", WeatherIntensity.HEAVY, PrecipitationPhase.RAIN, shower = true, thunder = true)
+                "304" -> profile(HAIL, raw, "QWEATHER", WeatherIntensity.HEAVY, PrecipitationPhase.HAIL, shower = true, thunder = true)
+                "305", "309" -> profile(DRIZZLE, raw, "QWEATHER", WeatherIntensity.LIGHT, PrecipitationPhase.RAIN)
+                "306", "314" -> profile(RAIN, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN)
+                "307", "315" -> profile(RAIN, raw, "QWEATHER", WeatherIntensity.HEAVY, PrecipitationPhase.RAIN)
+                "308", "310", "311", "312", "316", "317", "318" -> profile(RAIN, raw, "QWEATHER", WeatherIntensity.EXTREME, PrecipitationPhase.RAIN)
+                "313" -> profile(FREEZING_RAIN, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.FREEZING_RAIN, freezing = true)
+                "399" -> profile(RAIN, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.RAIN)
+                "404", "405" -> profile(SLEET, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.MIXED)
+                "406", "456" -> profile(SLEET, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.MIXED, shower = true)
+                "400", "408" -> profile(SNOW, raw, "QWEATHER", WeatherIntensity.LIGHT, PrecipitationPhase.SNOW)
+                "401", "409" -> profile(SNOW, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW)
+                "402", "403", "410" -> profile(SNOW, raw, "QWEATHER", WeatherIntensity.HEAVY, PrecipitationPhase.SNOW)
+                "407", "457" -> profile(SNOW, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW, shower = true)
+                "499" -> profile(SNOW, raw, "QWEATHER", WeatherIntensity.MODERATE, PrecipitationPhase.SNOW)
+                "500", "501" -> profile(FOG, raw, "QWEATHER", WeatherIntensity.LIGHT)
+                "509", "510", "514", "515" -> profile(FOG, raw, "QWEATHER", if (raw in setOf("510", "515")) WeatherIntensity.EXTREME else WeatherIntensity.HEAVY)
+                "502", "511" -> profile(HAZE, raw, "QWEATHER", WeatherIntensity.LIGHT)
+                "512" -> profile(HAZE, raw, "QWEATHER", WeatherIntensity.MODERATE)
+                "513" -> profile(HAZE, raw, "QWEATHER", WeatherIntensity.HEAVY)
+                "503", "504" -> profile(SAND, raw, "QWEATHER", WeatherIntensity.MODERATE)
+                "507", "508" -> profile(SAND, raw, "QWEATHER", WeatherIntensity.HEAVY)
+                "900" -> profile(UNKNOWN, raw, "QWEATHER", thermal = ThermalModifier.HOT)
+                "901" -> profile(UNKNOWN, raw, "QWEATHER", thermal = ThermalModifier.COLD)
+                else -> profile(UNKNOWN, raw, "QWEATHER")
+            }
         }
+
+        private fun profile(
+            condition: WeatherCondition,
+            rawCode: String?,
+            source: String,
+            intensity: WeatherIntensity? = null,
+            phase: PrecipitationPhase = PrecipitationPhase.NONE,
+            shower: Boolean = false,
+            thunder: Boolean = false,
+            freezing: Boolean = false,
+            thermal: ThermalModifier = ThermalModifier.NONE,
+        ) = WeatherProfile(condition, intensity, phase, shower, thunder, freezing, thermal, source, rawCode)
     }
 }
+
+@Serializable
+enum class WeatherIntensity { LIGHT, MODERATE, HEAVY, EXTREME }
+
+@Serializable
+enum class PrecipitationPhase { NONE, RAIN, SNOW, MIXED, FREEZING_RAIN, FREEZING_DRIZZLE, HAIL }
+
+@Serializable
+enum class ThermalModifier { NONE, HOT, COLD }
+
+@Serializable
+data class WeatherProfile(
+    val condition: WeatherCondition,
+    val intensity: WeatherIntensity? = null,
+    val phase: PrecipitationPhase = PrecipitationPhase.NONE,
+    val shower: Boolean = false,
+    val thunder: Boolean = false,
+    val freezing: Boolean = false,
+    val thermal: ThermalModifier = ThermalModifier.NONE,
+    val source: String? = null,
+    val rawCode: String? = null,
+)

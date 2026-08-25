@@ -18,14 +18,20 @@ object Nowcast {
     const val MINUTE_MS = 60_000L
     private const val STOP_DRY_RUN = 8
 
+    fun accumulatedMmToRate(valueMm: Float, periodMinutes: Int): Float {
+        if (!valueMm.isFinite() || valueMm <= 0f || periodMinutes <= 0) return 0f
+        return valueMm * (60f / periodMinutes)
+    }
+
     fun minuteSeries(
         values: List<Float>,
         startMillis: Long,
         stepMs: Long = MINUTE_MS,
+        phase: PrecipitationPhase = PrecipitationPhase.RAIN,
     ): List<MinutePrecip> {
         if (values.isEmpty() || stepMs <= 0L) return emptyList()
         return values.mapIndexed { i, v ->
-            MinutePrecip(startMillis + i * stepMs, v.coerceAtLeast(0f))
+            MinutePrecip(startMillis + i * stepMs, v.coerceAtLeast(0f), phase)
         }
     }
 
@@ -43,7 +49,7 @@ object Nowcast {
         for (m in 0 until horizonMin) {
             val t = start + m * MINUTE_MS
             while (i + 1 < sorted.size && sorted[i + 1].timeMillis <= t) i++
-            out.add(MinutePrecip(t, sorted[i].precip.coerceAtLeast(0f)))
+            out.add(MinutePrecip(t, sorted[i].precip.coerceAtLeast(0f), sorted[i].phase))
         }
         return out
     }
@@ -88,15 +94,19 @@ object Nowcast {
         val api = data.rainNowcast?.trim()?.takeIf { it.isNotEmpty() }?.let { tidyCopy(it) }
 
         if (timing.rainingNow) {
+            // 分钟序列能给出明确停雨时刻时，主屏与分钟降水卡必须共用同一个结论。
+            // 原先这里优先透传供应商的“半小时后雨渐停”，卡片却显示本地计算的
+            // “29 分钟后雨会停”，数值虽一致，用户看到的却像两份互相冲突的预报。
+            if (timing.minutesUntilEnd != null) return rainTimingLabel(timing)
             // 实况或分钟序列显示正在下雨时，接口「不会下雨」一律丢掉。
             if (api != null && !isDryNowcast(api)) return api
             return rainTimingLabel(timing)
         }
         if (timing.minutesUntilStart != null) {
-            if (api != null && !isDryNowcast(api) && looksLikeIncomingRain(api)) return api
+            // 有可计算的分钟级开始时刻时，同样不用供应商的模糊取整文案覆盖它。
             return rainTimingLabel(timing)
         }
-        if (api != null && isDryNowcast(api)) return api
+        // 没雨不是新闻，不把「不会下雨」写进第一句。
         // 雨在别处（距离文案）可以保留；近处有雨但此刻序列是干的，也让用户看到源站结论。
         if (api != null && looksLikeIncomingRain(api)) return api
 
@@ -104,6 +114,45 @@ object Nowcast {
         tempDeltaLine(data, unit)?.let { return it }
         mildAlert(data.alerts)?.title?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         return null
+    }
+
+    // 分钟降水卡：只在接下来一段时间真有雨，或雨带近到值得看时出现。
+    fun shouldShowPrecipCard(data: WeatherData, nowMillis: Long): Boolean {
+        val precipNow = data.current.let { cur ->
+            cur != null && (cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05)
+        }
+        val timing = rainTiming(data.rainMinutes, nowMillis, currentPrecip = precipNow)
+        if (timing.hasRain) return true
+        val api = data.rainNowcast?.trim()?.takeIf { it.isNotEmpty() }
+        if (api != null && looksLikeIncomingRain(api)) return true
+        val km = data.rainDistanceKm ?: return false
+        // 0 km 在小米里经常是缺测/占位，PrecipCard 也不会把它画成距离。
+        // 不能因为 0 就把干序列硬塞进主屏。
+        return km > 0.0 && km <= 40.0
+    }
+
+    // 彩云的分钟降水是按账户权限返回的完整功能块。只要接口确实返回了
+    // 当前/未来分钟序列，就展示模块；全 0 代表“有权限且未来无雨”，不是无数据。
+    fun shouldShowPrecipModule(data: WeatherData, nowMillis: Long): Boolean {
+        val caiyunMinuteAccess = data.dataSource.equals("CAIYUN", ignoreCase = true) &&
+            data.rainMinutes.any { it.timeMillis >= nowMillis - NOW_WINDOW_MS }
+        return caiyunMinuteAccess || shouldShowPrecipCard(data, nowMillis)
+    }
+
+    // 分钟图按实际峰值选离散标尺，弱降水不会被固定 0.3 mm/h 的上限压成细线。
+    fun precipChartCeiling(points: List<MinutePrecip>): Float {
+        val max = points.maxOfOrNull { it.precip.coerceAtLeast(0f) } ?: 0f
+        return when {
+            max <= 0f -> 0f
+            max <= 0.05f -> 0.05f
+            max <= 0.1f -> 0.1f
+            max <= 0.25f -> 0.25f
+            max <= 0.5f -> 0.5f
+            max <= 1f -> 1f
+            max <= 2f -> 2f
+            max <= 5f -> 5f
+            else -> kotlin.math.ceil(max.toDouble()).toFloat()
+        }
     }
 
     fun tidyCopy(text: String): String =

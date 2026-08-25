@@ -7,6 +7,7 @@ import com.zhisheng.weather.data.WidgetDay
 import com.zhisheng.weather.data.WidgetHour
 import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.City
+import com.zhisheng.weather.model.HeroTemps
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.widget.ZhishengWidgetProvider
 import kotlinx.coroutines.flow.first
@@ -29,7 +30,7 @@ object WidgetSnapshotBuilder {
         val hi = if (today?.high != null && today.low != null) maxOf(today.high, today.low) else today?.high
         val lo = if (today?.high != null && today.low != null) minOf(today.high, today.low) else today?.low
         val hourFmt = DateTimeFormatter.ofPattern("H时")
-        val zone = ZoneId.systemDefault()
+        val zone = HeroTemps.zoneOf(data.utcOffsetSeconds)
 
         WidgetCache.save(
             context,
@@ -41,8 +42,10 @@ object WidgetSnapshotBuilder {
                 feelsLike = t(data.current?.feelsLike),
                 humidity = data.current?.humidity?.roundToInt(),
                 windText = Fmt.wind(data.current?.windSpeed, windUnit).orEmpty(),
-                rainChance = data.hourly.firstOrNull()?.precipProb
-                    ?: data.daily.firstOrNull()?.precipProbability,
+                rainChance = (
+                    data.hourly.firstOrNull()?.precipProb
+                        ?: data.daily.firstOrNull()?.precipProbability
+                    )?.takeIf { it in 1..100 },
                 text = data.current?.weatherText ?: data.current?.condition?.label.orEmpty(),
                 conditionName = data.current?.condition?.name.orEmpty(),
                 aqi = data.aqi?.value,

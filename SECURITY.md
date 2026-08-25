@@ -31,10 +31,10 @@
 
 ## 04// 特别说明 NOTES
 
-- 和风天气凭据仅存于各人本地 `local.properties`，不随仓库分发
-  *QWeather credentials live only in each person's local `local.properties`; they never ship with the repo.*
-- 构建产物（APK）会内嵌凭据，**请勿公开发布你带凭据构建的 APK**
-  *Builds embed whatever credentials you compile with — **never publish an APK you built with real credentials**.*
+- 和风天气凭据仅存于各人本地 `local.properties`，或运行时写入本机 `no_backup`，不随仓库分发
+  *QWeather credentials live in each person's `local.properties`, or in on-device `no_backup` storage at runtime; they never ship with the repo.*
+- 构建产物（APK）会内嵌编译期凭据，**请勿公开发布你带凭据构建的 APK**。实验室填写的 Token / 密钥不进系统备份
+  *Builds embed whatever credentials you compile with — **never publish an APK you built with real credentials**. Tokens entered in the lab are excluded from system backup.*
 - Release 附带的公共版 APK 由 `-PpublicBuild` 构建。该任务会清空天气服务凭据，并使用随库公开证书 `keystore/public.jks` 签名
   *Release APKs are built with `-PpublicBuild`, which clears compile-time QWeather credentials and signs with the in-repo public key `keystore/public.jks`.*
 - 若在仓库历史中发现任何凭据痕迹，请按安全漏洞上报，勿公开扩散

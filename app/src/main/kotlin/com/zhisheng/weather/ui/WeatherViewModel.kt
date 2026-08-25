@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -29,7 +30,7 @@ data class DisplayPrefs(
     val windUnit: String = "kmh",
     val pressureUnit: String = "hpa",
     val scanlines: Boolean = true,
-    val ambience: AmbienceLevel = AmbienceLevel.SUBTLE,
+    val ambience: AmbienceLevel = AmbienceLevel.VIVID,
     val bootAnim: Boolean = true,
 )
 
@@ -46,11 +47,14 @@ data class HomeUiState(
     val locateMessage: String? = null,
     // 非空 = 当前展示的是离线缓存兜底数据，值为缓存年龄（毫秒）
     val staleAgeMillis: Long? = null,
+    // false = cities 仍是 stateIn 占位空表，UI 不得据此渲染"未接入城市"空态（0.0.9-debug）
+    val citiesLoaded: Boolean = false,
 )
 
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _weather = MutableStateFlow<WeatherData?>(null)
+    private val _weatherCityKey = MutableStateFlow<String?>(null)
     private val _loading = MutableStateFlow(false)
     private val _locating = MutableStateFlow(false)
     private val _locateMessage = MutableStateFlow<String?>(null)
@@ -65,7 +69,14 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     // 避免新旧城市结果乱序覆盖（v0.0.1：切城市偶发数据错乱的修复）
     private var fetchJob: kotlinx.coroutines.Job? = null
 
+    // citiesLoaded：DataStore 异步首发前 cities 的占位空表会被 UI 误判为
+    // 「用户删光了城市」，已存城市的用户冷启动闪一屏"未接入城市"再淡出（0.0.9-debug 修复）。
+    // 首个真实值发出后置 true，UI 据此把占位期渲染成 loading 而非空态。
+    private val _citiesLoaded = MutableStateFlow(false)
+    val citiesLoaded: StateFlow<Boolean> = _citiesLoaded
+
     val cities: StateFlow<List<City>> = CityRepository.cities
+        .onEach { _citiesLoaded.value = true }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val selectedCity: StateFlow<City?> = CityRepository.selectedCity
@@ -74,6 +85,16 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     // 数据源偏好单独暴露：refresh 时要读当前值（combine 的 6 元上限已满）
     val sourcePref: StateFlow<SourcePref> = SettingsRepository.sourcePref
         .stateIn(viewModelScope, SharingStarted.Eagerly, SourcePref.AUTO)
+
+    // combine 只到 5 元，第二组偏好得单独并一次。原来并成 List<Any> 再按下标强转，
+    // 顺序错一位编译期不报错、运行期才炸；换成具名字段，编译器替我们盯着（0.0.9）。
+    private data class VisualPrefs(
+        val windUnit: String,
+        val pressureUnit: String,
+        val scanlines: Boolean,
+        val ambience: AmbienceLevel,
+        val bootAnim: Boolean,
+    )
 
     private val displayPrefs: StateFlow<DisplayPrefs> = combine(
         SettingsRepository.showAqi,
@@ -90,29 +111,42 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             SettingsRepository.scanlines,
             SettingsRepository.ambience,
             SettingsRepository.bootAnim,
-        ) { w, pr, sl, amb, boot -> listOf(w, pr, sl, amb, boot) }
+        ) { w, pr, sl, amb, boot -> VisualPrefs(w, pr, sl, amb, boot) }
     ) { base, extra ->
         base.copy(
-            windUnit = extra[0] as String,
-            pressureUnit = extra[1] as String,
-            scanlines = extra[2] as Boolean,
-            ambience = extra[3] as AmbienceLevel,
-            bootAnim = extra[4] as Boolean,
+            windUnit = extra.windUnit,
+            pressureUnit = extra.pressureUnit,
+            scanlines = extra.scanlines,
+            ambience = extra.ambience,
+            bootAnim = extra.bootAnim,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DisplayPrefs())
 
+    private data class WeatherCore(
+        val cities: List<City>,
+        val selected: City?,
+        val weather: WeatherData?,
+        val weatherCityKey: String?,
+        val loading: Boolean,
+    )
+
+    private val weatherCore = combine(cities, selectedCity, _weather, _weatherCityKey, _loading) {
+            cityList, selected, weather, weatherCityKey, loading ->
+        WeatherCore(cityList, selected, weather, weatherCityKey, loading)
+    }
+
     private val baseState: StateFlow<HomeUiState> = combine(
-        cities, selectedCity, _weather, _loading,
-        SettingsRepository.tempUnit, SettingsRepository.showTyphoon,
-    ) { arr ->
-        @Suppress("UNCHECKED_CAST")
+        weatherCore,
+        SettingsRepository.tempUnit,
+        SettingsRepository.showTyphoon,
+    ) { core, tempUnit, showTyphoon ->
         HomeUiState(
-            cities = arr[0] as List<City>,
-            selectedCity = arr[1] as City?,
-            weather = arr[2] as WeatherData?,
-            loading = arr[3] as Boolean,
-            tempUnit = arr[4] as String,
-            showTyphoon = arr[5] as Boolean,
+            cities = core.cities,
+            selectedCity = core.selected,
+            weather = core.weather.takeIf { core.weatherCityKey == core.selected?.locationKey },
+            loading = core.loading,
+            tempUnit = tempUnit,
+            showTyphoon = showTyphoon,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
 
@@ -127,6 +161,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             locating = arr[3] as Boolean,
             locateMessage = arr[4] as String?,
             staleAgeMillis = arr[5] as Long?,
+            citiesLoaded = _citiesLoaded.value,
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
 
@@ -163,6 +198,12 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         lastFetchKey = target.locationKey
         lastFetchAt = now
         fetchJob?.cancel()
+        if (_weatherCityKey.value != target.locationKey) {
+            // 城市名切换后绝不允许继续挂着上一城市的温度/天气。
+            _weather.value = null
+            _staleAge.value = null
+        }
+        _weatherCityKey.value = target.locationKey
         var job: kotlinx.coroutines.Job? = null
         job = viewModelScope.launch {
             _loading.value = true
@@ -179,7 +220,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 } catch (ce: kotlinx.coroutines.CancellationException) {
                     throw ce
                 } catch (e: Exception) {
-                    android.util.Log.w("ZhishengWeather", "抓取异常 ${target.name}", e)
+                    android.util.Log.w("ZhishengWeather", "抓取异常 ${target.name}: ${e.javaClass.simpleName}")
                     WeatherData(error = e.message ?: "网络错误")
                 }
                 if (result.current == null) {
@@ -199,7 +240,9 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                     // 抓到有效数据就写一份小组件快照并刷新桌面（失败不影响主流程）
                     runCatching { WidgetSnapshotBuilder.save(getApplication(), target, result) }
                 }
-                _weather.value = result
+                if (selectedCity.value?.locationKey == target.locationKey) {
+                    _weather.value = result
+                }
             } finally {
                 // 仅当自己仍是当前任务时才清 loading：换城市取消旧任务时，
                 // 旧任务的 finally 不应把新任务刚置的 loading 清掉（v0.0.3）
@@ -211,6 +254,10 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectCity(locationKey: String) {
         _locateMessage.value = null
+        if (selectedCity.value?.locationKey != locationKey) {
+            _weather.value = null
+            _weatherCityKey.value = null
+        }
         viewModelScope.launch { CityRepository.selectCity(locationKey) }
     }
 

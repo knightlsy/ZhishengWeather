@@ -12,6 +12,11 @@ object Fmt {
 
     fun unitSuffix(unit: String): String = if (unit == "f") "°F" else "°C"
 
+    // 百分比只接受模型约定的 0..100；异常源值不进入 UI，避免 6000% 撑坏布局。
+    fun probability(value: Int?): String? = value
+        ?.takeIf { it in 1..100 }
+        ?.let { "$it%" }
+
     // 内部一律以 km/h 存储，展示时换算
     fun wind(kmh: Double?, unit: String): String? = kmh?.let {
         when (unit) {
