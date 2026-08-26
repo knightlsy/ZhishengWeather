@@ -45,8 +45,8 @@ internal fun LegacyDataRain(
 
     val density = LocalDensity.current
     val f = level.factor
-    val vivid = level == AmbienceLevel.VIVID
-    val motion = if (vivid) 1.32f else 1f
+    val vivid = level.vivid
+    val motion = level.motionScale
     val particleCount = if (vivid) 88 else 46
     val particles = remember(level) {
         List(particleCount) { LegacyRainParticle(it * 7919 + 13, 22) }

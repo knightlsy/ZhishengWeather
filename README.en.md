@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.1.1" src="https://img.shields.io/badge/current-0.1.1-31C9DB?style=flat-square"/>
+  <img alt="Development version 0.1.2" src="https://img.shields.io/badge/development-0.1.2-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -115,6 +115,13 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 3. The first launch shows Beijing. Use search to save your own cities.
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+
+## Version 0.1.2 in development
+
+- Rotating the phone opens a dedicated desk weather clock; the setting can be disabled to lock portrait mode
+- Developer mode can choose individual telemetry readings while preserving the two-column grid
+- Adds an Intense weather ambience level
+- QWeather setup now validates live current-weather access before saving
 
 ## Version 0.1.1
 
@@ -250,6 +257,14 @@ After location is enabled and permission is granted, the app rechecks the city a
 - This is an early release. For safety decisions, follow your local meteorological authority
 
 ## Changelog
+
+<details open>
+<summary><b>0.1.2 // LANDSCAPE</b></summary>
+
+- Adds the landscape standby terminal, selectable telemetry readings, and an Intense ambience level
+- Improves QWeather setup validation so unavailable weather access is caught before saving
+
+</details>
 
 <details open>
 <summary><b>0.1.1 // BUG FIXES</b></summary>

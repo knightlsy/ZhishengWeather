@@ -53,7 +53,7 @@ import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 
-internal const val WhatsNewVersion = "0.1.1"
+internal const val WhatsNewVersion = "0.1.2"
 internal const val WhatsNewPreferenceFile = "zhisheng_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
@@ -89,7 +89,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "ZHISHENG WEATHER / 0.1.1",
+                            "ZHISHENG WEATHER / 0.1.2",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.3.sp,
@@ -141,8 +141,8 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         when (currentPage) {
-                            0 -> stabilityPage()
-                            else -> displayFixesPage()
+                            0 -> landscapePage()
+                            else -> customizationPage()
                         }
                     }
                 }
@@ -180,7 +180,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.1 ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.2 ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) ZhishengCyan else ZhishengMint,
                             fontWeight = FontWeight.Bold,
@@ -192,26 +192,26 @@ fun WhatsNewDialog(onClose: () -> Unit) {
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.stabilityPage() {
+private fun androidx.compose.foundation.lazy.LazyListScope.landscapePage() {
     item {
-        UpdateTitle("01//", "天气显示修复", "BUG FIXES", ZhishengOrange)
+        UpdateTitle("01//", "横屏待机终端", "LANDSCAPE", ZhishengOrange)
     }
     item {
         EmphasisBlock(
-            "0.1.1 主要修复天气来源、预报内容和遥测排版问题，让日常查看更稳定。",
+            "横放手机即可进入独立的桌面气象时钟，时间、天气和未来几小时一眼看清。",
         )
     }
-    item { FeatureBlock("和风天气切换", "现在可以正常切换到已配置的和风天气，不再误报“未配置”。") }
-    item { FeatureBlock("逐时与逐日预报", "和风逐时预报不再只显示“现在”，彩云逐日预报不足时会继续显示后续日期。") }
-    item { FeatureBlock("遥测数据显示", "统一遥测卡片高度，并补齐可获取的能见度、露点、云量和阵风等信息。") }
+    item { FeatureBlock("独立横屏界面", "超大城市当地时间配合天气仪表舱，不再跳到城市选择页面。") }
+    item { FeatureBlock("横屏开关", "可在设置中随时关闭；关闭后应用保持竖屏。") }
+    item { FeatureBlock("桌面常亮", "进入横屏待机界面后保持亮屏，适合放在桌面或充电座上查看。") }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.displayFixesPage() {
-    item { UpdateTitle("02//", "显示与操作优化", "DISPLAY", ZhishengCyan) }
-    item { FeatureBlock("城市当地时间", "海外城市的逐时、星期、日期和小组件更新时间统一按城市时区显示。") }
-    item { FeatureBlock("坐标显示", "南纬、西经城市会正确显示 S/W 方位，不再显示为负数 N/E。") }
-    item { FeatureBlock("主页滚动", "只保存一个城市时，主页底部也能顺畅上下滚动。") }
-    item { FeatureBlock("小组件文字", "提高小尺寸小组件的日期和更新时间字号，阅读更清楚。") }
+private fun androidx.compose.foundation.lazy.LazyListScope.customizationPage() {
+    item { UpdateTitle("02//", "显示与接入优化", "CONTROL", ZhishengCyan) }
+    item { FeatureBlock("遥测项目自选", "开启开发者模式后，可自由选择湿度、风、气压、能见度、日月等项目。") }
+    item { FeatureBlock("遥测卡片整齐", "保留终端卡片风格，项目数量为单数时也维持双列网格。") }
+    item { FeatureBlock("更强氛围效果", "新增“强烈”档，天气动效的亮度、密度和速度更加明显。") }
+    item { FeatureBlock("和风接入核验", "保存前直接检查实况天气，避免设置完成后才发现天气服务不可用。") }
     item {
         Text(
             "以后想再看：设置 → 关于 → 点击版本号。",

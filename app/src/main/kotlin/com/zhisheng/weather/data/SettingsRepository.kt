@@ -54,10 +54,47 @@ enum class SourcePref(val key: String, val cn: String, val en: String, val desc:
 enum class AmbienceLevel(val key: String, val cn: String, val factor: Float) {
     OFF("off", "关闭", 0f),
     SUBTLE("subtle", "克制", 1f),
-    VIVID("vivid", "明显", 3.1f);
+    VIVID("vivid", "明显", 3.1f),
+    INTENSE("intense", "强烈", 4.8f);
+
+    val vivid: Boolean get() = this == VIVID || this == INTENSE
+    val motionScale: Float get() = when (this) {
+        INTENSE -> 1.62f
+        VIVID -> 1.32f
+        else -> 1f
+    }
 
     companion object {
         fun from(v: String?): AmbienceLevel = entries.firstOrNull { it.key == v } ?: VIVID
+    }
+}
+
+enum class TelemetryMetric(val key: String, val cn: String, val en: String) {
+    HUMIDITY("humidity", "湿度", "HUMIDITY"),
+    WIND("wind", "风向风速", "WIND"),
+    PRESSURE("pressure", "气压", "PRESS"),
+    UV("uv", "紫外线", "UV"),
+    VISIBILITY("visibility", "能见度", "VIS"),
+    DEW_POINT("dew_point", "露点", "DEW"),
+    CLOUD_COVER("cloud_cover", "云量", "CLOUD"),
+    WIND_GUST("wind_gust", "阵风", "GUST"),
+    PRECIPITATION("precipitation", "1时降水", "PRECIP"),
+    LUMINARY("luminary", "日月", "LUMINARY");
+
+    companion object {
+        private const val NONE = "__none__"
+        val defaultSelection: Set<TelemetryMetric> = entries.toSet()
+
+        fun selectionFrom(raw: String?): Set<TelemetryMetric> = when {
+            raw == null -> defaultSelection
+            raw == NONE -> emptySet()
+            else -> raw.split(',')
+                .mapNotNull { key -> entries.firstOrNull { it.key == key.trim() } }
+                .toSet()
+        }
+
+        fun selectionKey(selection: Set<TelemetryMetric>): String =
+            if (selection.isEmpty()) NONE else entries.filter(selection::contains).joinToString(",") { it.key }
     }
 }
 
@@ -128,6 +165,8 @@ object SettingsRepository {
     private val KEY_ACCENT_TONE = stringPreferencesKey("accent_tone")
     private val KEY_MODULE_ORDER = stringPreferencesKey("home_module_order")
     private val KEY_DEVELOPER = booleanPreferencesKey("developer_mode")
+    private val KEY_LANDSCAPE_STANDBY = booleanPreferencesKey("landscape_standby")
+    private val KEY_TELEMETRY_METRICS = stringPreferencesKey("telemetry_metrics")
 
     fun init(context: Context) {
         store = context.applicationContext.settingsStore
@@ -159,6 +198,12 @@ object SettingsRepository {
     val showTelemetry: Flow<Boolean> by lazy { store.data.map { it[KEY_SHOW_TELEMETRY] ?: true } }
     val bootAnim: Flow<Boolean> by lazy { store.data.map { it[KEY_BOOT_ANIM] ?: true } }
     val keepScreenOn: Flow<Boolean> by lazy { store.data.map { it[KEY_KEEP_SCREEN_ON] ?: false } }
+    val landscapeStandby: Flow<Boolean> by lazy {
+        store.data.map { it[KEY_LANDSCAPE_STANDBY] ?: true }.distinctUntilChanged()
+    }
+    val telemetryMetrics: Flow<Set<TelemetryMetric>> by lazy {
+        store.data.map { TelemetryMetric.selectionFrom(it[KEY_TELEMETRY_METRICS]) }.distinctUntilChanged()
+    }
     // 主题模式（v0.0.5）：默认深色
     val themeMode: Flow<ThemeMode> by lazy {
         store.data.map { ThemeMode.from(it[KEY_THEME_MODE]) }.distinctUntilChanged()
@@ -200,6 +245,10 @@ object SettingsRepository {
     suspend fun setShowTelemetry(v: Boolean) = store.edit { it[KEY_SHOW_TELEMETRY] = v }
     suspend fun setBootAnim(v: Boolean) = store.edit { it[KEY_BOOT_ANIM] = v }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[KEY_KEEP_SCREEN_ON] = v }
+    suspend fun setLandscapeStandby(v: Boolean) = store.edit { it[KEY_LANDSCAPE_STANDBY] = v }
+    suspend fun setTelemetryMetrics(selection: Set<TelemetryMetric>) = store.edit {
+        it[KEY_TELEMETRY_METRICS] = TelemetryMetric.selectionKey(selection)
+    }
     suspend fun setThemeMode(mode: ThemeMode) = store.edit { it[KEY_THEME_MODE] = mode.key }
     suspend fun setAccentTone(tone: AccentTone) = store.edit { it[KEY_ACCENT_TONE] = tone.key }
     suspend fun setModuleOrder(order: List<HomeModule>) = store.edit {

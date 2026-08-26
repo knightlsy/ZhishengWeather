@@ -139,7 +139,11 @@ fun AtmosphereLabScreen(
                 onBack = onBack,
                 onSelect = { scenarioIndex = it },
                 onToggleLevel = {
-                    levelKey = if (level == AmbienceLevel.VIVID) AmbienceLevel.SUBTLE.key else AmbienceLevel.VIVID.key
+                    levelKey = when (level) {
+                        AmbienceLevel.SUBTLE -> AmbienceLevel.VIVID.key
+                        AmbienceLevel.VIVID -> AmbienceLevel.INTENSE.key
+                        else -> AmbienceLevel.SUBTLE.key
+                    }
                 },
                 onCycleIntensity = { intensityIndex = (intensityIndex + 1) % WeatherIntensity.entries.size },
             )
@@ -177,7 +181,7 @@ private fun LabHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            LabCommand(if (level == AmbienceLevel.VIVID) "明显" else "克制", ZhishengCyan, onToggleLevel)
+            LabCommand(level.cn, ZhishengCyan, onToggleLevel)
             Spacer(Modifier.width(4.dp))
             LabCommand(intensityLabel(intensity), ZhishengMint, onCycleIntensity)
             Spacer(Modifier.width(8.dp))

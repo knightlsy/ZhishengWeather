@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="当前版本 0.1.1" src="https://img.shields.io/badge/当前版本-0.1.1-31C9DB?style=flat-square"/>
+  <img alt="开发版本 0.1.2" src="https://img.shields.io/badge/开发版本-0.1.2-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -117,6 +117,13 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 3. 首次打开默认显示北京，可通过搜索保存自己的城市。
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
+
+## 0.1.2 开发中
+
+- 横放手机进入独立桌面气象时钟，设置中可以关闭并锁定竖屏
+- 开发者模式可自由选择遥测项目，单数项目也保持整齐双列
+- 天气氛围层新增“强烈”档
+- 和风接入改为保存前直接验证实况天气接口
 
 ## 0.1.1 更新
 
@@ -254,6 +261,14 @@ qw.private_key=<Ed25519 私钥，单行>
 - 项目仍处于早期版本，涉及防灾决策时请以当地气象部门信息为准
 
 ## 更新记录
+
+<details open>
+<summary><b>0.1.2 // LANDSCAPE</b></summary>
+
+- 新增横屏待机终端、遥测项目自选和强烈氛围档
+- 改进和风接入验证，避免保存后才发现天气接口不可用
+
+</details>
 
 <details open>
 <summary><b>0.1.1 // BUG FIXES</b></summary>

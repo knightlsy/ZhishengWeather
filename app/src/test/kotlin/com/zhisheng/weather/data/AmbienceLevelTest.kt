@@ -11,5 +11,8 @@ class AmbienceLevelTest {
         assertEquals(AmbienceLevel.VIVID, AmbienceLevel.from(null))
         assertEquals(AmbienceLevel.VIVID, AmbienceLevel.from("vivid"))
         assertTrue(AmbienceLevel.VIVID.factor >= AmbienceLevel.SUBTLE.factor * 3f)
+        assertTrue(AmbienceLevel.INTENSE.factor > AmbienceLevel.VIVID.factor)
+        assertTrue(AmbienceLevel.INTENSE.motionScale > AmbienceLevel.VIVID.motionScale)
+        assertTrue(AmbienceLevel.INTENSE.vivid)
     }
 }

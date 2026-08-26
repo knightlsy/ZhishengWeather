@@ -70,6 +70,7 @@ import com.zhisheng.weather.data.QWeatherApi
 import com.zhisheng.weather.data.SecretStore
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
+import com.zhisheng.weather.data.TelemetryMetric
 import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCard
@@ -120,6 +121,8 @@ fun SettingsScreen(
     val showTelemetry by SettingsRepository.showTelemetry.collectAsState(initial = true)
     val bootAnim by SettingsRepository.bootAnim.collectAsState(initial = true)
     val keepScreenOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
+    val landscapeStandby by SettingsRepository.landscapeStandby.collectAsState(initial = true)
+    val telemetryMetrics by SettingsRepository.telemetryMetrics.collectAsState(initial = TelemetryMetric.defaultSelection)
     val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
     val accentTone by SettingsRepository.accentTone.collectAsState(initial = AccentTone.STANDARD)
     val moduleOrder by SettingsRepository.moduleOrder.collectAsState(initial = HomeModule.defaultOrder)
@@ -136,6 +139,7 @@ fun SettingsScreen(
     var showCommunityGroup by remember { mutableStateOf(false) }
     var developerToolsExpanded by rememberSaveable { mutableStateOf(false) }
     var moduleOrderExpanded by rememberSaveable { mutableStateOf(false) }
+    var telemetryItemsExpanded by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     // 权限申请器：只在用户点「定位当前城市」时触发，App 启动/刷新绝不调用
@@ -371,6 +375,48 @@ fun SettingsScreen(
                 }
             }
 
+            if (developerMode) {
+                Spacer(Modifier.height(8.dp))
+                InlineGroupLabel("遥测项目", "开发者模式 · 自由选择显示内容")
+                CardBox {
+                    ActionRow(
+                        label = if (telemetryItemsExpanded) {
+                            "> 收起遥测项目 · ${telemetryMetrics.size}/${TelemetryMetric.entries.size}"
+                        } else {
+                            "> 选择遥测项目 · ${telemetryMetrics.size}/${TelemetryMetric.entries.size}"
+                        },
+                        enabled = showTelemetry,
+                        color = ZhishengCyan,
+                    ) { telemetryItemsExpanded = !telemetryItemsExpanded }
+                    if (telemetryItemsExpanded && showTelemetry) {
+                        HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                        Row(Modifier.fillMaxWidth()) {
+                            ActionRow(
+                                label = "> 全选",
+                                enabled = telemetryMetrics.size != TelemetryMetric.entries.size,
+                                color = ZhishengMint,
+                                modifier = Modifier.weight(1f),
+                            ) { scope.launch { SettingsRepository.setTelemetryMetrics(TelemetryMetric.defaultSelection) } }
+                            ActionRow(
+                                label = "> 清空",
+                                enabled = telemetryMetrics.isNotEmpty(),
+                                color = ZhishengOrange,
+                                modifier = Modifier.weight(1f),
+                            ) { scope.launch { SettingsRepository.setTelemetryMetrics(emptySet()) } }
+                        }
+                        TelemetryMetric.entries.forEach { metric ->
+                            HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                            ToggleRow(metric.cn, metric.en, metric in telemetryMetrics) {
+                                val next = telemetryMetrics.toMutableSet().apply {
+                                    if (!add(metric)) remove(metric)
+                                }
+                                scope.launch { SettingsRepository.setTelemetryMetrics(next) }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(8.dp))
             InlineGroupLabel("模块布局", "排序工具默认收起，减少设置页干扰")
             CardBox {
@@ -400,6 +446,10 @@ fun SettingsScreen(
 
             SectionTitle(4, "界面", "VISUAL", "主题与动效只影响显示，不改变天气数据。")
             CardBox {
+                ToggleRow("横屏待机界面", "开启后旋转显示桌面时钟；关闭后锁定竖屏", landscapeStandby) {
+                    scope.launch { SettingsRepository.setLandscapeStandby(!landscapeStandby) }
+                }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
                     "主题模式",
                     listOf("深色" to "dark", "浅色" to "light", "跟随系统" to "system"),
@@ -416,9 +466,9 @@ fun SettingsScreen(
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
                     "天气氛围层",
-                    listOf("关闭" to "off", "克制" to "subtle", "明显" to "vivid"),
+                    listOf("关闭" to "off", "克制" to "subtle", "明显" to "vivid", "强烈" to "intense"),
                     ambience.key,
-                    hint = "每种天气一套终端动效，画在读数之下；克制近乎静止，明显有磷光拖尾",
+                    hint = "强烈档增加粒子密度、移动速度与磷光亮度",
                 ) { v -> scope.launch { SettingsRepository.setAmbience(AmbienceLevel.from(v)) } }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 ToggleRow("CRT 扫描线", "整屏细横纹，终端质感", scanlines) {
@@ -789,9 +839,15 @@ private fun ModuleOrderEditor(
 }
 
 @Composable
-private fun ActionRow(label: String, enabled: Boolean, color: Color, onClick: () -> Unit) {
+private fun ActionRow(
+    label: String,
+    enabled: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Row(
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
             .clickable(enabled = enabled, role = Role.Button) { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,

@@ -119,16 +119,19 @@ object ProviderConnectionTester {
                 .create(QWeatherService::class.java)
 
             onStage(ProviderTestStage.CONNECT)
-            val body = service.cityLookup("北京", 1)
+            // 必须验证应用首页真正使用的天气接口。只测 GeoAPI 会出现“城市查询通过，
+            // 保存后天气接口 403”的假成功，因为两类接口可以配置不同的权限限制。
+            val body = service.current("39.90", "116.41")
             onStage(ProviderTestStage.VERIFY)
-            val city = body.location.firstOrNull()?.name?.trim()
-            if (city.isNullOrEmpty()) {
-                failure("服务已响应，但数据无效", "没有返回城市结果，请核对项目权限与 API Host")
+            val weatherText = body.condition?.text?.trim()
+            val temperature = body.temperature?.value
+            if (weatherText.isNullOrEmpty() && temperature == null) {
+                failure("服务已响应，但数据无效", "没有返回北京实况，请核对天气接口权限与 API Host")
             } else {
                 ProviderConnectionResult(
                     ok = true,
                     title = "和风链路已建立",
-                    detail = "已通过 $normalized 返回「$city」城市数据",
+                    detail = "已通过 $normalized 返回北京实况天气",
                     normalizedHost = normalized,
                 )
             }
@@ -169,7 +172,10 @@ object ProviderConnectionTester {
     private fun mapFailure(t: Throwable, provider: String): ProviderConnectionResult = when (t) {
         is HttpException -> when (t.code()) {
             401 -> failure("鉴权被拒绝 · 401", "请核对凭据内容和认证方式")
-            403 -> failure("当前凭据无权限 · 403", "请确认项目已启用天气服务")
+            403 -> failure(
+                "天气接口被拒绝 · 403",
+                "请检查 API Host、账户额度，以及凭据中的 API/应用安全限制",
+            )
             404 -> failure("接口未找到 · 404", "请核对 API Host 或应用接口版本")
             429 -> failure("请求频率受限 · 429", "稍后再试，并检查账户额度")
             else -> failure("$provider 返回 ${t.code()}", "服务已连通，但没有完成验证")

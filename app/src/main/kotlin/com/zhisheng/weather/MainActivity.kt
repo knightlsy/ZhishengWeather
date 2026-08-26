@@ -1,6 +1,8 @@
 package com.zhisheng.weather
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Build
 import android.view.WindowManager
@@ -24,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.DisposableEffect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -37,6 +40,7 @@ import com.zhisheng.weather.ui.WeatherViewModel
 import com.zhisheng.weather.ui.home.HomeScreen
 import com.zhisheng.weather.ui.SettingsScreen
 import com.zhisheng.weather.ui.AtmosphereLabScreen
+import com.zhisheng.weather.ui.LandscapeStandbyScreen
 import com.zhisheng.weather.ui.WhatsNewDialog
 import com.zhisheng.weather.ui.WhatsNewPreferenceFile
 import com.zhisheng.weather.ui.WhatsNewSeenKey
@@ -86,6 +90,18 @@ class MainActivity : ComponentActivity() {
                 var showWhatsNew by rememberSaveable { mutableStateOf(shouldShowWhatsNew()) }
                 val uiState by vm.uiState.collectAsState()
                 val command by shortcutCommand.collectAsState()
+                val landscapeStandby by SettingsRepository.landscapeStandby.collectAsState(initial = true)
+                val configuration = LocalConfiguration.current
+                val standbyActive = landscapeStandby && configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+                // 关闭横屏待机后立即回到竖屏并锁定；开启后由传感器决定竖/横屏。
+                LaunchedEffect(landscapeStandby) {
+                    requestedOrientation = if (landscapeStandby) {
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR
+                    } else {
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                }
 
                 // 状态栏/导航栏图标颜色随主题切换（浅色主题 → 深色图标）
                 val view = LocalView.current
@@ -97,6 +113,18 @@ class MainActivity : ComponentActivity() {
                 }
                 LaunchedEffect(isLight) {
                     persistSplashBackground(isLight)
+                }
+
+                DisposableEffect(standbyActive) {
+                    val bars = androidx.core.view.WindowCompat.getInsetsController(window, view)
+                    if (standbyActive) {
+                        bars.systemBarsBehavior =
+                            androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        bars.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                    } else {
+                        bars.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                    }
+                    onDispose { bars.show(androidx.core.view.WindowInsetsCompat.Type.systemBars()) }
                 }
 
                 LaunchedEffect(command.sequence) {
@@ -112,8 +140,8 @@ class MainActivity : ComponentActivity() {
 
                 // 常亮屏幕（设置项）
                 val keepOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
-                DisposableEffect(keepOn) {
-                    view.keepScreenOn = keepOn
+                DisposableEffect(keepOn, standbyActive) {
+                    view.keepScreenOn = keepOn || standbyActive
                     onDispose { view.keepScreenOn = false }
                 }
 
@@ -128,51 +156,55 @@ class MainActivity : ComponentActivity() {
                     vm.autoLocateIfEnabled()
                 }
 
-                AnimatedContent(
-                    targetState = screen,
-                    transitionSpec = {
-                        if (targetState == Screen.SEARCH) {
-                            (fadeIn(tween(260)) + slideInHorizontally { it / 3 }) togetherWith
-                                (fadeOut(tween(180)) + slideOutHorizontally { -it / 3 })
-                        } else {
-                            (fadeIn(tween(260)) + slideInHorizontally { -it / 3 }) togetherWith
-                                (fadeOut(tween(180)) + slideOutHorizontally { it / 3 })
+                if (standbyActive) {
+                    LandscapeStandbyScreen(uiState = uiState, onRefresh = { vm.refresh() })
+                } else {
+                    AnimatedContent(
+                        targetState = screen,
+                        transitionSpec = {
+                            if (targetState == Screen.SEARCH) {
+                                (fadeIn(tween(260)) + slideInHorizontally { it / 3 }) togetherWith
+                                    (fadeOut(tween(180)) + slideOutHorizontally { -it / 3 })
+                            } else {
+                                (fadeIn(tween(260)) + slideInHorizontally { -it / 3 }) togetherWith
+                                    (fadeOut(tween(180)) + slideOutHorizontally { it / 3 })
+                            }
+                        },
+                        label = "screen",
+                    ) { current ->
+                        when (current) {
+                            Screen.SETTINGS -> SettingsScreen(
+                                onBack = { screen = Screen.HOME },
+                                onLocate = { vm.locateCurrentCity() },
+                                locating = uiState.locating,
+                                locateMessage = uiState.locateMessage,
+                                onClearLocateMessage = { vm.clearLocateMessage() },
+                                activeSource = uiState.weather?.dataSource,
+                                activeCityName = uiState.selectedCity?.name,
+                                sourceLoading = uiState.loading,
+                                onAtmosphereLab = { screen = Screen.ATMOSPHERE_LAB },
+                                onShowWhatsNew = { showWhatsNew = true },
+                            )
+                            Screen.ATMOSPHERE_LAB -> AtmosphereLabScreen(
+                                initialLevel = uiState.prefs.ambience,
+                                onBack = { screen = Screen.SETTINGS },
+                            )
+                            Screen.SEARCH -> SearchScreen(
+                                onCityPicked = { city: City ->
+                                    vm.addCityAndSelect(city)
+                                    screen = Screen.HOME
+                                },
+                                onBack = { screen = Screen.HOME },
+                            )
+                            Screen.HOME -> HomeScreen(
+                                viewModel = vm,
+                                onSearchClick = { screen = Screen.SEARCH },
+                                onSettingsClick = { screen = Screen.SETTINGS },
+                            )
                         }
-                    },
-                    label = "screen",
-                ) { current ->
-                    when (current) {
-                        Screen.SETTINGS -> SettingsScreen(
-                            onBack = { screen = Screen.HOME },
-                            onLocate = { vm.locateCurrentCity() },
-                            locating = uiState.locating,
-                            locateMessage = uiState.locateMessage,
-                            onClearLocateMessage = { vm.clearLocateMessage() },
-                            activeSource = uiState.weather?.dataSource,
-                            activeCityName = uiState.selectedCity?.name,
-                            sourceLoading = uiState.loading,
-                            onAtmosphereLab = { screen = Screen.ATMOSPHERE_LAB },
-                            onShowWhatsNew = { showWhatsNew = true },
-                        )
-                        Screen.ATMOSPHERE_LAB -> AtmosphereLabScreen(
-                            initialLevel = uiState.prefs.ambience,
-                            onBack = { screen = Screen.SETTINGS },
-                        )
-                        Screen.SEARCH -> SearchScreen(
-                            onCityPicked = { city: City ->
-                                vm.addCityAndSelect(city)
-                                screen = Screen.HOME
-                            },
-                            onBack = { screen = Screen.HOME },
-                        )
-                        Screen.HOME -> HomeScreen(
-                            viewModel = vm,
-                            onSearchClick = { screen = Screen.SEARCH },
-                            onSettingsClick = { screen = Screen.SETTINGS },
-                        )
                     }
                 }
-                if (showWhatsNew) {
+                if (showWhatsNew && !standbyActive) {
                     WhatsNewDialog(
                         onClose = {
                             markWhatsNewSeen()

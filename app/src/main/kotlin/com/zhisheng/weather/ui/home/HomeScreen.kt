@@ -123,6 +123,7 @@ import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
 import com.zhisheng.weather.R
 import com.zhisheng.weather.data.HomeModule
+import com.zhisheng.weather.data.TelemetryMetric
 import com.zhisheng.weather.ui.Fmt
 import com.zhisheng.weather.ui.HomeUiState
 import com.zhisheng.weather.ui.WeatherViewModel
@@ -990,7 +991,9 @@ private fun WeatherContent(
     val showHourly = data.hourly.isNotEmpty()
     val showPrecip = prefs.showPrecip && Nowcast.shouldShowPrecipModule(data, System.currentTimeMillis())
     val showDaily = data.daily.isNotEmpty()
-    val showTele = prefs.showTelemetry && data.current != null
+    val showTele = prefs.showTelemetry && data.current?.let { current ->
+        prefs.telemetryMetrics.any { metric -> telemetryMetricAvailable(metric, current, data.daily.firstOrNull()) }
+    } == true
     val showAqi = prefs.showAqi && data.aqi != null
     val showIndices = prefs.showIndices &&
         (data.carWashOk != null || data.sportsOk != null || data.extraIndices.isNotEmpty())
@@ -1865,35 +1868,37 @@ private fun TelemetryGrid(
 ) {
     // 没数的格不画：小米实况没有 1 时降水，硬留第九格会 -- 还在右侧留空（v0.0.7）。
     val items = listOf(
-        Triple("湿度", "HUMIDITY", cur.humidity?.let { "${it.roundToInt()}%" }),
-        Triple("风向风速", "WIND", windLabel(cur, prefs.windUnit)),
-        Triple("气压", "PRESS", Fmt.pressure(cur.pressure, prefs.pressureUnit)),
-        Triple("紫外线", "UV", cur.uvIndex?.let { uvText(it) }),
-        Triple("能见度", "VIS", cur.visibility?.let { "${it.roundToInt()} km" }),
-        Triple("露点", "DEW", cur.dewPoint?.let { "${Fmt.temp(it, unit)}°" }),
-        Triple("云量", "CLOUD", cur.cloudCover?.let { "${it.roundToInt()}%" }),
-        Triple("阵风", "GUST", Fmt.wind(cur.windGust, prefs.windUnit)),
-        Triple("1时降水", "PRECIP", cur.precipMm?.let { String.format(Locale.US, "%.1f mm", it) }),
-    ).mapNotNull { (cn, en, value) -> value?.let { Triple(cn, en, it) } }
+        TelemetryMetric.HUMIDITY to Triple("湿度", "HUMIDITY", cur.humidity?.let { "${it.roundToInt()}%" }),
+        TelemetryMetric.WIND to Triple("风向风速", "WIND", windLabel(cur, prefs.windUnit)),
+        TelemetryMetric.PRESSURE to Triple("气压", "PRESS", Fmt.pressure(cur.pressure, prefs.pressureUnit)),
+        TelemetryMetric.UV to Triple("紫外线", "UV", cur.uvIndex?.let { uvText(it) }),
+        TelemetryMetric.VISIBILITY to Triple("能见度", "VIS", cur.visibility?.let { "${it.roundToInt()} km" }),
+        TelemetryMetric.DEW_POINT to Triple("露点", "DEW", cur.dewPoint?.let { "${Fmt.temp(it, unit)}°" }),
+        TelemetryMetric.CLOUD_COVER to Triple("云量", "CLOUD", cur.cloudCover?.let { "${it.roundToInt()}%" }),
+        TelemetryMetric.WIND_GUST to Triple("阵风", "GUST", Fmt.wind(cur.windGust, prefs.windUnit)),
+        TelemetryMetric.PRECIPITATION to Triple("1时降水", "PRECIP", cur.precipMm?.let { String.format(Locale.US, "%.1f mm", it) }),
+    ).filter { (metric, _) -> metric in prefs.telemetryMetrics }
+        .mapNotNull { (_, item) ->
+            val (cn, en, value) = item
+            value?.let { Triple(cn, en, it) }
+        }
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         items.chunked(2).forEach { rowItems ->
             Row(
                 Modifier.fillMaxWidth().height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                rowItems.forEach { (cn, en, value) ->
+                    TeleCell(cn, en, value, cur, Modifier.weight(1f).fillMaxHeight())
+                }
                 if (rowItems.size == 1) {
-                    val (cn, en, value) = rowItems[0]
-                    TeleCell(cn, en, value, cur, Modifier.fillMaxWidth())
-                } else {
-                    rowItems.forEach { (cn, en, value) ->
-                        TeleCell(cn, en, value, cur, Modifier.weight(1f).fillMaxHeight())
-                    }
+                    Spacer(Modifier.weight(1f).fillMaxHeight())
                 }
             }
             Spacer(Modifier.height(8.dp))
         }
         // 日月宽卡：公共源不提供月出月落时由本地天文计算补齐。
-        if (today != null && (
+        if (TelemetryMetric.LUMINARY in prefs.telemetryMetrics && today != null && (
                 today.sunrise != null || today.sunset != null || today.moonPhase != null ||
                     today.moonrise != null || today.moonset != null
                 )
@@ -1941,6 +1946,26 @@ private fun TelemetryGrid(
             }
         }
     }
+}
+
+private fun telemetryMetricAvailable(
+    metric: TelemetryMetric,
+    cur: CurrentWeather,
+    today: DailyWeather?,
+): Boolean = when (metric) {
+    TelemetryMetric.HUMIDITY -> cur.humidity != null
+    TelemetryMetric.WIND -> cur.windSpeed != null || cur.windDirectionDeg != null
+    TelemetryMetric.PRESSURE -> cur.pressure != null
+    TelemetryMetric.UV -> cur.uvIndex != null
+    TelemetryMetric.VISIBILITY -> cur.visibility != null
+    TelemetryMetric.DEW_POINT -> cur.dewPoint != null
+    TelemetryMetric.CLOUD_COVER -> cur.cloudCover != null
+    TelemetryMetric.WIND_GUST -> cur.windGust != null
+    TelemetryMetric.PRECIPITATION -> cur.precipMm != null
+    TelemetryMetric.LUMINARY -> today?.let {
+        it.sunrise != null || it.sunset != null || it.moonPhase != null ||
+            it.moonrise != null || it.moonset != null
+    } == true
 }
 
 @Composable

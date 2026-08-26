@@ -9,6 +9,7 @@ import com.zhisheng.weather.data.HomeModule
 import com.zhisheng.weather.data.LocationSource
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
+import com.zhisheng.weather.data.TelemetryMetric
 import com.zhisheng.weather.data.WeatherCache
 import com.zhisheng.weather.data.WeatherRepository
 import com.zhisheng.weather.model.City
@@ -34,6 +35,7 @@ data class DisplayPrefs(
     val ambience: AmbienceLevel = AmbienceLevel.VIVID,
     val bootAnim: Boolean = true,
     val moduleOrder: List<HomeModule> = HomeModule.defaultOrder,
+    val telemetryMetrics: Set<TelemetryMetric> = TelemetryMetric.defaultSelection,
 )
 
 data class HomeUiState(
@@ -124,6 +126,8 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         )
     }.combine(SettingsRepository.moduleOrder) { prefs, order ->
         prefs.copy(moduleOrder = order)
+    }.combine(SettingsRepository.telemetryMetrics) { prefs, metrics ->
+        prefs.copy(telemetryMetrics = metrics)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DisplayPrefs())
 
     private data class WeatherCore(

@@ -99,11 +99,11 @@ private fun AmbienceStage(spec: AmbienceSpec, level: AmbienceLevel, modifier: Mo
     }
 
     Canvas(modifier.fillMaxSize()) {
-        val vivid = level == AmbienceLevel.VIVID
+        val vivid = level.vivid
         // SettingsRepository 已为“克制/明显”定义了强度系数，旧实现却没有真正使用，
         // 导致两档差别很小。这里让设置值成为唯一强度来源。
         val gain = level.factor * fade.value * if (palette.isLight) 0.78f else 1f
-        drawAmbience(spec, time, gain, vivid, density, palette, assets)
+        drawAmbience(spec, time * level.motionScale, gain, vivid, density, palette, assets)
     }
 }
 
