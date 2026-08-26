@@ -8,18 +8,22 @@ import org.junit.Test
 class WhatsNewDialogTest {
     @Test
     fun `versioned update guide explains the bugfix release and can be reopened`() {
-        assertEquals("0.1.2.1Preview", WhatsNewVersion)
+        assertEquals("0.1.3Preview", WhatsNewVersion)
 
         val projectDir = File(requireNotNull(System.getProperty("user.dir")))
         val dialog = File(projectDir, "src/main/kotlin/com/zhisheng/weather/ui/WhatsNewDialog.kt").readText()
         val activity = File(projectDir, "src/main/kotlin/com/zhisheng/weather/MainActivity.kt").readText()
         val settings = File(projectDir, "src/main/kotlin/com/zhisheng/weather/ui/SettingsScreen.kt").readText()
 
-        assertTrue(dialog.contains("预报阅读优化"))
-        assertTrue(dialog.contains("逐日增加日期"))
-        assertTrue(dialog.contains("短时降水重排"))
-        assertTrue(dialog.contains("和风保持单一来源"))
-        assertTrue(dialog.contains("来源与更新时间"))
+        assertTrue(dialog.contains("从 0.1.0 升级"))
+        assertTrue(dialog.contains("横屏待机"))
+        assertTrue(dialog.contains("逐时与逐日修复"))
+        assertTrue(dialog.contains("短时降水重做"))
+        assertTrue(dialog.contains("和风接入更可靠"))
+        assertTrue(dialog.contains("透明小组件"))
+        assertTrue(dialog.contains("真正铺满屏幕"))
+        assertTrue(!dialog.contains("QQ"))
+        assertTrue(!dialog.contains("群号"))
         assertTrue(!dialog.contains("本机凭据"))
         assertTrue(!dialog.contains("冷启动"))
         assertTrue(!dialog.contains("缺路"))

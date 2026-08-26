@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Preview version 0.1.2.1Preview" src="https://img.shields.io/badge/preview-0.1.2.1Preview-31C9DB?style=flat-square"/>
+  <img alt="Preview version 0.1.3Preview" src="https://img.shields.io/badge/preview-0.1.3Preview-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -116,13 +116,16 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
 
-## Version 0.1.2.1Preview for community testing
+## Version 0.1.3Preview for community testing
 
 - Adds day-of-month labels while keeping weekday, icon, probability, and temperature columns aligned
 - Adds a subtle month divider only when the forecast crosses into a new month
 - Reworks short-term precipitation around start/stop timing, peak intensity, and fixed 30-minute marks
 - Shows the provider, native time resolution, and update time instead of inventing minute-level precision
 - Keeps manually selected QWeather and Caiyun forecasts provider-pure to avoid silent cross-source conflicts
+- Balances the dry short-term precipitation card with a complete two-hour clear-window readout
+- Gives home-screen widgets a layered translucent glass shell that lets wallpaper show through
+- Extends the app surface behind the gesture navigation area to remove the detached black strip
 
 ## Version 0.1.2Preview for community testing
 

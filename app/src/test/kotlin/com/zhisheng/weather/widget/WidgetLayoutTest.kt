@@ -70,6 +70,11 @@ class WidgetLayoutTest {
         val radius = Regex("android:radius=\"([0-9.]+)dp\"")
             .find(drawable)?.groupValues?.get(1)?.toFloatOrNull() ?: 0f
         assertTrue("Widget corner radius must be visibly rounded", radius >= 16f)
+        val alphaChannels = Regex("#[0-9A-Fa-f]{8}")
+            .findAll(drawable)
+            .map { it.value.substring(1, 3).toInt(16) }
+            .toList()
+        assertTrue("Widget glass must contain translucent layers", alphaChannels.any { it in 1..254 })
     }
 
     @Test

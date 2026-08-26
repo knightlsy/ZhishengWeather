@@ -1696,6 +1696,27 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
                         color = ZhishengCyan,
                         maxLines = 1,
                     )
+                } else {
+                    Spacer(Modifier.width(14.dp))
+                    Column(
+                        modifier = Modifier.width(76.dp),
+                        horizontalAlignment = Alignment.End,
+                    ) {
+                        Text(
+                            "2H",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = ZhishengMint,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.8.sp,
+                        )
+                        Text(
+                            "CLEAR SIGNAL",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ZhishengTextTertiary,
+                            maxLines = 1,
+                            letterSpacing = 0.5.sp,
+                        )
+                    }
                 }
             }
             if (!dry) {

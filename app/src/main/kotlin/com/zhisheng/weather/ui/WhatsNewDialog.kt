@@ -53,7 +53,7 @@ import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 
-internal const val WhatsNewVersion = "0.1.2.1Preview"
+internal const val WhatsNewVersion = "0.1.3Preview"
 internal const val WhatsNewPreferenceFile = "zhisheng_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
@@ -89,7 +89,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "ZHISHENG WEATHER / 0.1.2.1Preview",
+                            "ZHISHENG WEATHER / 0.1.3Preview",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.3.sp,
@@ -180,7 +180,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.2.1Preview ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.3Preview ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) ZhishengCyan else ZhishengMint,
                             fontWeight = FontWeight.Bold,
@@ -194,25 +194,27 @@ fun WhatsNewDialog(onClose: () -> Unit) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.forecastPage() {
     item {
-        UpdateTitle("01//", "预报阅读优化", "FORECAST", ZhishengOrange)
+        UpdateTitle("01//", "从 0.1.0 升级", "WHAT'S CHANGED", ZhishengOrange)
     }
     item {
         EmphasisBlock(
-            "日期、雨势和时间刻度重新整理，扫一眼就能看懂接下来会发生什么。",
+            "如果你正在使用公开版 0.1.0，这次更新覆盖了横屏、定位、预报阅读和多项显示问题。",
         )
     }
-    item { FeatureBlock("逐日增加日期", "每一天同时显示星期和日号；所有图标、概率与温度仍保持整列对齐。") }
-    item { FeatureBlock("跨月更清楚", "预报跨入下个月时增加轻量月份分隔，不挤占每天的固定列宽。") }
-    item { FeatureBlock("短时降水重排", "优先告诉你何时开始或停止，并标出峰值雨势和 30 分钟时间刻度。") }
-    item { FeatureBlock("无雨状态更直观", "有短时数据但未来无雨时直接给出结论，不再显示难理解的空图。") }
+    item { FeatureBlock("横屏待机", "横放手机进入独立气象时钟；也可以在设置中关闭横屏，保持竖屏使用。") }
+    item { FeatureBlock("定位更精确", "可选择精确位置并尽量显示街道；无法识别时会稳妥回退到城市。") }
+    item { FeatureBlock("逐时与逐日修复", "修复预报缺失和温度曲线错位；逐日增加日号，跨月时显示月份分隔。") }
+    item { FeatureBlock("短时降水重做", "直接说明何时开始或停止，显示峰值雨势和两小时时间轴；无雨时也保持完整布局。") }
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.sourcePage() {
-    item { UpdateTitle("02//", "数据来源更清楚", "SOURCE", ZhishengCyan) }
-    item { FeatureBlock("和风保持单一来源", "手动选择和风后，实况、逐时和逐日不再悄悄混入其他天气源。") }
-    item { FeatureBlock("保留真实时间粒度", "和风按 5 分钟、公共源按 15 分钟展示，不再伪装成逐分钟预报。") }
-    item { FeatureBlock("来源与更新时间", "短时降水卡会标出天气源、时间粒度和最近更新时间。") }
-    item { FeatureBlock("缺项不冒充", "某项预报没有返回时，不再把它错误标记成已由当前天气源提供。") }
+    item { UpdateTitle("02//", "数据与显示升级", "DATA + DISPLAY", ZhishengCyan) }
+    item { FeatureBlock("和风接入更可靠", "保存凭据前会验证真实天气权限；手动选择和风后，不再悄悄混入其他天气源。") }
+    item { FeatureBlock("来源说明更透明", "短时降水会标出天气源、真实时间粒度和更新时间，缺失的数据不会冒充已提供。") }
+    item { FeatureBlock("遥测可以自选", "开发者模式可自由选择显示项目，项目多少变化时仍保持整齐双列。") }
+    item { FeatureBlock("夜间氛围增强", "增加更明显的氛围档位，并改善夜间模式下天气效果不易看见的问题。") }
+    item { FeatureBlock("透明小组件", "桌面小组件换成分层半透明玻璃外壳，信息清楚，壁纸也能自然透出。") }
+    item { FeatureBlock("真正铺满屏幕", "背景和天气氛围延伸到手势导航区域，底部不再出现割裂的黑边。") }
     item {
         Text(
             "以后想再看：设置 → 关于 → 点击版本号。",

@@ -72,6 +72,7 @@ class MainActivity : ComponentActivity() {
         }
 
         enableEdgeToEdge()
+        applyEdgeToEdgeSystemBars()
         setContent {
             // 主题模式（v0.0.5）：深色 / 浅色 / 跟随系统三档，切换立即生效
             val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
@@ -106,6 +107,7 @@ class MainActivity : ComponentActivity() {
                 // 状态栏/导航栏图标颜色随主题切换（浅色主题 → 深色图标）
                 val view = LocalView.current
                 SideEffect {
+                    applyEdgeToEdgeSystemBars()
                     androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
                         isAppearanceLightStatusBars = isLight
                         isAppearanceLightNavigationBars = isLight
@@ -241,7 +243,18 @@ class MainActivity : ComponentActivity() {
             .apply()
         val color = if (light) R.color.splash_light else R.color.splash_dark
         window.setBackgroundDrawableResource(color)
-        window.navigationBarColor = getColor(color)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyEdgeToEdgeSystemBars() {
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // 禁止系统为手势区强加不透明对比底色，让天气背景与氛围层连续延伸到底部。
+            window.isStatusBarContrastEnforced = false
+            window.isNavigationBarContrastEnforced = false
+        }
     }
 
     private fun shouldShowWhatsNew(): Boolean =

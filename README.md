@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="体验版本 0.1.2.1Preview" src="https://img.shields.io/badge/体验版本-0.1.2.1Preview-31C9DB?style=flat-square"/>
+  <img alt="体验版本 0.1.3Preview" src="https://img.shields.io/badge/体验版本-0.1.3Preview-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/许可-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -118,13 +118,16 @@ GitHub Release 提供公共版 APK，安装后就能使用。满血版需要自�
 
 APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
 
-## 0.1.2.1Preview 社区体验版
+## 0.1.3Preview 社区体验版
 
 - 逐日预报增加日号，星期、日期、图标、概率与温度保持固定列宽对齐
 - 跨月时增加轻量月份分隔，不占用每天的日期栏
 - 短时降水优先显示开始/停止时间、峰值雨势及 30 分钟刻度
 - 标明短时降水来源、真实时间粒度和更新时间，不再伪造逐分钟精度
 - 手动选择和风或彩云后保持单一来源，避免公共源静默补齐造成数据冲突
+- 无雨时的短时降水卡改为完整的两小时晴窗状态布局
+- 桌面小组件采用分层半透明玻璃外壳，壁纸可自然透出
+- 主界面延伸到系统手势导航区域，消除底部割裂黑边
 
 ## 0.1.2Preview 社区体验版
 

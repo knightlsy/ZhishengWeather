@@ -7,7 +7,7 @@
     <color name="widget_text_primary">#E8F0E8</color>      <!-- ZhishengText -->
     <color name="widget_text_secondary">#C8D8C8</color>    <!-- ZhishengTextSecondary -->
     <color name="widget_text_tertiary">#95A395</color>     <!-- ZhishengTextTertiary -->
-    <color name="widget_border">#23232B</color>            <!-- ZhishengCardBorder -->
+    <color name="widget_border">#66768698</color>          <!-- 玻璃边缘 / 更新时间 -->
     <color name="widget_accent_cyan">#20F0FF</color>       <!-- ZhishengCyan -->
     <color name="widget_accent_orange">#FF9830</color>     <!-- ZhishengOrange -->
 
