@@ -102,4 +102,13 @@ class WeatherRepositoryTest {
         assertEquals(28.0, merged.current?.windGust)
         assertEquals("OPEN-METEO", merged.blockSources["current-supplement"])
     }
+
+    @Test
+    fun lockedProvidersStillSupplementMissingForecastBlocks() {
+        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.AUTO))
+        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.QWEATHER))
+        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.CAIYUN))
+        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.XIAOMI))
+        assertEquals(false, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.OPEN_METEO))
+    }
 }

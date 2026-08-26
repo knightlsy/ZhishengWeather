@@ -26,8 +26,9 @@ import java.time.format.DateTimeFormatter
 // 天气仓储：默认小米为主源，Open-Meteo 兜底；和风与彩云由用户明确锁定。
 object WeatherRepository {
 
-    // AUTO 走熔断降级链（v0.0.7 起小米→公共源）；手动锁定时只打那一个源，
-    // 失败就如实报错，不静默串到别的源（用户选了就该看到那个源的真实状态）。
+    // AUTO 走熔断降级链；手动锁定时实况仍只取指定源，但逐时/逐日/遥测缺项允许
+    // Open-Meteo 补齐，并在 blockSources 中明确留痕，避免“和风只剩现在一格”或
+    // “彩云套餐只回 3 天”把整块界面压垮。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
             SourcePref.QWEATHER -> {
@@ -48,14 +49,16 @@ object WeatherRepository {
         }
         // 先丢掉已经过去的逐时，再决定要不要用公共源补齐；最后对齐「现在」。
         val trimmed = WeatherConsistency.dropPastHourly(data)
-        // 用户手动锁源时不再偷偷混入 Open-Meteo；只有 AUTO 可以补齐，并显式记录分块来源。
-        val completed = if (pref == SourcePref.AUTO) {
+        val completed = if (shouldSupplementWithOpenMeteo(pref)) {
             backfillCurrent(backfillHourly(backfillDaily(trimmed, city), city), city)
         } else {
             trimmed
         }
         return WeatherConsistency.align(densifyPrecip(completed))
     }
+
+    internal fun shouldSupplementWithOpenMeteo(pref: SourcePref): Boolean =
+        pref != SourcePref.OPEN_METEO
 
     // AUTO 链：小米 → Open-Meteo。和风不在默认链里。
     private suspend fun autoChain(city: City): WeatherData {

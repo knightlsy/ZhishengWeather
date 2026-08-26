@@ -194,24 +194,24 @@ fun WhatsNewDialog(onClose: () -> Unit) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.stabilityPage() {
     item {
-        UpdateTitle("01//", "稳定性检修", "BUG FIXES", ZhishengOrange)
+        UpdateTitle("01//", "天气显示修复", "BUG FIXES", ZhishengOrange)
     }
     item {
         EmphasisBlock(
-            "0.1.1 是一次纯修复更新：不增加新功能，集中处理 0.1.0 真机使用中暴露的问题。",
+            "0.1.1 主要修复天气来源、预报内容和遥测排版问题，让日常查看更稳定。",
         )
     }
-    item { FeatureBlock("和风凭据识别", "修复冷启动时本机凭据尚未载入、页面误判为未配置的问题；开启开发者模式后可正常切换已配置的和风天气。") }
-    item { FeatureBlock("遥测数据补齐", "恢复小米实况缺失字段的公共源补充，能见度、露点、云量和阵风不再无故消失。") }
-    item { FeatureBlock("遥测网格对齐", "同一行卡片统一高度，带风向罗盘的卡片不再把下一行顶歪。") }
+    item { FeatureBlock("和风天气切换", "现在可以正常切换到已配置的和风天气，不再误报“未配置”。") }
+    item { FeatureBlock("逐时与逐日预报", "和风逐时预报不再只显示“现在”，彩云逐日预报不足时会继续显示后续日期。") }
+    item { FeatureBlock("遥测数据显示", "统一遥测卡片高度，并补齐可获取的能见度、露点、云量和阵风等信息。") }
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.displayFixesPage() {
-    item { UpdateTitle("02//", "时间、坐标与交互校准", "DISPLAY", ZhishengCyan) }
+    item { UpdateTitle("02//", "显示与操作优化", "DISPLAY", ZhishengCyan) }
     item { FeatureBlock("城市当地时间", "海外城市的逐时、星期、日期和小组件更新时间统一按城市时区显示。") }
-    item { FeatureBlock("南纬西经", "城市卡组会正确显示 S/W 方位，不再出现负数 N/E。") }
-    item { FeatureBlock("单城市滚动", "只有一个城市时停用底部卡组手势区，避免长按拖动吞掉主页滚动。") }
-    item { FeatureBlock("小组件可读性", "提高极小尺寸小组件的辅助字号，并清理阻断构建的布局检查错误。") }
+    item { FeatureBlock("坐标显示", "南纬、西经城市会正确显示 S/W 方位，不再显示为负数 N/E。") }
+    item { FeatureBlock("主页滚动", "只保存一个城市时，主页底部也能顺畅上下滚动。") }
+    item { FeatureBlock("小组件文字", "提高小尺寸小组件的日期和更新时间字号，阅读更清楚。") }
     item {
         Text(
             "以后想再看：设置 → 关于 → 点击版本号。",

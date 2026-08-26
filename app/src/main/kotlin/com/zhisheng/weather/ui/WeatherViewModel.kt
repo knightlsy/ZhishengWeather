@@ -212,11 +212,14 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         job = viewModelScope.launch {
             _loading.value = true
             try {
+                // stateIn 的占位值是 AUTO；冷启动时城市可能先于 DataStore 中的真实来源发出。
+                // 每次请求直接读取已落盘的来源，避免设置页显示锁定和风、首页却先走自动源。
+                val requestedSource = SettingsRepository.sourcePref.first()
                 // 全局超时兜底：三源降级链最坏可串行 60s+，超过 25s 直接判失败走离线缓存。
                 // 注意 TimeoutCancellationException 是 CancellationException 子类，必须先于它 catch（v0.0.4）。
                 var result = try {
                     kotlinx.coroutines.withTimeout(FETCH_TIMEOUT_MS) {
-                        WeatherRepository.fetchWeather(target, sourcePref.value)
+                        WeatherRepository.fetchWeather(target, requestedSource)
                     }
                 } catch (te: kotlinx.coroutines.TimeoutCancellationException) {
                     android.util.Log.w("ZhishengWeather", "抓取超时 ${target.name}，走缓存兜底")
@@ -230,7 +233,7 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 if (result.current == null) {
                     // 失败兜底：只复用同一数据源的缓存。换源失败时不能把上一源的卡片当成当前结果。
                     val cached = WeatherCache.load(getApplication(), target.locationKey)
-                        ?.takeIf { sourcePref.value.matches(it.data.dataSource) }
+                        ?.takeIf { requestedSource.matches(it.data.dataSource) }
                     if (cached != null) {
                         result = cached.data
                         _staleAge.value = System.currentTimeMillis() - cached.savedAtMillis

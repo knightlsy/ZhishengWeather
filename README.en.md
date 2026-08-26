@@ -118,13 +118,14 @@ The APK is distributed through GitHub. Android may ask you to allow the current 
 
 ## Version 0.1.1
 
-Version 0.1.1 is a bug-fix-only update based on 0.1.0.
+Version 0.1.1 is a bug-fix update based on 0.1.0.
 
-- Fixes a cold-start race that could make locally configured QWeather credentials appear missing
-- Restores current-condition supplementation for missing telemetry fields and aligns telemetry card rows
+- Fixes configured QWeather occasionally appearing as unavailable
+- Fixes QWeather showing only “Now” in the hourly forecast and Caiyun showing too few daily forecasts
+- Aligns telemetry cards and restores available visibility, dew point, cloud cover, and gust readings
 - Uses each city's UTC offset for hourly, weekday, date, and widget time labels
-- Corrects southern/western coordinate labels and the single-city bottom gesture interceptor
-- Improves tiny-widget text readability and clears blocking Android Lint errors
+- Corrects southern/western coordinate labels and improves home scrolling with a single saved city
+- Improves the date and update-time text on small widgets
 
 ## Version 0.1.0
 
@@ -253,10 +254,10 @@ After location is enabled and permission is granted, the app rechecks the city a
 <details open>
 <summary><b>0.1.1 // BUG FIXES</b></summary>
 
-- Fixes QWeather credential loading, missing telemetry fields, and uneven telemetry rows
+- Fixes QWeather switching, QWeather/Caiyun forecast display, missing telemetry fields, and uneven telemetry rows
 - Corrects overseas-city time zones, hemisphere labels, and widget times
 - Prevents the city-deck gesture from intercepting scrolling when only one city is saved
-- 136 unit tests pass; Android Lint reports zero errors; personal and public builds compile
+- 137 unit tests pass; Android Lint reports zero errors; personal and public builds compile
 
 </details>
 
