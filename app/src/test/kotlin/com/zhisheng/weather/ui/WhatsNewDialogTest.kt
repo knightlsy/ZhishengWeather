@@ -8,7 +8,7 @@ import org.junit.Test
 class WhatsNewDialogTest {
     @Test
     fun `versioned update guide explains the bugfix release and can be reopened`() {
-        assertEquals("0.1.2", WhatsNewVersion)
+        assertEquals("0.1.2Preview", WhatsNewVersion)
 
         val projectDir = File(requireNotNull(System.getProperty("user.dir")))
         val dialog = File(projectDir, "src/main/kotlin/com/zhisheng/weather/ui/WhatsNewDialog.kt").readText()

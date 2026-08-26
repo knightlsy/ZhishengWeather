@@ -28,9 +28,9 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260826：0.1.2 开发版（横屏待机、遥测自定义与多源稳定性）
+        // 20260827：0.1.2Preview 社区体验版
         versionCode = 20260828
-        versionName = "0.1.2"
+        versionName = "0.1.2Preview"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
@@ -69,6 +69,13 @@ android {
             // 真机性能验收：非调试构建，但沿用 debug 证书，可无损覆盖开发机上的 Debug 包。
             signingConfig = signingConfigs.getByName("debug")
             isDebuggable = false
+            matchingFallbacks += listOf("release")
+        }
+        create("previewPublic") {
+            initWith(getByName("release"))
+            // 仅用于体验机并行安装：内容与公开版一致，但不覆盖手机上的满血版。
+            applicationIdSuffix = ".preview"
+            resValue("string", "app_name", "枳生天气 Preview")
             matchingFallbacks += listOf("release")
         }
     }

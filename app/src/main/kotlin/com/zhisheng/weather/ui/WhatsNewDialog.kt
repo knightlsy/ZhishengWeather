@@ -53,7 +53,7 @@ import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 
-internal const val WhatsNewVersion = "0.1.2"
+internal const val WhatsNewVersion = "0.1.2Preview"
 internal const val WhatsNewPreferenceFile = "zhisheng_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
@@ -89,7 +89,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "ZHISHENG WEATHER / 0.1.2",
+                            "ZHISHENG WEATHER / 0.1.2Preview",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.3.sp,
@@ -180,7 +180,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.2 ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.2Preview ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) ZhishengCyan else ZhishengMint,
                             fontWeight = FontWeight.Bold,

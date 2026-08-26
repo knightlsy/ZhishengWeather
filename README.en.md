@@ -15,7 +15,7 @@
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Development version 0.1.2" src="https://img.shields.io/badge/development-0.1.2-31C9DB?style=flat-square"/>
+  <img alt="Preview version 0.1.2Preview" src="https://img.shields.io/badge/preview-0.1.2Preview-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -116,7 +116,7 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
 
-## Version 0.1.2 in development
+## Version 0.1.2Preview for community testing
 
 - Rotating the phone opens a dedicated desk weather clock; the setting can be disabled to lock portrait mode
 - Optional street-level positioning falls back to city-level location when precision or address lookup is unavailable
@@ -262,7 +262,7 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
-<summary><b>0.1.2 // LANDSCAPE</b></summary>
+<summary><b>0.1.2Preview // LANDSCAPE</b></summary>
 
 - Adds the landscape standby terminal, optional street-level positioning, selectable telemetry readings, and an Intense ambience level
 - Improves QWeather setup validation so unavailable weather access is caught before saving
