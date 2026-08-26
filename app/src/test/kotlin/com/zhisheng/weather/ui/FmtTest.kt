@@ -73,4 +73,23 @@ class FmtTest {
         assertEquals("未知相位", Fmt.moonPhaseZh("未知相位"))
         assertNull(Fmt.moonPhaseZh(null))
     }
+
+    @Test
+    fun cityTimeLabelsUseTheWeatherLocationOffset() {
+        val instant = java.time.Instant.parse("2026-08-26T00:30:00Z").toEpochMilli()
+
+        assertEquals("9时", Fmt.hour(instant, 9 * 3_600))
+        assertEquals("19时", Fmt.hour(instant, -5 * 3_600))
+        assertEquals("周三", Fmt.weekday(instant, 1, 9 * 3_600))
+        assertEquals("周二", Fmt.weekday(instant, 1, -5 * 3_600))
+        assertEquals("8月26日 周三", Fmt.date(instant, 9 * 3_600))
+        assertEquals("8月25日 周二", Fmt.date(instant, -5 * 3_600))
+    }
+
+    @Test
+    fun coordinatesUseAbsoluteValuesAndCorrectHemispheres() {
+        assertEquals("39.90N  116.41E", Fmt.coordinates(39.90, 116.41))
+        assertEquals("33.87S  151.21E", Fmt.coordinates(-33.87, 151.21))
+        assertEquals("34.60S  58.38W", Fmt.coordinates(-34.60, -58.38))
+    }
 }

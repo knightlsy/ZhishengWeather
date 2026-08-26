@@ -16,6 +16,7 @@ import com.zhisheng.weather.data.WidgetCache
 import com.zhisheng.weather.data.WidgetSnapshot
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.conditionIconRes
+import com.zhisheng.weather.ui.Fmt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -105,7 +106,10 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
             ),
         )
 
-        v.setTextViewText(R.id.w_date, dateLabel())
+        v.setTextViewText(
+            R.id.w_date,
+            Fmt.date(System.currentTimeMillis(), snap?.utcOffsetSeconds),
+        )
         // 2x2 布局已移除 w_upd 控件（主动舍弃更新时间，v0.0.4）；其余档位正常显示
         if (hasUpdate) v.setViewVisibility(R.id.w_upd, View.VISIBLE)
 
@@ -249,26 +253,19 @@ open class ZhishengWidgetProvider : AppWidgetProvider() {
         v.setInt(R.id.widget_rule_bar_2, "setBackgroundResource", R.drawable.widget_rule_light)
     }
 
-    private fun clock(ms: Long): String =
-        if (ms <= 0) "--" else java.text.SimpleDateFormat("HH:mm", java.util.Locale.US)
-            .format(java.util.Date(ms))
-
     // 快照新鲜度（v0.0.4）：超过 3 小时显示「x小时前」，超过 24 小时提示过期，
     // 不再让几天前的旧数据伪装成「今天 HH:mm」。负龄为设备时钟回拨，退回显示时刻。
     private fun timeLabel(context: Context, snap: WidgetSnapshot): String {
         val ageMs = System.currentTimeMillis() - snap.updateMillis
         return when {
             ageMs < 3 * 3_600_000L ->
-                clock(snap.updateMillis).takeUnless { it == "--" }
+                snap.updateMillis.takeIf { it > 0 }
+                    ?.let { Fmt.clock(it, snap.utcOffsetSeconds) }
                     ?: context.getString(R.string.widget_update_placeholder)
             ageMs < 24 * 3_600_000L -> context.getString(R.string.widget_stale_hours, ageMs / 3_600_000L)
             else -> context.getString(R.string.widget_stale_expired)
         }
     }
-
-    private fun dateLabel(): String =
-        java.text.SimpleDateFormat("M月d日 E", java.util.Locale.CHINA)
-            .format(java.util.Date())
 
     private fun sourceShort(source: String): String? = when (source) {
         "QWEATHER" -> "和风"

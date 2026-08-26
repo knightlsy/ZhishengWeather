@@ -8,14 +8,14 @@
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
-    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.1.0-FF6F1E?style=for-the-badge&labelColor=10151C"/>
+    <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.1.1-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
-  <img alt="Current version 0.1.0" src="https://img.shields.io/badge/current-0.1.0-31C9DB?style=flat-square"/>
+  <img alt="Current version 0.1.1" src="https://img.shields.io/badge/current-0.1.1-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
   <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-31C9DB?style=flat-square"/>
 </p>
@@ -73,7 +73,7 @@ GitHub Releases provide the public APK, which works immediately after installati
 | | Public build | Full build |
 |:--|:--|:--|
 | Get it | Download from [Releases](https://github.com/zhishengplus/ZhishengWeather/releases) | Clone and build the source |
-| Default data path | Xiaomi Weather + Open-Meteo | QWeather first, with Xiaomi and Open-Meteo as supplements |
+| Default data path | Xiaomi Weather + Open-Meteo | Xiaomi Weather + Open-Meteo; enable developer mode to select the bundled QWeather credentials |
 | Extra setup | None | QWeather Ed25519 credentials |
 | Main difference | Everyday weather works out of the box | QWeather alerts, minute precipitation, and life indices are available according to account permissions |
 
@@ -115,6 +115,16 @@ The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog,
 3. The first launch shows Beijing. Use search to save your own cities.
 
 The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+
+## Version 0.1.1
+
+Version 0.1.1 is a bug-fix-only update based on 0.1.0.
+
+- Fixes a cold-start race that could make locally configured QWeather credentials appear missing
+- Restores current-condition supplementation for missing telemetry fields and aligns telemetry card rows
+- Uses each city's UTC offset for hourly, weekday, date, and widget time labels
+- Corrects southern/western coordinate labels and the single-city bottom gesture interceptor
+- Improves tiny-widget text readability and clears blocking Android Lint errors
 
 ## Version 0.1.0
 
@@ -241,6 +251,16 @@ After location is enabled and permission is granted, the app rechecks the city a
 ## Changelog
 
 <details open>
+<summary><b>0.1.1 // BUG FIXES</b></summary>
+
+- Fixes QWeather credential loading, missing telemetry fields, and uneven telemetry rows
+- Corrects overseas-city time zones, hemisphere labels, and widget times
+- Prevents the city-deck gesture from intercepting scrolling when only one city is saved
+- 136 unit tests pass; Android Lint reports zero errors; personal and public builds compile
+
+</details>
+
+<details>
 <summary><b>0.1.0 // CITY DECK</b></summary>
 
 - Bottom city deck with hold-and-slide switching or an upward push to pin and tap

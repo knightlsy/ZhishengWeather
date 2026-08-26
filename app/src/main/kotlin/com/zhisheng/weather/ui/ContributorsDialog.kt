@@ -87,7 +87,7 @@ fun ContributorsDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "COMMUNITY / 0.1.0",
+                            "COMMUNITY / ${com.zhisheng.weather.BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.4.sp,

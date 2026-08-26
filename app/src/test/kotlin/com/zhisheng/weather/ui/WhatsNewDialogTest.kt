@@ -7,22 +7,22 @@ import org.junit.Test
 
 class WhatsNewDialogTest {
     @Test
-    fun `versioned update guide explains the city deck and can be reopened`() {
-        assertEquals("0.1.0", WhatsNewVersion)
+    fun `versioned update guide explains the bugfix release and can be reopened`() {
+        assertEquals("0.1.1", WhatsNewVersion)
 
         val projectDir = File(requireNotNull(System.getProperty("user.dir")))
         val dialog = File(projectDir, "src/main/kotlin/com/zhisheng/weather/ui/WhatsNewDialog.kt").readText()
         val activity = File(projectDir, "src/main/kotlin/com/zhisheng/weather/MainActivity.kt").readText()
         val settings = File(projectDir, "src/main/kotlin/com/zhisheng/weather/ui/SettingsScreen.kt").readText()
 
-        assertTrue(dialog.contains("按住屏幕底部的呼吸光"))
-        assertTrue(dialog.contains("第二次震动代表卡组已固定"))
+        assertTrue(dialog.contains("纯修复更新"))
+        assertTrue(dialog.contains("和风凭据识别"))
+        assertTrue(dialog.contains("遥测数据补齐"))
+        assertTrue(dialog.contains("遥测网格对齐"))
+        assertTrue(dialog.contains("城市当地时间"))
         assertTrue(dialog.contains("\"更新说明\""))
         assertTrue(!dialog.contains("0.0.8"))
         assertTrue(!dialog.contains("这次不只是修补"))
-        assertTrue(dialog.contains("模块顺序"))
-        assertTrue(dialog.contains("全天气氛围"))
-        assertTrue(dialog.contains("五种终端小组件"))
         assertTrue(activity.contains("shouldShowWhatsNew()"))
         assertTrue(activity.contains("markWhatsNewSeen()"))
         assertTrue(settings.contains("v\${com.zhisheng.weather.BuildConfig.VERSION_NAME} · 查看更新"))

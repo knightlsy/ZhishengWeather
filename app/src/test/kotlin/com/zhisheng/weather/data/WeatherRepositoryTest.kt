@@ -3,6 +3,8 @@ package com.zhisheng.weather.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import com.zhisheng.weather.model.CurrentWeather
+import com.zhisheng.weather.model.WeatherData
 
 class WeatherRepositoryTest {
 
@@ -69,5 +71,35 @@ class WeatherRepositoryTest {
         assertEquals(SourcePref.CAIYUN, SourcePref.CAIYUN.effective(developerMode = true))
         assertEquals(SourcePref.AUTO, SourcePref.AUTO.effective(developerMode = false))
         assertEquals(SourcePref.XIAOMI, SourcePref.XIAOMI.effective(developerMode = false))
+    }
+
+    @Test
+    fun openMeteoSupplementRestoresMissingXiaomiTelemetryWithoutOverwritingProviderValues() {
+        val source = WeatherData(
+            current = CurrentWeather(
+                visibility = 18.0,
+                dewPoint = null,
+                cloudCover = null,
+                windGust = null,
+            ),
+            dataSource = "XIAOMI",
+        )
+        val merged = WeatherRepository.mergeCurrentSupplement(
+            source,
+            OpenMeteoResult(
+                current = OpenMeteoCurrent(
+                    visibility = 9_000.0,
+                    dew_point_2m = 7.5,
+                    cloud_cover = 62.0,
+                    wind_gusts_10m = 28.0,
+                ),
+            ),
+        )
+
+        assertEquals(18.0, merged.current?.visibility)
+        assertEquals(7.5, merged.current?.dewPoint)
+        assertEquals(62.0, merged.current?.cloudCover)
+        assertEquals(28.0, merged.current?.windGust)
+        assertEquals("OPEN-METEO", merged.blockSources["current-supplement"])
     }
 }

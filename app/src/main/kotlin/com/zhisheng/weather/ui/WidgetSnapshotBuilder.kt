@@ -10,9 +10,6 @@ import com.zhisheng.weather.model.City
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.widget.ZhishengWidgetProvider
 import kotlinx.coroutines.flow.first
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 // 小组件快照构建：从 WeatherData 组装 WidgetSnapshot 并落盘 + 刷新桌面。
@@ -28,9 +25,6 @@ object WidgetSnapshotBuilder {
         val today = data.daily.firstOrNull()
         val hi = if (today?.high != null && today.low != null) maxOf(today.high, today.low) else today?.high
         val lo = if (today?.high != null && today.low != null) minOf(today.high, today.low) else today?.low
-        val hourFmt = DateTimeFormatter.ofPattern("H时")
-        val zone = ZoneId.systemDefault()
-
         WidgetCache.save(
             context,
             WidgetSnapshot(
@@ -51,10 +45,11 @@ object WidgetSnapshotBuilder {
                 aqiLevel = data.aqi?.level.orEmpty(),
                 updateMillis = data.updateTime ?: System.currentTimeMillis(),
                 source = data.dataSource.orEmpty(),
+                utcOffsetSeconds = data.utcOffsetSeconds,
                 // 跳过"现在"那格，小组件右侧展示接下来的四小时
                 hours = data.hourly.drop(1).take(4).map { h ->
                     WidgetHour(
-                        label = hourFmt.format(Instant.ofEpochMilli(h.timeMillis).atZone(zone)),
+                        label = Fmt.hour(h.timeMillis, data.utcOffsetSeconds),
                         temp = t(h.temperature),
                         conditionName = h.condition?.name.orEmpty(),
                     )
@@ -63,7 +58,7 @@ object WidgetSnapshotBuilder {
                     val dh = if (d.high != null && d.low != null) maxOf(d.high, d.low) else d.high
                     val dl = if (d.high != null && d.low != null) minOf(d.high, d.low) else d.low
                     WidgetDay(
-                        label = if (i == 0) "今天" else weekdayZh(d.dateMillis, zone),
+                        label = Fmt.weekday(d.dateMillis, i, data.utcOffsetSeconds),
                         high = t(dh),
                         low = t(dl),
                         conditionName = d.condition?.name.orEmpty(),
@@ -73,10 +68,4 @@ object WidgetSnapshotBuilder {
         )
         ZhishengWidgetProvider.refreshAll(context)
     }
-
-    private fun weekdayZh(millis: Long, zone: ZoneId): String =
-        when (Instant.ofEpochMilli(millis).atZone(zone).dayOfWeek.value) {
-            1 -> "周一"; 2 -> "周二"; 3 -> "周三"; 4 -> "周四"
-            5 -> "周五"; 6 -> "周六"; else -> "周日"
-        }
 }

@@ -31,9 +31,9 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260825：0.1.0 模块排序 / 城市卡组 / 终端腕表小组件
-        versionCode = 20260826
-        versionName = "0.1.0"
+        // 20260826：0.1.1 测试检修版（基于 0.1.0，只修 bug 不加功能）
+        versionCode = 20260827
+        versionName = "0.1.1"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")

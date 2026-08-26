@@ -170,6 +170,13 @@ object SecretStore {
         caiyunRuntime = CaiyunRuntimeCreds()
     }
 
-    suspend fun currentQw(): QwRuntimeCreds = qwRuntimeFlow.first()
-    suspend fun currentCaiyun(): CaiyunRuntimeCreds = caiyunRuntimeFlow.first()
+    suspend fun currentQw(): QwRuntimeCreds = qwRuntimeFlow.first().also { loaded ->
+        // DataStore 的首帧在 IO 协程异步到达。天气页可能先于 init() 中的 collector 发起抓取，
+        // 此时必须把磁盘凭据同步进运行态，否则冷启动会误报“未配置”，手动刷新后才恢复。
+        if (loaded != qwRuntime) applyQw(loaded)
+    }
+
+    suspend fun currentCaiyun(): CaiyunRuntimeCreds = caiyunRuntimeFlow.first().also { loaded ->
+        if (loaded != caiyunRuntime) caiyunRuntime = loaded
+    }
 }

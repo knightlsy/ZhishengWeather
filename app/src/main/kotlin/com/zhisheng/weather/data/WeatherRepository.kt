@@ -23,20 +23,25 @@ import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
-// 天气仓储：默认小米为主源，Open-Meteo 兜底；和风只在开发者锁定时走。
+// 天气仓储：默认小米为主源，Open-Meteo 兜底；和风与彩云由用户明确锁定。
 object WeatherRepository {
 
     // AUTO 走熔断降级链（v0.0.7 起小米→公共源）；手动锁定时只打那一个源，
     // 失败就如实报错，不静默串到别的源（用户选了就该看到那个源的真实状态）。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
-            SourcePref.QWEATHER ->
+            SourcePref.QWEATHER -> {
+                SecretStore.currentQw()
                 if (QWeatherApi.enabled) {
                     fetchQWeather(city) ?: WeatherData(error = "和风天气请求失败（检查凭据与网络）")
                 } else {
                     WeatherData(error = "未配置和风凭据：请在实验室里接入和风天气")
                 }
-            SourcePref.CAIYUN -> CaiyunSource.fetch(city)
+            }
+            SourcePref.CAIYUN -> {
+                SecretStore.currentCaiyun()
+                CaiyunSource.fetch(city)
+            }
             SourcePref.XIAOMI -> fetchXiaomi(city)
             SourcePref.OPEN_METEO -> OpenMeteoSource.fetch(city)
             SourcePref.AUTO -> autoChain(city)
@@ -45,14 +50,14 @@ object WeatherRepository {
         val trimmed = WeatherConsistency.dropPastHourly(data)
         // 用户手动锁源时不再偷偷混入 Open-Meteo；只有 AUTO 可以补齐，并显式记录分块来源。
         val completed = if (pref == SourcePref.AUTO) {
-            backfillHourly(backfillDaily(trimmed, city), city)
+            backfillCurrent(backfillHourly(backfillDaily(trimmed, city), city), city)
         } else {
             trimmed
         }
         return WeatherConsistency.align(densifyPrecip(completed))
     }
 
-    // AUTO 链：小米 → Open-Meteo。和风不在默认链里（v0.0.7）。
+    // AUTO 链：小米 → Open-Meteo。和风不在默认链里。
     private suspend fun autoChain(city: City): WeatherData {
         // 0.0.9-debug 修复：原实现熔断打开时仍会再打一次小米（白等一轮超时），
         // 小米慢失败时连续两次 fetchXiaomi（内部各带 2 次重试）最坏 30s+，
@@ -69,6 +74,34 @@ object WeatherRepository {
         }
         SourceHealth.recordFailure(SourceHealth.XIAOMI)
         return OpenMeteoSource.fetch(city)
+    }
+
+    // 小米实况经常不返回露点、云量和阵风。0.1.0 重构时保留了补充接口，
+    // 却漏掉了这段调用，导致遥测区从八九项缩水成四项。
+    private suspend fun backfillCurrent(data: WeatherData, city: City): WeatherData {
+        val current = data.current ?: return data
+        if (data.error != null) return data
+        val needsSupplement = current.visibility == null || current.dewPoint == null ||
+            current.cloudCover == null || current.windGust == null
+        if (!needsSupplement) return data
+        val supplement = OpenMeteoApi.fetch(city.latitude, city.longitude) ?: return data
+        return mergeCurrentSupplement(data, supplement)
+    }
+
+    internal fun mergeCurrentSupplement(data: WeatherData, supplement: OpenMeteoResult): WeatherData {
+        val current = data.current ?: return data
+        val extra = supplement.current ?: return data
+        val merged = current.copy(
+            visibility = current.visibility ?: extra.visibility?.let { it / 1000.0 },
+            dewPoint = current.dewPoint ?: extra.dew_point_2m,
+            cloudCover = current.cloudCover ?: extra.cloud_cover,
+            windGust = current.windGust ?: extra.wind_gusts_10m,
+        )
+        if (merged == current) return data
+        return data.copy(
+            current = merged,
+            blockSources = data.blockSources + ("current-supplement" to "OPEN-METEO"),
+        )
     }
 
     private fun densifyPrecip(data: WeatherData): WeatherData {

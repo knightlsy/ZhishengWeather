@@ -1,10 +1,59 @@
 package com.zhisheng.weather.ui
 
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // 显示格式工具：温度/风速/气压单位换算在此统一生效
 object Fmt {
+
+    private val hourFormatter = DateTimeFormatter.ofPattern("H时")
+    private val dateFormatter = DateTimeFormatter.ofPattern("M月d日 E", Locale.CHINA)
+
+    private fun zone(utcOffsetSeconds: Int?): ZoneId = utcOffsetSeconds
+        ?.takeIf { it in -18 * 3_600..18 * 3_600 }
+        ?.let(ZoneOffset::ofTotalSeconds)
+        ?: ZoneId.systemDefault()
+
+    fun hour(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        hourFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun weekday(epochMillis: Long, index: Int, utcOffsetSeconds: Int?): String {
+        if (index == 0) return "今天"
+        return when (Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)).dayOfWeek.value) {
+            1 -> "周一"
+            2 -> "周二"
+            3 -> "周三"
+            4 -> "周四"
+            5 -> "周五"
+            6 -> "周六"
+            else -> "周日"
+        }
+    }
+
+    fun date(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        dateFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun clock(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+            .format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun coordinates(latitude: Double, longitude: Double): String {
+        val latitudeDirection = if (latitude < 0.0) "S" else "N"
+        val longitudeDirection = if (longitude < 0.0) "W" else "E"
+        return String.format(
+            Locale.US,
+            "%.2f%s  %.2f%s",
+            abs(latitude),
+            latitudeDirection,
+            abs(longitude),
+            longitudeDirection,
+        )
+    }
 
     fun temp(celsius: Double?, unit: String): String? = celsius?.let {
         (if (unit == "f") it * 9.0 / 5.0 + 32.0 else it).roundToInt().toString()

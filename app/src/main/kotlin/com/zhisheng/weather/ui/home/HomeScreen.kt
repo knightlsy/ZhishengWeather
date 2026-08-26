@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -359,7 +360,8 @@ fun HomeScreen(
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
                     .padding(bottom = 14.dp)
-                    .pointerInput(uiState.cities, uiState.selectedCity?.locationKey) {
+                    .pointerInput(uiState.cities, uiState.selectedCity?.locationKey, uiState.cities.size > 1) {
+                        if (uiState.cities.size <= 1) return@pointerInput
                         val stepPx = with(density) { 78.dp.toPx() }
                         val pinThresholdPx = with(density) { 156.dp.toPx() }
                         var pinnedThisGesture = false
@@ -694,7 +696,7 @@ private fun CityDeckOverlay(
                 )
             }
             Spacer(Modifier.height(18.dp))
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 val spacing = with(LocalDensity.current) { (82f + 42f * expanded).dp.toPx() }
                 cities.forEachIndexed { index, city ->
                     val relative = index - position
@@ -827,7 +829,7 @@ private fun CityDeckOverlay(
                             HorizontalDivider(color = if (focused) ZhishengCyan.copy(alpha = 0.45f) else ZhishengCardBorder)
                             Spacer(Modifier.height(12.dp))
                             Text(
-                                String.format(Locale.US, "%.2fN  %.2fE", city.latitude, city.longitude),
+                                Fmt.coordinates(city.latitude, city.longitude),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = ZhishengTextTertiary,
                                 letterSpacing = 1.sp,
@@ -1026,9 +1028,9 @@ private fun WeatherContent(
             item(key = "module_${module.key}") {
                 Stagger(animationIndex, entered) { m ->
                     when (module) {
-                        HomeModule.HOURLY -> HourlySection(data.hourly, unit, prefs.windUnit, m)
+                        HomeModule.HOURLY -> HourlySection(data.hourly, unit, prefs.windUnit, data.utcOffsetSeconds, m)
                         HomeModule.PRECIP -> PrecipCard(data, m)
-                        HomeModule.DAILY -> DailySection(data.daily, unit, prefs.windUnit, m)
+                        HomeModule.DAILY -> DailySection(data.daily, unit, prefs.windUnit, data.utcOffsetSeconds, m)
                         HomeModule.TELEMETRY -> TelemetryGrid(data.current!!, data.daily.firstOrNull(), unit, prefs, m)
                         HomeModule.AQI -> AqiCard(data.aqi!!, m)
                         HomeModule.INDICES -> IndicesRow(data.carWashOk, data.sportsOk, data.extraIndices, m)
@@ -1408,6 +1410,7 @@ private fun HourlySection(
     hourly: List<HourlyWeather>,
     unit: String,
     windUnit: String,
+    utcOffsetSeconds: Int?,
     modifier: Modifier,
 ) {
     val temps = hourly.mapNotNull { h -> conv(h.temperature, unit) }
@@ -1438,6 +1441,7 @@ private fun HourlySection(
                         maxT = maxT,
                         isNow = i == nowIdx,
                         windUnit = windUnit,
+                        utcOffsetSeconds = utcOffsetSeconds,
                     )
                 }
             }
@@ -1510,6 +1514,7 @@ private fun HourlyItem(
     maxT: Double,
     isNow: Boolean,
     windUnit: String,
+    utcOffsetSeconds: Int?,
 ) {
     val itemW = 54.dp
     Column(
@@ -1517,7 +1522,7 @@ private fun HourlyItem(
         modifier = Modifier.width(itemW),
     ) {
         Text(
-            text = if (isNow) "现在" else formatHour(h.timeMillis),
+            text = if (isNow) "现在" else Fmt.hour(h.timeMillis, utcOffsetSeconds),
             style = MaterialTheme.typography.labelSmall,
             color = if (isNow) ZhishengMint else ZhishengTextTertiary,
         )
@@ -1710,6 +1715,7 @@ private fun DailySection(
     daily: List<DailyWeather>,
     unit: String,
     windUnit: String,
+    utcOffsetSeconds: Int?,
     modifier: Modifier,
 ) {
     val lows = daily.mapNotNull { conv(it.low, unit) }
@@ -1730,7 +1736,7 @@ private fun DailySection(
                 ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = formatWeekday(d.dateMillis, index),
+                            text = Fmt.weekday(d.dateMillis, index, utcOffsetSeconds),
                             modifier = Modifier.width(44.dp),
                             style = MaterialTheme.typography.titleSmall,
                             color = if (index == 0) ZhishengMint else ZhishengText,
@@ -1871,13 +1877,16 @@ private fun TelemetryGrid(
     ).mapNotNull { (cn, en, value) -> value?.let { Triple(cn, en, it) } }
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         items.chunked(2).forEach { rowItems ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 if (rowItems.size == 1) {
                     val (cn, en, value) = rowItems[0]
                     TeleCell(cn, en, value, cur, Modifier.fillMaxWidth())
                 } else {
                     rowItems.forEach { (cn, en, value) ->
-                        TeleCell(cn, en, value, cur, Modifier.weight(1f))
+                        TeleCell(cn, en, value, cur, Modifier.weight(1f).fillMaxHeight())
                     }
                 }
             }
@@ -2548,21 +2557,7 @@ private fun CityDrawer(
     }
 }
 
-private val hourFmt = DateTimeFormatter.ofPattern("H时")
 private val timeFmt = DateTimeFormatter.ofPattern("MM-dd HH:mm")
-
-private fun formatHour(epoch: Long): String {
-    val zoned = Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault())
-    return hourFmt.format(zoned)
-}
-
-private fun formatWeekday(epoch: Long, index: Int): String {
-    val zoned = Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault())
-    if (index == 0) return "今天"
-    return when (zoned.dayOfWeek.value) {
-        1 -> "周一"; 2 -> "周二"; 3 -> "周三"; 4 -> "周四"; 5 -> "周五"; 6 -> "周六"; else -> "周日"
-    }
-}
 
 private fun formatTime(epoch: Long): String = timeFmt.format(Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()))
 

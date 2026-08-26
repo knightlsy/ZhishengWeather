@@ -99,5 +99,5 @@
         android:maxLines="1"
         android:text="@string/widget_update_placeholder"
         android:textColor="@color/widget_border"
-        android:textSize="10sp" />
+        android:textSize="11sp" />
 </LinearLayout>

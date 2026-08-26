@@ -53,14 +53,14 @@ import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 
-internal const val WhatsNewVersion = "0.1.0"
+internal const val WhatsNewVersion = "0.1.1"
 internal const val WhatsNewPreferenceFile = "zhisheng_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
 @Composable
 fun WhatsNewDialog(onClose: () -> Unit) {
     var page by rememberSaveable { mutableIntStateOf(0) }
-    val pageCount = 3
+    val pageCount = 2
 
     Dialog(
         onDismissRequest = onClose,
@@ -89,7 +89,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "ZHISHENG WEATHER / 0.1.0",
+                            "ZHISHENG WEATHER / 0.1.1",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.3.sp,
@@ -141,9 +141,8 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         when (currentPage) {
-                            0 -> cityDeckPage()
-                            1 -> interfacePage()
-                            else -> dataAndWidgetPage()
+                            0 -> stabilityPage()
+                            else -> displayFixesPage()
                         }
                     }
                 }
@@ -181,7 +180,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.0 ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.1 ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) ZhishengCyan else ZhishengMint,
                             fontWeight = FontWeight.Bold,
@@ -193,40 +192,26 @@ fun WhatsNewDialog(onClose: () -> Unit) {
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.cityDeckPage() {
+private fun androidx.compose.foundation.lazy.LazyListScope.stabilityPage() {
     item {
-        UpdateTitle("01//", "长按快速选择城市", "CITY SWITCH", ZhishengOrange)
+        UpdateTitle("01//", "稳定性检修", "BUG FIXES", ZhishengOrange)
     }
     item {
         EmphasisBlock(
-            "先保存至少 2 个城市。上下滑动天气页时，屏幕底部会有一条若隐若现的呼吸光——那里就是城市传感器。",
+            "0.1.1 是一次纯修复更新：不增加新功能，集中处理 0.1.0 真机使用中暴露的问题。",
         )
     }
-    item { GestureStep("01", "按住", "拇指按住屏幕底部的呼吸光，先不要松手。") }
-    item { GestureStep("02", "等震动", "手机震动、卡牌弹出后，保持按住并左右滑到目标城市。") }
-    item { GestureStep("03", "松手切换", "让目标卡牌停在中央，再松手；主页会切换到该城市。") }
-    item {
-        EmphasisBlock(
-            "想松手慢慢选：卡牌出现后明显向上推。第二次震动代表卡组已固定，这时可以松手，再左右滑动并点选城市。",
-            accent = ZhishengMint,
-        )
-    }
+    item { FeatureBlock("和风凭据识别", "修复冷启动时本机凭据尚未载入、页面误判为未配置的问题；开启开发者模式后可正常切换已配置的和风天气。") }
+    item { FeatureBlock("遥测数据补齐", "恢复小米实况缺失字段的公共源补充，能见度、露点、云量和阵风不再无故消失。") }
+    item { FeatureBlock("遥测网格对齐", "同一行卡片统一高度，带风向罗盘的卡片不再把下一行顶歪。") }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.interfacePage() {
-    item { UpdateTitle("02//", "界面与天气效果", "INTERFACE", ZhishengCyan) }
-    item { FeatureBlock("模块顺序", "设置 → 主屏显示中可重新排列天气模块，也能一键恢复默认顺序。") }
-    item { FeatureBlock("全天气氛围", "晴昼、晴夜、多云、阴、雨、雪、雷暴、雾、霾、沙尘和大风等都有自己的终端背景；下雨时会出现灵动的数据雨。") }
-    item { FeatureBlock("天气效果预览", "开启开发者模式后，可用模拟天气逐项查看氛围效果，不会改变主页正在显示的真实天气。") }
-    item { FeatureBlock("设置更清楚", "设置页重新整理，更容易找到需要的选项；新增亮度更低的绿、蓝强调色，浅色模式天气图标也有了合适的颜色。") }
-}
-
-private fun androidx.compose.foundation.lazy.LazyListScope.dataAndWidgetPage() {
-    item { UpdateTitle("03//", "天气数据、小组件与社区", "SYSTEM", ZhishengMint) }
-    item { FeatureBlock("和风与彩云", "想使用和风或彩云时，可在设置中开启开发者模式，跟随步骤填写凭据并测试连接。可用内容取决于对应账号的权限。") }
-    item { FeatureBlock("天气信息更准确", "高低温会随时段切换；分钟降水、雨渐停、降雨概率与风向的显示更加一致，没雨时不再保留空的降水卡。") }
-    item { FeatureBlock("五种终端小组件", "新增 4×1、2×4 等尺寸，升级为带呼吸状态灯的 3D 终端设备外观，并修复浅色模式图标配色。") }
-    item { FeatureBlock("社区入口", "关于页新增贡献者名单和用户交流 QQ 群，可直接查看二维码或复制群号。") }
+private fun androidx.compose.foundation.lazy.LazyListScope.displayFixesPage() {
+    item { UpdateTitle("02//", "时间、坐标与交互校准", "DISPLAY", ZhishengCyan) }
+    item { FeatureBlock("城市当地时间", "海外城市的逐时、星期、日期和小组件更新时间统一按城市时区显示。") }
+    item { FeatureBlock("南纬西经", "城市卡组会正确显示 S/W 方位，不再出现负数 N/E。") }
+    item { FeatureBlock("单城市滚动", "只有一个城市时停用底部卡组手势区，避免长按拖动吞掉主页滚动。") }
+    item { FeatureBlock("小组件可读性", "提高极小尺寸小组件的辅助字号，并清理阻断构建的布局检查错误。") }
     item {
         Text(
             "以后想再看：设置 → 关于 → 点击版本号。",
@@ -260,22 +245,6 @@ private fun EmphasisBlock(text: String, accent: androidx.compose.ui.graphics.Col
             .padding(12.dp),
     ) {
         Text(text, style = MaterialTheme.typography.bodyMedium, color = ZhishengText, lineHeight = 21.sp)
-    }
-}
-
-@Composable
-private fun GestureStep(index: String, action: String, detail: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().border(1.dp, ZhishengCardBorder, RectangleShape).padding(12.dp),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Text("[$index]", style = MaterialTheme.typography.labelMedium, color = ZhishengCyan, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.size(12.dp))
-        Column {
-            Text(action, style = MaterialTheme.typography.titleSmall, color = ZhishengText, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(3.dp))
-            Text(detail, style = MaterialTheme.typography.bodyMedium, color = ZhishengTextSecondary, lineHeight = 20.sp)
-        }
     }
 }
 

@@ -30,6 +30,7 @@ data class WidgetSnapshot(
     val aqiLevel: String = "",
     val updateMillis: Long = 0L,
     val source: String = "",
+    val utcOffsetSeconds: Int? = null,
     val hours: List<WidgetHour> = emptyList(),
     val days: List<WidgetDay> = emptyList(),
 )

@@ -174,8 +174,15 @@ object SettingsRepository {
     suspend fun setShowTyphoon(show: Boolean) = store.edit { it[KEY_SHOW_TYPHOON] = show }
     suspend fun setSourcePref(p: SourcePref) = store.edit { it[KEY_SOURCE] = p.key }
     suspend fun setDeveloperMode(v: Boolean) = store.edit { it[KEY_DEVELOPER] = v }
-    suspend fun qweatherUnlocked(): Boolean = QWeatherApi.enabled && developerMode.first()
-    suspend fun caiyunUnlocked(): Boolean = SecretStore.caiyunReady && developerMode.first()
+    suspend fun qweatherUnlocked(): Boolean {
+        SecretStore.currentQw()
+        return QWeatherApi.enabled && developerMode.first()
+    }
+
+    suspend fun caiyunUnlocked(): Boolean {
+        SecretStore.currentCaiyun()
+        return SecretStore.caiyunReady && developerMode.first()
+    }
     suspend fun purgeRetiredProviderData() = store.edit { prefs ->
         listOf("caiyun_app_key", "caiyun_app_secret", "caiyun_credential")
             .map(::stringPreferencesKey)
