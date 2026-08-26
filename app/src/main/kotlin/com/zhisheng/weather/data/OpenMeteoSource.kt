@@ -5,6 +5,7 @@ import com.zhisheng.weather.model.City
 import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.MinutePrecip
+import com.zhisheng.weather.model.RainMeta
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.wmoProfile
 import kotlinx.coroutines.Dispatchers
@@ -190,6 +191,9 @@ object OpenMeteoSource {
                 updateTime = System.currentTimeMillis(),
                 // 不编 rainNowcast：接口没有短时降水文案。主屏一句话走分钟序列/温差。
                 rainMinutes = if (precip.size >= 2) precip else emptyList(),
+                rainMeta = precip.takeIf { it.size >= 2 }?.let {
+                    RainMeta("OPEN-METEO", 15, System.currentTimeMillis())
+                },
                 dataSource = "OPEN-METEO",
                 blockSources = mapOf("current" to "OPEN-METEO", "hourly" to "OPEN-METEO", "daily" to "OPEN-METEO", "minutely" to "OPEN-METEO"),
                 utcOffsetSeconds = m.utc_offset_seconds,

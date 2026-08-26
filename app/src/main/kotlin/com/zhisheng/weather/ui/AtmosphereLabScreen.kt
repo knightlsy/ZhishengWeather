@@ -45,6 +45,7 @@ import com.zhisheng.weather.model.CurrentWeather
 import com.zhisheng.weather.model.DailyWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.MinutePrecip
+import com.zhisheng.weather.model.RainMeta
 import com.zhisheng.weather.model.PrecipitationPhase
 import com.zhisheng.weather.model.ThermalModifier
 import com.zhisheng.weather.model.WeatherCondition
@@ -323,6 +324,7 @@ internal fun simulatedWeather(s: AtmosphereScenario, intensity: WeatherIntensity
         updateTime = now,
         rainNowcast = if (s.condition.isPrecipitation) "模拟降水信号持续输入" else null,
         rainMinutes = minute,
+        rainMeta = minute.takeIf { it.isNotEmpty() }?.let { RainMeta("SIMULATION", 1, now) },
         dataSource = "SIMULATION",
         blockSources = mapOf("current" to "SIMULATION", "forecast" to "SIMULATION"),
         utcOffsetSeconds = 8 * 3600,

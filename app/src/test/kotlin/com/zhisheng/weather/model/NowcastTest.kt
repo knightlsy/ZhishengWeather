@@ -232,7 +232,7 @@ class NowcastTest {
         assertEquals(0f, dense[29].precip)
         assertEquals(0.4f, dense[30].precip)
         assertEquals(0.4f, dense[44].precip)
-        assertEquals("+119min", Nowcast.horizonLabel(dense))
+        assertEquals("119 分钟", Nowcast.horizonLabel(dense))
     }
 
     @Test
@@ -242,5 +242,12 @@ class NowcastTest {
         assertEquals(120, dense.size)
         assertEquals(0.5f, dense[10].precip)
         assertEquals(0f, dense[11].precip)
+    }
+
+    @Test
+    fun nativeProviderLabelsRemainReadable() {
+        assertEquals("和风", Nowcast.sourceLabel("QWEATHER"))
+        assertEquals("小雨", Nowcast.intensityLabel(0.8f))
+        assertEquals("大雨", Nowcast.intensityLabel(10f))
     }
 }

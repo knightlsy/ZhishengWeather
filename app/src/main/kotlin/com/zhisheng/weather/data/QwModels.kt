@@ -150,6 +150,7 @@ data class QwMinutelyItem(
 @Serializable
 data class QwMinutely(
     val code: String? = null,
+    val updateTime: String? = null,
     val summary: String? = null,
     val minutely: List<QwMinutelyItem> = emptyList(),
 )

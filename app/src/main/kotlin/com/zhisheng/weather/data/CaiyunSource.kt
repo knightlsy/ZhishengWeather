@@ -8,6 +8,7 @@ import com.zhisheng.weather.model.DailyWeather
 import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.LifeIndexExtra
 import com.zhisheng.weather.model.MinutePrecip
+import com.zhisheng.weather.model.RainMeta
 import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
@@ -173,6 +174,7 @@ object CaiyunSource {
             updateTime = now,
             rainNowcast = r.minutely?.description ?: r.forecastKeypoint,
             rainMinutes = minutes,
+            rainMeta = minutes.takeIf { it.isNotEmpty() }?.let { RainMeta("CAIYUN", 1, now) },
             extraIndices = mapLifeIndices(r.daily?.lifeIndex),
             dataSource = "CAIYUN",
             blockSources = mapOf("current" to "CAIYUN", "hourly" to "CAIYUN", "daily" to "CAIYUN", "minutely" to "CAIYUN"),

@@ -9,6 +9,7 @@ import com.zhisheng.weather.model.HourlyWeather
 import com.zhisheng.weather.model.LifeIndexExtra
 import com.zhisheng.weather.model.MinutePrecip
 import com.zhisheng.weather.model.PrecipitationPhase
+import com.zhisheng.weather.model.RainMeta
 import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
 import com.zhisheng.weather.model.WeatherData
@@ -23,12 +24,11 @@ import kotlinx.coroutines.coroutineScope
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 
-// 天气仓储：默认小米为主源，Open-Meteo 兜底；和风与彩云由用户明确锁定。
+// 天气仓储：默认小米为主源，Open-Meteo 兜底；手动选择和风/彩云时保持源纯净。
 object WeatherRepository {
 
-    // AUTO 走熔断降级链；手动锁定时实况仍只取指定源，但逐时/逐日/遥测缺项允许
-    // Open-Meteo 补齐，并在 blockSources 中明确留痕，避免“和风只剩现在一格”或
-    // “彩云套餐只回 3 天”把整块界面压垮。
+    // AUTO/小米允许公共源补缺；手动锁定和风/彩云时不静默混入公共源，避免同一块
+    // 数据来自不同模型却被误认为指定源，出现温度、逐时和逐日互相“打架”。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
             SourcePref.QWEATHER -> {
@@ -54,11 +54,11 @@ object WeatherRepository {
         } else {
             trimmed
         }
-        return WeatherConsistency.align(densifyPrecip(completed))
+        return WeatherConsistency.align(completed)
     }
 
     internal fun shouldSupplementWithOpenMeteo(pref: SourcePref): Boolean =
-        pref != SourcePref.OPEN_METEO
+        pref == SourcePref.AUTO || pref == SourcePref.XIAOMI
 
     // AUTO 链：小米 → Open-Meteo。和风不在默认链里。
     private suspend fun autoChain(city: City): WeatherData {
@@ -105,11 +105,6 @@ object WeatherRepository {
             current = merged,
             blockSources = data.blockSources + ("current-supplement" to "OPEN-METEO"),
         )
-    }
-
-    private fun densifyPrecip(data: WeatherData): WeatherData {
-        if (data.rainMinutes.size < 2) return data
-        return data.copy(rainMinutes = Nowcast.densifyToMinutes(data.rainMinutes))
     }
 
     // —— 和风天气主路径 ——
@@ -209,6 +204,16 @@ object WeatherRepository {
                 }?.let { addAll(it) }
             }.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
 
+            val minuteList = m?.minutely?.takeIf { m.code == "200" }?.mapNotNull { mi ->
+                val t = parseTimeMillis(mi.fxTime)
+                if (t == 0L) null else MinutePrecip(
+                    t,
+                    // 和风 minutely.precip 是 5 分钟累计毫米，统一换算成 mm/h。
+                    Nowcast.accumulatedMmToRate(mi.precip?.toFloatOrNull() ?: 0f, 5),
+                    if (mi.type.equals("snow", true)) PrecipitationPhase.SNOW else PrecipitationPhase.RAIN,
+                )
+            } ?: emptyList()
+
             WeatherData(
                 current = CurrentWeather(
                     temperature = cur.temperature?.value,
@@ -293,15 +298,10 @@ object WeatherRepository {
                 },
                 updateTime = System.currentTimeMillis(),
                 rainNowcast = m?.summary?.takeIf { m.code == "200" },
-                rainMinutes = m?.minutely?.takeIf { m.code == "200" }?.mapNotNull { mi ->
-                    val t = parseTimeMillis(mi.fxTime)
-                    if (t == 0L) null else MinutePrecip(
-                        t,
-                        // 和风 minutely.precip 是 5 分钟累计毫米，统一换算成 mm/h。
-                        Nowcast.accumulatedMmToRate(mi.precip?.toFloatOrNull() ?: 0f, 5),
-                        if (mi.type.equals("snow", true)) PrecipitationPhase.SNOW else PrecipitationPhase.RAIN,
-                    )
-                } ?: emptyList(),
+                rainMinutes = minuteList,
+                rainMeta = minuteList.takeIf { it.isNotEmpty() }?.let {
+                    RainMeta("QWEATHER", 5, parseTimeMillis(m?.updateTime).takeIf { t -> t != 0L })
+                },
                 carWashOk = idxLevel("2")?.let { it <= 2 },
                 sportsOk = idxLevel("1")?.let { it <= 2 },
                 extraIndices = ix?.daily?.mapNotNull { it2 ->
@@ -329,7 +329,12 @@ object WeatherRepository {
                     )
                 } ?: emptyList(),
                 dataSource = "QWEATHER",
-                blockSources = mapOf("current" to "QWEATHER", "hourly" to "QWEATHER", "daily" to "QWEATHER", "minutely" to "QWEATHER"),
+                blockSources = buildMap {
+                    put("current", "QWEATHER")
+                    if (!h?.hours.isNullOrEmpty()) put("hourly", "QWEATHER")
+                    if (dailyList.isNotEmpty()) put("daily", "QWEATHER")
+                    if (minuteList.isNotEmpty()) put("minutely", "QWEATHER")
+                },
                 utcOffsetSeconds = utcOffsetSeconds,
             )
         }
@@ -712,6 +717,13 @@ object WeatherRepository {
             rainNowcast = xiaomiNowcast(r.minutely),
             // v0.0.6：小米 precipitation.value 为约 120 个逐分钟点；此前只接了文案和雨区距离
             rainMinutes = xiaomiMinuteSeries(r.minutely?.precipitation),
+            rainMeta = r.minutely?.precipitation?.takeIf { !it.value.isNullOrEmpty() }?.let { precip ->
+                RainMeta(
+                    source = "XIAOMI",
+                    intervalMinutes = 1,
+                    updateTime = parseTimeMillis(precip.pubTime).takeIf { t -> t != 0L },
+                )
+            },
             // v0.0.4：小米 kmNum（雨区距离）接入，分钟降水卡下方展示
             rainDistanceKm = r.minutely?.precipitation?.kmNum?.toDoubleOrNull(),
             carWashOk = r.indices?.indices?.firstOrNull { it.type == "carWash" }?.value?.let { it == "0" },

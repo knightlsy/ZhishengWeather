@@ -65,6 +65,14 @@ data class MinutePrecip(
 )
 
 @Serializable
+data class RainMeta(
+    val source: String,
+    val intervalMinutes: Int,
+    val updateTime: Long? = null,
+    val horizonMinutes: Int = 120,
+)
+
+@Serializable
 data class YesterdayInfo(
     val high: Double? = null,
     val low: Double? = null,
@@ -180,6 +188,8 @@ data class WeatherData(
     val updateTime: Long? = null,
     val rainNowcast: String? = null,
     val rainMinutes: List<MinutePrecip> = emptyList(),
+    // 保留各源真实时间粒度；UI 不再把 5/15 分钟桶伪装成逐分钟数据。
+    val rainMeta: RainMeta? = null,
     val carWashOk: Boolean? = null,
     val sportsOk: Boolean? = null,
     val extraIndices: List<LifeIndexExtra> = emptyList(),

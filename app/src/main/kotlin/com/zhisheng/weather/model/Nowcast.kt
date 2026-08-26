@@ -16,7 +16,7 @@ object Nowcast {
     const val WET_THRESHOLD = 0.02f
     const val NOW_WINDOW_MS = 2 * 60_000L
     const val MINUTE_MS = 60_000L
-    private const val STOP_DRY_RUN = 8
+    private const val STOP_DRY_CONFIRM_MS = 8 * MINUTE_MS
 
     fun accumulatedMmToRate(valueMm: Float, periodMinutes: Int): Float {
         if (!valueMm.isFinite() || valueMm <= 0f || periodMinutes <= 0) return 0f
@@ -55,10 +55,27 @@ object Nowcast {
     }
 
     fun horizonLabel(points: List<MinutePrecip>): String {
-        if (points.size < 2) return "+120min"
+        if (points.size < 2) return "120 分钟"
         val mins = ((points.last().timeMillis - points.first().timeMillis) / MINUTE_MS).toInt()
             .coerceAtLeast(1)
-        return "+${mins}min"
+        return if (mins >= 120) "2 小时" else "$mins 分钟"
+    }
+
+    fun intensityLabel(rateMmPerHour: Float): String = when {
+        rateMmPerHour < WET_THRESHOLD -> "无降水"
+        rateMmPerHour < 2.5f -> "小雨"
+        rateMmPerHour < 8f -> "中雨"
+        rateMmPerHour < 16f -> "大雨"
+        else -> "强降水"
+    }
+
+    fun sourceLabel(source: String?): String = when (source?.uppercase()) {
+        "QWEATHER" -> "和风"
+        "CAIYUN" -> "彩云"
+        "XIAOMI" -> "小米"
+        "OPEN-METEO" -> "公共源"
+        "SIMULATION" -> "模拟"
+        else -> source?.takeIf { it.isNotBlank() } ?: "天气源"
     }
 
     fun rainTiming(
@@ -129,12 +146,11 @@ object Nowcast {
         return km in 0.0..40.0
     }
 
-    // 彩云的分钟降水是按账户权限返回的完整功能块。只要接口确实返回了
-    // 当前/未来分钟序列，就展示模块；全 0 代表“有权限且未来无雨”，不是无数据。
+    // 任何源只要确实返回当前/未来短时序列就展示；全 0 代表“有数据且未来无雨”，
+    // 空列表才代表当前源没有这项能力或请求失败。
     fun shouldShowPrecipModule(data: WeatherData, nowMillis: Long): Boolean {
-        val caiyunMinuteAccess = data.dataSource.equals("CAIYUN", ignoreCase = true) &&
-            data.rainMinutes.any { it.timeMillis >= nowMillis - NOW_WINDOW_MS }
-        return caiyunMinuteAccess || shouldShowPrecipCard(data, nowMillis)
+        val hasUsableSeries = data.rainMinutes.any { it.timeMillis >= nowMillis - NOW_WINDOW_MS }
+        return hasUsableSeries || shouldShowPrecipCard(data, nowMillis)
     }
 
     // 分钟图按实际峰值选离散标尺，弱降水不会被固定 0.3 mm/h 的上限压成细线。
@@ -201,22 +217,19 @@ object Nowcast {
     ): Int? {
         val after = minutes.filter { it.timeMillis >= nowMillis }
         if (after.isEmpty()) return null
-        var run = 0
         var dryStart: MinutePrecip? = null
         for (p in after) {
             if (p.precip < wet) {
-                if (run == 0) dryStart = p
-                run++
-                if (run >= STOP_DRY_RUN) {
+                if (dryStart == null) dryStart = p
+                if (p.timeMillis - dryStart.timeMillis >= STOP_DRY_CONFIRM_MS) {
                     return ((dryStart!!.timeMillis - nowMillis + 30_000L) / MINUTE_MS).toInt()
                         .coerceAtLeast(1)
                 }
             } else {
-                run = 0
                 dryStart = null
             }
         }
-        if (run > 0 && after.last().precip < wet) {
+        if (dryStart != null && after.last().precip < wet) {
             return ((dryStart!!.timeMillis - nowMillis + 30_000L) / MINUTE_MS).toInt()
                 .coerceAtLeast(1)
         }

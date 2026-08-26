@@ -122,7 +122,7 @@ fun LandscapeStandbyScreen(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "ZHISHENG AMBIENT TERMINAL / 0.1.2Preview",
+                                "ZHISHENG AMBIENT TERMINAL / 0.1.2.1Preview",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = ZhishengTextTertiary,
                                 letterSpacing = 2.sp,

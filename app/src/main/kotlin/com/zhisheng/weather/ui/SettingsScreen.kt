@@ -374,7 +374,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             InlineGroupLabel("模块")
             CardBox {
-                ToggleRow("分钟降水", "未来两小时降水柱图", showPrecip) {
+                ToggleRow("短时降水", "未来两小时开始、停止与强度趋势", showPrecip) {
                     scope.launch { SettingsRepository.setShowPrecip(!showPrecip) }
                 }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)

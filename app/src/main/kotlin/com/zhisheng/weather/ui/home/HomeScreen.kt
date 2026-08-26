@@ -1605,14 +1605,16 @@ private fun HourlyItem(
     }
 }
 
-// —— 分钟降水：柱状雷达图 ——
+// —— 短时降水：先回答何时开始/停止，再展示原生时间粒度 ——
 @Composable
 private fun PrecipCard(data: WeatherData, modifier: Modifier) {
     // 0.0.9-debug 修复：离线缓存兜底时（staleAgeMillis 可 ≥10 分钟），分钟序列
     // 仍从抓取时刻起画——已过去的柱被画在紧贴 "NOW" 标签的位置，像是正在下。
     // 绘制前裁掉 2 分钟窗口之前的历史柱；全裁空就保持空，绝不把过期雨柱复活成“现在”。
+    val nowMillis = System.currentTimeMillis()
     val minutes = data.rainMinutes
-        .filter { it.timeMillis >= System.currentTimeMillis() - Nowcast.NOW_WINDOW_MS }
+        .filter { it.timeMillis >= nowMillis - Nowcast.NOW_WINDOW_MS }
+        .sortedBy { it.timeMillis }
     val rainDistanceKm = data.rainDistanceKm
     val precipNow = data.current.let { cur ->
         cur != null && (cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05)
@@ -1620,9 +1622,10 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
     val chartCeiling = Nowcast.precipChartCeiling(minutes)
     val dry = chartCeiling <= 0f
     val timingLabel = Nowcast.rainTimingLabel(
-        Nowcast.rainTiming(minutes, System.currentTimeMillis(), currentPrecip = precipNow),
+        Nowcast.rainTiming(minutes, nowMillis, currentPrecip = precipNow),
     )
-    val horizonLabel = Nowcast.horizonLabel(minutes)
+    val meta = data.rainMeta
+    val horizonMinutes = meta?.horizonMinutes?.coerceIn(30, 180) ?: 120
     val peak = minutes.maxOfOrNull { it.precip }?.coerceAtLeast(0f) ?: 0f
     val distanceLabel = rainDistanceKm?.takeIf { it > 0.0 }?.let { km ->
         if (km == Math.floor(km)) km.toInt().toString() else String.format(Locale.US, "%.1f", km)
@@ -1632,6 +1635,22 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
         distanceLabel != null -> "近处无雨 · 雨区距此 $distanceLabel km"
         else -> "未来 2 小时无降水"
     }
+    val intervalMinutes = meta?.intervalMinutes?.takeIf { it > 0 }
+        ?: minutes.zipWithNext { a, b -> ((b.timeMillis - a.timeMillis) / Nowcast.MINUTE_MS).toInt() }
+            .firstOrNull { it > 0 }
+        ?: 1
+    val source = Nowcast.sourceLabel(meta?.source ?: data.blockSources["minutely"] ?: data.dataSource)
+    val sourceLine = buildString {
+        append(source)
+        append(" · ")
+        append(intervalMinutes)
+        append("分钟级")
+        (meta?.updateTime ?: data.updateTime)?.let {
+            append(" · 更新于 ")
+            append(Fmt.clock(it, data.utcOffsetSeconds))
+        }
+    }
+    val peakLabel = "峰值 ${String.format(Locale.US, "%.1f", peak)} mm/h · ${Nowcast.intensityLabel(peak)}"
     // Canvas lambda 非 composable，颜色提前取值。
     val barCyan = ZhishengCyan.copy(alpha = 0.85f)
     val barBorder = ZhishengCardBorder
@@ -1639,13 +1658,12 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .height(68.dp)
                 .semantics {
                     contentDescription = if (dry) statusText
-                    else "$statusText，峰值 ${String.format(Locale.US, "%.2f", peak)} 毫米每小时"
+                    else "$statusText，$peakLabel"
                 },
         ) {
-            Row(Modifier.fillMaxWidth().height(38.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(42.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
                         .width(3.dp)
@@ -1655,7 +1673,7 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        if (dry) "CLEAR WINDOW" else "PRECIP WINDOW",
+                        if (dry) "CLEAR WINDOW" else "SHORT-TERM PRECIP",
                         style = MaterialTheme.typography.labelSmall,
                         color = ZhishengTextTertiary,
                         letterSpacing = 1.2.sp,
@@ -1670,48 +1688,59 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Spacer(Modifier.width(10.dp))
-                Column(horizontalAlignment = Alignment.End) {
+                if (!dry) {
+                    Spacer(Modifier.width(10.dp))
                     Text(
-                        String.format(Locale.US, "%.2f", peak),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (dry) ZhishengTextSecondary else ZhishengCyan,
-                        fontWeight = FontWeight.Bold,
+                        peakLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ZhishengCyan,
+                        maxLines = 1,
                     )
-                    Text("mm/h", style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth().height(22.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("NOW", style = MaterialTheme.typography.labelSmall, color = ZhishengOrange, letterSpacing = 0.8.sp)
-                Spacer(Modifier.width(8.dp))
-                Canvas(Modifier.weight(1f).fillMaxHeight()) {
+            if (!dry) {
+                Spacer(Modifier.height(6.dp))
+                Canvas(Modifier.fillMaxWidth().height(28.dp)) {
                     val baseline = size.height - 1.dp.toPx()
                     drawLine(barBorder, Offset(0f, baseline), Offset(size.width, baseline), 1.dp.toPx())
-                    if (!dry && minutes.isNotEmpty()) {
-                        val bw = size.width / minutes.size
+                    if (minutes.isNotEmpty()) {
+                        val horizonMs = horizonMinutes * Nowcast.MINUTE_MS
+                        val bucketWidth = (size.width * intervalMinutes / horizonMinutes.toFloat())
+                            .coerceIn(1.dp.toPx(), 18.dp.toPx())
                         val minWetHeight = 2.dp.toPx()
-                        minutes.forEachIndexed { i, minute ->
+                        minutes.forEach { minute ->
                             if (minute.precip > 0f) {
                                 val scaled = (minute.precip / chartCeiling).coerceIn(0f, 1f)
                                 val hgt = (scaled * (size.height - 2.dp.toPx())).coerceAtLeast(minWetHeight)
+                                val x = ((minute.timeMillis - nowMillis).toFloat() / horizonMs)
+                                    .coerceIn(0f, 1f) * size.width
                                 drawRect(
                                     color = barCyan,
-                                    topLeft = Offset(i * bw + bw * 0.14f, baseline - hgt),
-                                    size = androidx.compose.ui.geometry.Size((bw * 0.72f).coerceAtLeast(1f), hgt),
+                                    topLeft = Offset(x, baseline - hgt),
+                                    size = androidx.compose.ui.geometry.Size(bucketWidth * 0.82f, hgt),
                                 )
                             }
                         }
-                    } else {
-                        val dotRadius = 1.dp.toPx()
-                        listOf(0.25f, 0.5f, 0.75f).forEach { x ->
-                            drawCircle(barBorder, dotRadius, Offset(size.width * x, baseline))
-                        }
                     }
                 }
-                Spacer(Modifier.width(8.dp))
-                Text(horizonLabel, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
+                Row(Modifier.fillMaxWidth()) {
+                    listOf("现在", "30", "60", "90", "120 分钟").forEachIndexed { index, label ->
+                        Text(
+                            label,
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (index == 0) ZhishengOrange else ZhishengTextTertiary,
+                            textAlign = when (index) {
+                                0 -> TextAlign.Start
+                                4 -> TextAlign.End
+                                else -> TextAlign.Center
+                            },
+                        )
+                    }
+                }
             }
+            Spacer(Modifier.height(if (dry) 2.dp else 5.dp))
+            Text(sourceLine, style = MaterialTheme.typography.labelSmall, color = ZhishengTextTertiary)
         }
     }
 }
@@ -1735,19 +1764,52 @@ private fun DailySection(
         Column {
             daily.forEachIndexed { index, d ->
                 val expanded = expandedMillis == d.dateMillis
+                val isToday = Fmt.dailyDayLabel(d.dateMillis, utcOffsetSeconds = utcOffsetSeconds) == "今天"
+                if (index > 0 && Fmt.isDifferentMonth(daily[index - 1].dateMillis, d.dateMillis, utcOffsetSeconds)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            Fmt.month(d.dateMillis, utcOffsetSeconds),
+                            modifier = Modifier.width(50.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = ZhishengCyan,
+                            textAlign = TextAlign.Center,
+                        )
+                        HorizontalDivider(
+                            modifier = Modifier.weight(1f),
+                            color = ZhishengCyan.copy(alpha = 0.35f),
+                            thickness = 1.dp,
+                        )
+                    }
+                }
                 Column(
                     Modifier
                         .fillMaxWidth()
                         .clickable { expandedMillis = if (expanded) null else d.dateMillis }
-                        .padding(vertical = 6.dp),
                 ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = Fmt.weekday(d.dateMillis, index, utcOffsetSeconds),
-                            modifier = Modifier.width(44.dp),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = if (index == 0) ZhishengMint else ZhishengText,
-                        )
+                    Row(
+                        Modifier.fillMaxWidth().height(48.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            modifier = Modifier.width(50.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = Fmt.dailyDayLabel(d.dateMillis, utcOffsetSeconds = utcOffsetSeconds),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = if (isToday) ZhishengMint else ZhishengText,
+                                maxLines = 1,
+                            )
+                            Text(
+                                text = Fmt.dayOfMonth(d.dateMillis, utcOffsetSeconds),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isToday) ZhishengMint.copy(alpha = 0.8f) else ZhishengTextTertiary,
+                                maxLines = 1,
+                            )
+                        }
                         WeatherIcon(d.condition, Modifier.size(22.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(
@@ -1803,7 +1865,7 @@ private fun DailySection(
 
 @Composable
 private fun DailyExpanded(d: DailyWeather, windUnit: String) {
-    Column(Modifier.padding(start = 50.dp, top = 6.dp, end = 4.dp)) {
+    Column(Modifier.padding(start = 56.dp, top = 2.dp, bottom = 6.dp, end = 4.dp)) {
         d.weatherText?.takeIf { it.isNotBlank() }?.let {
             Text(it, style = MaterialTheme.typography.labelSmall, color = ZhishengMint)
             Spacer(Modifier.height(4.dp))

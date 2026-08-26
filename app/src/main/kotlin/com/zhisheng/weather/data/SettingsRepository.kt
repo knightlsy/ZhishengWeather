@@ -121,7 +121,7 @@ enum class AccentTone(val key: String, val cn: String) {
 
 enum class HomeModule(val key: String, val cn: String, val en: String) {
     HOURLY("hourly", "逐时预报", "HOURLY"),
-    PRECIP("precip", "分钟降水", "PRECIP"),
+    PRECIP("precip", "短时降水", "NOWCAST"),
     DAILY("daily", "逐日预报", "FORECAST"),
     TELEMETRY("telemetry", "遥测数据", "TELEMETRY"),
     AQI("aqi", "空气质量", "AIR QUALITY"),

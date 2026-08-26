@@ -87,6 +87,19 @@ class FmtTest {
     }
 
     @Test
+    fun dailyLabelsUseCityDateInsteadOfListIndex() {
+        val now = java.time.Instant.parse("2026-08-31T16:30:00Z").toEpochMilli()
+        val sameCityDay = java.time.Instant.parse("2026-09-01T03:00:00Z").toEpochMilli()
+        val previousCityDay = java.time.Instant.parse("2026-08-31T03:00:00Z").toEpochMilli()
+
+        assertEquals("今天", Fmt.dailyDayLabel(sameCityDay, now, 8 * 3_600))
+        assertEquals("周一", Fmt.dailyDayLabel(previousCityDay, now, 8 * 3_600))
+        assertEquals("1日", Fmt.dayOfMonth(sameCityDay, 8 * 3_600))
+        assertEquals("9月", Fmt.month(sameCityDay, 8 * 3_600))
+        assertEquals(true, Fmt.isDifferentMonth(previousCityDay, sameCityDay, 8 * 3_600))
+    }
+
+    @Test
     fun coordinatesUseAbsoluteValuesAndCorrectHemispheres() {
         assertEquals("39.90N  116.41E", Fmt.coordinates(39.90, 116.41))
         assertEquals("33.87S  151.21E", Fmt.coordinates(-33.87, 151.21))

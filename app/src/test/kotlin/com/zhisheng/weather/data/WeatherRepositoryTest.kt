@@ -104,10 +104,10 @@ class WeatherRepositoryTest {
     }
 
     @Test
-    fun lockedProvidersStillSupplementMissingForecastBlocks() {
+    fun onlyAutoAndXiaomiMaySupplementFromPublicSource() {
         assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.AUTO))
-        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.QWEATHER))
-        assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.CAIYUN))
+        assertEquals(false, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.QWEATHER))
+        assertEquals(false, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.CAIYUN))
         assertEquals(true, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.XIAOMI))
         assertEquals(false, WeatherRepository.shouldSupplementWithOpenMeteo(SourcePref.OPEN_METEO))
     }

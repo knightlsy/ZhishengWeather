@@ -13,6 +13,8 @@ object Fmt {
 
     private val hourFormatter = DateTimeFormatter.ofPattern("H时")
     private val dateFormatter = DateTimeFormatter.ofPattern("M月d日 E", Locale.CHINA)
+    private val dayFormatter = DateTimeFormatter.ofPattern("d日", Locale.CHINA)
+    private val monthFormatter = DateTimeFormatter.ofPattern("M月", Locale.CHINA)
 
     private fun zone(utcOffsetSeconds: Int?): ZoneId = utcOffsetSeconds
         ?.takeIf { it in -18 * 3_600..18 * 3_600 }
@@ -22,9 +24,15 @@ object Fmt {
     fun hour(epochMillis: Long, utcOffsetSeconds: Int?): String =
         hourFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
 
-    fun weekday(epochMillis: Long, index: Int, utcOffsetSeconds: Int?): String {
-        if (index == 0) return "今天"
-        return when (Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)).dayOfWeek.value) {
+    fun dailyDayLabel(
+        epochMillis: Long,
+        nowMillis: Long = System.currentTimeMillis(),
+        utcOffsetSeconds: Int?,
+    ): String {
+        val target = Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds))
+        val today = Instant.ofEpochMilli(nowMillis).atZone(zone(utcOffsetSeconds)).toLocalDate()
+        if (target.toLocalDate() == today) return "今天"
+        return when (target.dayOfWeek.value) {
             1 -> "周一"
             2 -> "周二"
             3 -> "周三"
@@ -33,6 +41,22 @@ object Fmt {
             6 -> "周六"
             else -> "周日"
         }
+    }
+
+    // 兼容旧调用；“今天”不再由列表下标决定。
+    fun weekday(epochMillis: Long, index: Int, utcOffsetSeconds: Int?): String =
+        dailyDayLabel(epochMillis, System.currentTimeMillis(), utcOffsetSeconds)
+
+    fun dayOfMonth(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        dayFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun month(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        monthFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun isDifferentMonth(firstMillis: Long, secondMillis: Long, utcOffsetSeconds: Int?): Boolean {
+        val first = Instant.ofEpochMilli(firstMillis).atZone(zone(utcOffsetSeconds))
+        val second = Instant.ofEpochMilli(secondMillis).atZone(zone(utcOffsetSeconds))
+        return first.year != second.year || first.monthValue != second.monthValue
     }
 
     fun date(epochMillis: Long, utcOffsetSeconds: Int?): String =
