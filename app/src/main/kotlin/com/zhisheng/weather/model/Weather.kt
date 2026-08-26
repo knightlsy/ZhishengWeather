@@ -11,7 +11,20 @@ data class City(
     val latitude: Double,
     val longitude: Double,
     val locationKey: String,
-)
+    val street: String? = null,
+) {
+    val displayName: String
+        get() = listOf(name, street.orEmpty())
+            .filter(String::isNotBlank)
+            .distinct()
+            .joinToString("·")
+
+    val contextLabel: String
+        get() = listOf(affiliation, street.orEmpty())
+            .filter(String::isNotBlank)
+            .distinct()
+            .joinToString(" · ")
+}
 
 // 以下模型全部 @Serializable：离线缓存（WeatherCache）按城市持久化最近一次 WeatherData（v0.0.4）
 @Serializable

@@ -152,6 +152,8 @@ object SettingsRepository {
     private val KEY_AMBIENCE = stringPreferencesKey("ambience")
     private val KEY_SCANLINES = booleanPreferencesKey("scanlines")
     private val KEY_LOCATION_ENABLED = booleanPreferencesKey("location_enabled")
+    private val KEY_PRECISE_LOCATION = booleanPreferencesKey("precise_location")
+    private val KEY_PRECISE_LOCATION_ASKED = booleanPreferencesKey("precise_location_asked")
     private val KEY_WIND_UNIT = stringPreferencesKey("wind_unit")
     private val KEY_PRESSURE_UNIT = stringPreferencesKey("pressure_unit")
     private val KEY_SHOW_AQI = booleanPreferencesKey("show_aqi")
@@ -187,6 +189,13 @@ object SettingsRepository {
     val scanlines: Flow<Boolean> by lazy { store.data.map { it[KEY_SCANLINES] ?: true } }
     // 定位总开关：关闭时 App 完全不碰位置权限（默认关，兑现「不主动获取权限」）
     val locationEnabled: Flow<Boolean> by lazy { store.data.map { it[KEY_LOCATION_ENABLED] ?: false } }
+    // 街道级定位为单独的可选能力；关闭时仍只使用粗略位置。
+    val preciseLocationEnabled: Flow<Boolean> by lazy {
+        store.data.map { it[KEY_PRECISE_LOCATION] ?: false }.distinctUntilChanged()
+    }
+    val preciseLocationPermissionAsked: Flow<Boolean> by lazy {
+        store.data.map { it[KEY_PRECISE_LOCATION_ASKED] ?: false }.distinctUntilChanged()
+    }
     // kmh / ms / bft
     val windUnit: Flow<String> by lazy { store.data.map { it[KEY_WIND_UNIT] ?: "kmh" } }
     // hpa / mmhg / inhg
@@ -236,6 +245,11 @@ object SettingsRepository {
     suspend fun setAmbience(a: AmbienceLevel) = store.edit { it[KEY_AMBIENCE] = a.key }
     suspend fun setScanlines(v: Boolean) = store.edit { it[KEY_SCANLINES] = v }
     suspend fun setLocationEnabled(v: Boolean) = store.edit { it[KEY_LOCATION_ENABLED] = v }
+    suspend fun setPreciseLocationEnabled(v: Boolean) = store.edit {
+        it[KEY_PRECISE_LOCATION] = v
+        it[KEY_PRECISE_LOCATION_ASKED] = false
+    }
+    suspend fun setPreciseLocationPermissionAsked() = store.edit { it[KEY_PRECISE_LOCATION_ASKED] = true }
     suspend fun setWindUnit(v: String) = store.edit { it[KEY_WIND_UNIT] = v }
     suspend fun setPressureUnit(v: String) = store.edit { it[KEY_PRESSURE_UNIT] = v }
     suspend fun setShowAqi(v: Boolean) = store.edit { it[KEY_SHOW_AQI] = v }

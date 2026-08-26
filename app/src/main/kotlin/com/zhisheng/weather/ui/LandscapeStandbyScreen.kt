@@ -116,7 +116,7 @@ fun LandscapeStandbyScreen(
                     ) {
                         Column {
                             Text(
-                                uiState.selectedCity?.name ?: "枳生天气",
+                                uiState.selectedCity?.displayName ?: "枳生天气",
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = ZhishengOrange,
                                 fontWeight = FontWeight.Bold,

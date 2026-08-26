@@ -21,7 +21,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.zhisheng.weather.BuildConfig
+import com.zhisheng.weather.R
 import com.zhisheng.weather.ui.theme.ZhishengBg
 import com.zhisheng.weather.ui.theme.ZhishengCardBorder
 import com.zhisheng.weather.ui.theme.ZhishengCyan
@@ -53,9 +53,6 @@ internal val CommunityQqGroup: String
 fun CommunityGroupDialog(onClose: () -> Unit) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
-    val qrResourceId = remember(context) {
-        context.resources.getIdentifier("qq_group_qr", "drawable", context.packageName)
-    }
 
     Dialog(
         onDismissRequest = onClose,
@@ -127,24 +124,22 @@ fun CommunityGroupDialog(onClose: () -> Unit) {
 
                     Spacer(Modifier.size(12.dp))
 
-                    if (qrResourceId != 0) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .widthIn(max = 300.dp)
-                                .aspectRatio(1016f / 1099f)
-                                .background(ZhishengBg)
-                                .border(1.dp, ZhishengCyan.copy(alpha = 0.72f), RectangleShape)
-                                .padding(7.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Image(
-                                painter = painterResource(qrResourceId),
-                                contentDescription = "枳生天气 QQ 群二维码，群号 $CommunityQqGroup",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit,
-                            )
-                        }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .widthIn(max = 300.dp)
+                            .aspectRatio(1016f / 1099f)
+                            .background(ZhishengBg)
+                            .border(1.dp, ZhishengCyan.copy(alpha = 0.72f), RectangleShape)
+                            .padding(7.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            painter = painterResource(R.drawable.qq_group_qr),
+                            contentDescription = "枳生天气 QQ 群二维码，群号 $CommunityQqGroup",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                        )
                     }
 
                     Spacer(Modifier.size(12.dp))

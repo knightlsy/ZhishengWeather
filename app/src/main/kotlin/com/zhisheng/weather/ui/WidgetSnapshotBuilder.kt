@@ -28,7 +28,7 @@ object WidgetSnapshotBuilder {
         WidgetCache.save(
             context,
             WidgetSnapshot(
-                city = city.name,
+                city = city.displayName,
                 temp = t(data.current?.temperature),
                 high = t(hi),
                 low = t(lo),

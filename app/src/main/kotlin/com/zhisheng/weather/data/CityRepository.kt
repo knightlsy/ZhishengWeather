@@ -134,6 +134,18 @@ object CityRepository {
         }
     }
 
+    suspend fun addOrUpdateLocatedCity(city: City) {
+        store.edit { prefs ->
+            val list = prefs.cities().toMutableList()
+            val existing = list.indexOfFirst { it.locationKey == city.locationKey }
+            if (existing >= 0) list[existing] = city else list.add(city)
+            val encoded = json.encodeToString(cityListSerializer, list)
+            prefs[KEY_CITIES] = encoded
+            prefs[KEY_CITIES_BACKUP] = encoded
+            prefs[KEY_SELECTED] = city.locationKey
+        }
+    }
+
     suspend fun removeCity(locationKey: String) {
         store.edit { prefs ->
             val list = prefs.cities().toMutableList()

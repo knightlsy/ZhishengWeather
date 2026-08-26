@@ -17,11 +17,8 @@ fun lp(key: String, def: String = ""): String = localProps.getProperty(key, def)
 // 公开版构建开关：./gradlew assembleRelease -PpublicBuild
 // 强制和风凭据为空 + 换用随库公开证书，保证 Release 分发的 APK 不含个人凭据
 val publicBuild = providers.gradleProperty("publicBuild").isPresent
-// 官方分发包可在构建时注入社区群号；默认留空，公开源码不包含外部联系信息。
-val communityQqGroup = providers.gradleProperty("communityQqGroup")
-    .orElse("")
-    .get()
-    .filter(Char::isDigit)
+// 用户交流入口是公开信息，所有构建版本都必须包含。
+val communityQqGroup = "1106284779"
 
 android {
     namespace = "com.zhisheng.weather"

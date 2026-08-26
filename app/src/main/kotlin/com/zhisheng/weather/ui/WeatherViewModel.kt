@@ -313,13 +313,21 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
             try {
                 when (val r = LocationSource.locate(getApplication())) {
                     is LocationSource.Result.Ok -> {
-                        _locateMessage.value = if (automatic) {
-                            "已自动更新定位：${r.city.name}"
-                        } else {
-                            "已定位：${r.city.name}"
+                        val prefix = when {
+                            automatic && r.streetStatus == LocationSource.StreetStatus.RESOLVED -> "已自动精确定位"
+                            automatic -> "已自动更新定位"
+                            r.streetStatus == LocationSource.StreetStatus.RESOLVED -> "已精确定位"
+                            else -> "已定位"
                         }
+                        val suffix = when (r.streetStatus) {
+                            LocationSource.StreetStatus.APPROXIMATE_PERMISSION -> "（系统仅授予大致位置）"
+                            LocationSource.StreetStatus.UNAVAILABLE -> "（暂未识别到街道）"
+                            else -> ""
+                        }
+                        _locateMessage.value = "$prefix：${r.city.displayName}$suffix"
                         lastFetchedKey = r.city.locationKey
-                        CityRepository.addCity(r.city)
+                        // 定位结果需要覆盖同城旧坐标与街道；手动搜索城市仍保持原有去重行为。
+                        CityRepository.addOrUpdateLocatedCity(r.city)
                         refresh(r.city)
                     }
                     is LocationSource.Result.Failed -> {

@@ -30,7 +30,8 @@ data class QwWind(
 @Serializable
 data class QwPrecip(
     val amount: QwVal? = null,
-    val probability: Int? = null,
+    // weather/v1 使用 0..1 小数；旧代码按 Int 解析会让整份逐时/逐日响应失败。
+    val probability: Double? = null,
     val type: String? = null,
 )
 

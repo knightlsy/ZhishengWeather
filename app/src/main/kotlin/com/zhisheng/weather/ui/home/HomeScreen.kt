@@ -256,7 +256,7 @@ fun HomeScreen(
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 TopBar(
-                    cityName = uiState.selectedCity?.name ?: "枳生天气",
+                    cityName = uiState.selectedCity?.displayName ?: "枳生天气",
                     loading = uiState.loading,
                     onMenu = { scope.launch { drawerState.open() } },
                     onRefresh = { viewModel.refresh() },
@@ -790,7 +790,7 @@ private fun CityDeckOverlay(
                                 .clickable(
                                     enabled = pinned,
                                     role = Role.Button,
-                                    onClickLabel = "切换到${city.name}",
+                                    onClickLabel = "切换到${city.displayName}",
                                 ) { onSelect(city.locationKey) }
                                 .padding(18.dp),
                             ) {
@@ -816,10 +816,10 @@ private fun CityDeckOverlay(
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            if (city.affiliation.isNotBlank()) {
+                            if (city.contextLabel.isNotBlank()) {
                                 Spacer(Modifier.height(6.dp))
                                 Text(
-                                    city.affiliation,
+                                    city.contextLabel,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = ZhishengTextSecondary,
                                     maxLines = 2,
@@ -1530,7 +1530,11 @@ private fun HourlyItem(
             color = if (isNow) ZhishengMint else ZhishengTextTertiary,
         )
         Spacer(Modifier.height(6.dp))
-        WeatherIcon(h.condition, Modifier.size(24.dp))
+        // 条件缺失时 WeatherIcon 不绘制内容，但图标槽仍必须保留；否则该格后续的
+        // 温度与 Canvas 会整体上移，连续曲线在格子边界出现“飞线”。
+        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+            WeatherIcon(h.condition, Modifier.fillMaxSize())
+        }
         Spacer(Modifier.height(2.dp))
         // 温度读数放在曲线正上方，视线不用来回跳
         Text(
@@ -2551,16 +2555,16 @@ private fun CityDrawer(
                         style = MaterialTheme.typography.titleSmall,
                         color = if (selected) ZhishengMint else ZhishengText,
                     )
-                    if (city.affiliation.isNotBlank()) {
+                    if (city.contextLabel.isNotBlank()) {
                         Text(
-                            city.affiliation,
+                            city.contextLabel,
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengTextTertiary,
                         )
                     }
                 }
                 IconButton(onClick = { onRemove(city.locationKey) }, modifier = Modifier.size(48.dp)) {
-                    Icon(Icons.Filled.Close, contentDescription = "删除${city.name}", tint = ZhishengTextTertiary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Close, contentDescription = "删除${city.displayName}", tint = ZhishengTextTertiary, modifier = Modifier.size(16.dp))
                 }
             }
         }

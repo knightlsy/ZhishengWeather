@@ -198,7 +198,7 @@ object WeatherRepository {
                         profile = WeatherCondition.qwProfile(dd.daytime?.condition?.code, null),
                         weatherText = dd.daytime?.condition?.text,
                         windSpeed = speedKmh(dd.daytime?.wind?.speed),
-                        precipProbability = dd.daytime?.precipitation?.probability,
+                        precipProbability = normalizeQwProbability(dd.daytime?.precipitation?.probability),
                         precipMm = dd.daytime?.precipitation?.amount?.value,
                         sunrise = formatClock(dd.astro?.sunrise),
                         sunset = formatClock(dd.astro?.sunset),
@@ -235,7 +235,7 @@ object WeatherRepository {
                         condition = WeatherCondition.fromQw(hh.condition?.icon, hh.condition?.code),
                         profile = WeatherCondition.qwProfile(hh.condition?.icon, hh.condition?.code),
                         windSpeed = speedKmh(hh.wind?.speed),
-                        precipProb = hh.precipitation?.probability,
+                        precipProb = normalizeQwProbability(hh.precipitation?.probability),
                     )
                 } ?: emptyList(),
                 daily = dailyList,
@@ -362,6 +362,11 @@ object WeatherRepository {
     }
 
     private fun pct(v: Double?): Double? = v?.let { if (it <= 1.0) it * 100.0 else it }
+
+    internal fun normalizeQwProbability(v: Double?): Int? = v
+        ?.takeIf(Double::isFinite)
+        ?.let { if (it <= 1.0) it * 100.0 else it }
+        ?.let { Math.round(it).toInt().coerceIn(0, 100) }
 
     // —— 小米源兜底路径（原有逻辑） ——
     private suspend fun fetchXiaomi(city: City): WeatherData = try {

@@ -7,7 +7,6 @@ dist/
 dist-tmp/
 captures/
 local.properties
-app/src/main/res/drawable-nodpi/qq_group_qr.jpg
 *.log
 
 # ===== IDE =====

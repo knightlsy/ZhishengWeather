@@ -208,10 +208,13 @@ private fun androidx.compose.foundation.lazy.LazyListScope.landscapePage() {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.customizationPage() {
     item { UpdateTitle("02//", "显示与接入优化", "CONTROL", ZhishengCyan) }
+    item { FeatureBlock("街道级定位", "可在设置中选择精确位置；未授权或无法识别街道时自动回退到城市。") }
     item { FeatureBlock("遥测项目自选", "开启开发者模式后，可自由选择湿度、风、气压、能见度、日月等项目。") }
     item { FeatureBlock("遥测卡片整齐", "保留终端卡片风格，项目数量为单数时也维持双列网格。") }
     item { FeatureBlock("更强氛围效果", "新增“强烈”档，天气动效的亮度、密度和速度更加明显。") }
     item { FeatureBlock("和风接入核验", "保存前直接检查实况天气，避免设置完成后才发现天气服务不可用。") }
+    item { FeatureBlock("预报显示修复", "修复和风逐时、逐日数据缺失，以及个别小时温度曲线错位。") }
+    item { FeatureBlock("社区入口恢复", "设置页固定显示用户交流 QQ 群、群号和二维码，不再因安装包差异而消失。") }
     item {
         Text(
             "以后想再看：设置 → 关于 → 点击版本号。",

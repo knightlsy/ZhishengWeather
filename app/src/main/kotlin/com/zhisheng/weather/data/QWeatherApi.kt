@@ -20,6 +20,7 @@ interface QWeatherService {
         @Path("lat") lat: String,
         @Path("lon") lon: String,
         @Query("localTime") localTime: Boolean = true,
+        @Query("lang") lang: String = "zh",
     ): QwCurrent
 
     @GET("weather/v1/hourly/{lat}/{lon}")
@@ -27,6 +28,7 @@ interface QWeatherService {
         @Path("lat") lat: String,
         @Path("lon") lon: String,
         @Query("localTime") localTime: Boolean = true,
+        @Query("lang") lang: String = "zh",
     ): QwHourly
 
     @GET("weather/v1/daily/{lat}/{lon}")
@@ -43,10 +45,15 @@ interface QWeatherService {
         @Path("lat") lat: String,
         @Path("lon") lon: String,
         @Query("localTime") localTime: Boolean = true,
+        @Query("lang") lang: String = "zh",
     ): QwAlerts
 
     @GET("airquality/v1/current/{lat}/{lon}")
-    suspend fun air(@Path("lat") lat: String, @Path("lon") lon: String): QwAir
+    suspend fun air(
+        @Path("lat") lat: String,
+        @Path("lon") lon: String,
+        @Query("lang") lang: String = "zh",
+    ): QwAir
 
     @GET("v7/minutely/5m")
     suspend fun minutely(@Query("location") location: String): QwMinutely

@@ -119,9 +119,12 @@ The APK is distributed through GitHub. Android may ask you to allow the current 
 ## Version 0.1.2 in development
 
 - Rotating the phone opens a dedicated desk weather clock; the setting can be disabled to lock portrait mode
+- Optional street-level positioning falls back to city-level location when precision or address lookup is unavailable
+- The QQ community group number and QR code are included in every distributed build
 - Developer mode can choose individual telemetry readings while preserving the two-column grid
 - Adds an Intense weather ambience level
 - QWeather setup now validates live current-weather access before saving
+- Fixes missing QWeather hourly/daily forecasts and misaligned hourly temperature curves
 
 ## Version 0.1.1
 
@@ -261,8 +264,10 @@ After location is enabled and permission is granted, the app rechecks the city a
 <details open>
 <summary><b>0.1.2 // LANDSCAPE</b></summary>
 
-- Adds the landscape standby terminal, selectable telemetry readings, and an Intense ambience level
+- Adds the landscape standby terminal, optional street-level positioning, selectable telemetry readings, and an Intense ambience level
 - Improves QWeather setup validation so unavailable weather access is caught before saving
+- Restores the QQ community entry in all distributed builds
+- Fixes QWeather v1 precipitation-probability parsing and hourly curve alignment
 
 </details>
 

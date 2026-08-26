@@ -5,7 +5,6 @@
  */
 package com.zhisheng.weather.ui
 
-import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -114,6 +113,8 @@ fun SettingsScreen(
     val ambience by SettingsRepository.ambience.collectAsState(initial = AmbienceLevel.VIVID)
     val scanlines by SettingsRepository.scanlines.collectAsState(initial = true)
     val locationEnabled by SettingsRepository.locationEnabled.collectAsState(initial = false)
+    val preciseLocationEnabled by SettingsRepository.preciseLocationEnabled.collectAsState(initial = false)
+    val preciseLocationPermissionAsked by SettingsRepository.preciseLocationPermissionAsked.collectAsState(initial = false)
     val showAqi by SettingsRepository.showAqi.collectAsState(initial = true)
     val showIndices by SettingsRepository.showIndices.collectAsState(initial = true)
     val showYesterday by SettingsRepository.showYesterday.collectAsState(initial = true)
@@ -144,13 +145,16 @@ fun SettingsScreen(
 
     // 权限申请器：只在用户点「定位当前城市」时触发，App 启动/刷新绝不调用
     val permLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            permDenied = false
-            onLocate()
-        } else {
-            permDenied = true
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        scope.launch {
+            if (preciseLocationEnabled) SettingsRepository.setPreciseLocationPermissionAsked()
+            if (LocationSource.hasPermission(context)) {
+                permDenied = false
+                onLocate()
+            } else {
+                permDenied = true
+            }
         }
     }
 
@@ -287,21 +291,41 @@ fun SettingsScreen(
                 }
                 if (locationEnabled) {
                     HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                    ToggleRow(
+                        "街道级精确定位",
+                        if (preciseLocationEnabled) {
+                            "开启·定位时可选择精确位置；识别失败自动回退到城市"
+                        } else {
+                            "关闭·仅使用城市级大致位置"
+                        },
+                        preciseLocationEnabled,
+                    ) {
+                        onClearLocateMessage()
+                        permDenied = false
+                        scope.launch { SettingsRepository.setPreciseLocationEnabled(!preciseLocationEnabled) }
+                    }
+                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                     ActionRow(
                         label = if (locating) "定位中 ..." else "⌖ 立即重新定位",
                         enabled = !locating,
                         color = ZhishengMint,
                     ) {
                         onClearLocateMessage()
-                        if (LocationSource.hasPermission(context)) onLocate()
-                        else permLauncher.launch(LocationSource.PERMISSION)
+                        val permissionReady = if (preciseLocationEnabled) {
+                            LocationSource.hasPrecisePermission(context) ||
+                                (LocationSource.hasPermission(context) && preciseLocationPermissionAsked)
+                        } else {
+                            LocationSource.hasPermission(context)
+                        }
+                        if (permissionReady) onLocate()
+                        else permLauncher.launch(LocationSource.requestedPermissions(preciseLocationEnabled))
                     }
                     locateMessage?.let { msg ->
                         HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                         Text(
                             "> $msg",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (msg.startsWith("已定位") || msg.startsWith("已自动更新定位")) {
+                            color = if (msg.startsWith("已")) {
                                 ZhishengMint
                             } else {
                                 ZhishengOrange
@@ -500,13 +524,11 @@ fun SettingsScreen(
                     color = ZhishengMint,
                 ) { showContributors = true }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                if (CommunityQqGroup.isNotBlank()) {
-                    LinkRow(
-                        "用户交流 QQ 群",
-                        "$CommunityQqGroup · 点开群二维码",
-                    ) { showCommunityGroup = true }
-                    HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                }
+                LinkRow(
+                    "用户交流 QQ 群",
+                    "$CommunityQqGroup · 点开群二维码",
+                ) { showCommunityGroup = true }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 LinkRow(
                     "GitHub 仓库",
                     "开源主页 · 欢迎 star",
