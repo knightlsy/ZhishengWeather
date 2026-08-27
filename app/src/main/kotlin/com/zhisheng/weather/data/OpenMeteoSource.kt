@@ -50,7 +50,7 @@ object OpenMeteoSource {
                 get<OmFull>(
                     "https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon" +
                         "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day," +
-                        "precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m," +
+                        "precipitation,weather_code,cloud_cover,surface_pressure,pressure_msl,wind_speed_10m," +
                         "wind_direction_10m,wind_gusts_10m,visibility,dew_point_2m" +
                         "&hourly=temperature_2m,weather_code,wind_speed_10m,precipitation_probability" +
                         "&daily=temperature_2m_max,temperature_2m_min,weather_code,wind_speed_10m_max," +
@@ -94,14 +94,17 @@ object OpenMeteoSource {
                     humidity = it.relative_humidity_2m,
                     windSpeed = it.wind_speed_10m,
                     windDirectionDeg = it.wind_direction_10m,
-                    pressure = it.pressure_msl,
+                    // 遥测的“气压”统一使用站点/地面气压。金川等高海拔地区若误用
+                    // pressure_msl，会比彩云和小米的站点气压高约 170 hPa，看起来像源在打架。
+                    pressure = it.surface_pressure ?: it.pressure_msl,
                     uvIndex = m.daily?.uv_index_max?.firstOrNull()?.let { u -> Math.round(u).toInt() },
                     visibility = it.visibility?.let { v -> v / 1000.0 },
                     dewPoint = it.dew_point_2m,
                     cloudCover = it.cloud_cover,
                     windGust = it.wind_gusts_10m,
                     precipMm = it.precipitation?.let { mm ->
-                        com.zhisheng.weather.model.Nowcast.accumulatedMmToRate(mm.toFloat(), 15).toDouble()
+                        val periodMin = ((it.interval ?: 900) / 60).coerceAtLeast(1)
+                        com.zhisheng.weather.model.Nowcast.accumulatedMmToRate(mm.toFloat(), periodMin).toDouble()
                     },
                     profile = profile,
                 )
@@ -172,13 +175,15 @@ object OpenMeteoSource {
             val aqiInfo = air?.current?.let { a ->
                 AqiInfo(
                     value = a.us_aqi?.let { Math.round(it).toInt() },
-                    level = WeatherRepository.aqiLevel(a.us_aqi?.let { Math.round(it).toInt() }),
+                    level = WeatherRepository.usAqiLevel(a.us_aqi?.let { Math.round(it).toInt() }),
                     pm25 = a.pm2_5?.let { fmt1(it) },
                     pm10 = a.pm10?.let { fmt1(it) },
                     o3 = a.ozone?.let { fmt1(it) },
                     no2 = a.nitrogen_dioxide?.let { fmt1(it) },
                     so2 = a.sulphur_dioxide?.let { fmt1(it) },
-                    co = a.carbon_monoxide?.let { fmt1(it) },
+                    // Open-Meteo 所有气体浓度均为 µg/m³；应用其余天气源的 CO 按 mg/m³
+                    // 展示，因此需除以 1000。此前 142 µg/m³ 被直接显示成 142。
+                    co = a.carbon_monoxide?.let { fmtCoMg(it) },
                 )
             }
 
@@ -202,11 +207,16 @@ object OpenMeteoSource {
     } catch (ce: kotlinx.coroutines.CancellationException) {
         throw ce
     } catch (e: Exception) {
-        WeatherData(error = e.message ?: "公共源网络错误")
+        WeatherData(error = WeatherRepository.userFacingFetchError("公共天气源"))
     }
 
     private fun fmt1(v: Double): String =
         if (v == Math.floor(v)) v.toInt().toString() else String.format(java.util.Locale.US, "%.1f", v)
+
+    internal fun fmtCoMg(microgramsPerCubicMeter: Double): String =
+        String.format(java.util.Locale.US, "%.2f", microgramsPerCubicMeter / 1000.0)
+            .trimEnd('0')
+            .trimEnd('.')
 
     // 逐时图标昼夜：按城市本地小时判断（6-18 视为白天），避免夜里整排太阳
     private fun isDayAt(epochMs: Long, offsetMs: Long): Boolean {
@@ -261,7 +271,9 @@ data class OmCurrentFull(
     val is_day: Int? = null,
     val precipitation: Double? = null,
     val weather_code: Int? = null,
+    val interval: Int? = null,
     val cloud_cover: Double? = null,
+    val surface_pressure: Double? = null,
     val pressure_msl: Double? = null,
     val wind_speed_10m: Double? = null,
     val wind_direction_10m: Double? = null,

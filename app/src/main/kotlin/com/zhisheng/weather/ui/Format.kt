@@ -1,8 +1,8 @@
 package com.zhisheng.weather.ui
 
+import com.zhisheng.weather.model.cityZone
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
@@ -16,10 +16,9 @@ object Fmt {
     private val dayFormatter = DateTimeFormatter.ofPattern("d日", Locale.CHINA)
     private val monthFormatter = DateTimeFormatter.ofPattern("M月", Locale.CHINA)
 
-    private fun zone(utcOffsetSeconds: Int?): ZoneId = utcOffsetSeconds
-        ?.takeIf { it in -18 * 3_600..18 * 3_600 }
-        ?.let(ZoneOffset::ofTotalSeconds)
-        ?: ZoneId.systemDefault()
+    fun zoneId(utcOffsetSeconds: Int?): ZoneId = cityZone(utcOffsetSeconds)
+
+    private fun zone(utcOffsetSeconds: Int?): ZoneId = zoneId(utcOffsetSeconds)
 
     fun hour(epochMillis: Long, utcOffsetSeconds: Int?): String =
         hourFormatter.format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
@@ -64,6 +63,10 @@ object Fmt {
 
     fun clock(epochMillis: Long, utcOffsetSeconds: Int?): String =
         DateTimeFormatter.ofPattern("HH:mm", Locale.US)
+            .format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
+
+    fun stamp(epochMillis: Long, utcOffsetSeconds: Int?): String =
+        DateTimeFormatter.ofPattern("MM-dd HH:mm", Locale.US)
             .format(Instant.ofEpochMilli(epochMillis).atZone(zone(utcOffsetSeconds)))
 
     fun coordinates(latitude: Double, longitude: Double): String {

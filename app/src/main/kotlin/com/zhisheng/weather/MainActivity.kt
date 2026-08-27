@@ -11,13 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,11 +33,15 @@ import com.zhisheng.weather.data.AccentTone
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.ThemeMode
 import com.zhisheng.weather.model.City
+import com.zhisheng.weather.ui.AppScreen
 import com.zhisheng.weather.ui.SearchScreen
 import com.zhisheng.weather.ui.WeatherViewModel
 import com.zhisheng.weather.ui.home.HomeScreen
 import com.zhisheng.weather.ui.SettingsScreen
 import com.zhisheng.weather.ui.AtmosphereLabScreen
+import com.zhisheng.weather.ui.overlayEnter
+import com.zhisheng.weather.ui.overlayExit
+import com.zhisheng.weather.ui.screenTransition
 import com.zhisheng.weather.ui.LandscapeStandbyScreen
 import com.zhisheng.weather.ui.WhatsNewDialog
 import com.zhisheng.weather.ui.WhatsNewPreferenceFile
@@ -48,7 +50,6 @@ import com.zhisheng.weather.ui.WhatsNewVersion
 import com.zhisheng.weather.ui.theme.ZhishengWeatherTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 
-private enum class Screen { HOME, SEARCH, SETTINGS, ATMOSPHERE_LAB }
 private data class ShortcutCommand(val action: String? = null, val sequence: Long = 0L)
 
 class MainActivity : ComponentActivity() {
@@ -87,7 +88,7 @@ class MainActivity : ComponentActivity() {
             ZhishengWeatherTheme(isLight = isLight, accentTone = accentTone) {
                 val vm: WeatherViewModel = viewModel()
                 // rememberSaveable：旋转/进程重建后仍停在原来那屏（v0.0.2）
-                var screen by rememberSaveable { mutableStateOf(Screen.HOME) }
+                var screen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
                 var showWhatsNew by rememberSaveable { mutableStateOf(shouldShowWhatsNew()) }
                 val uiState by vm.uiState.collectAsState()
                 val command by shortcutCommand.collectAsState()
@@ -131,10 +132,10 @@ class MainActivity : ComponentActivity() {
 
                 LaunchedEffect(command.sequence) {
                     when (command.action) {
-                        ACTION_SEARCH -> screen = Screen.SEARCH
-                        ACTION_SETTINGS -> screen = Screen.SETTINGS
+                        ACTION_SEARCH -> screen = AppScreen.SEARCH
+                        ACTION_SETTINGS -> screen = AppScreen.SETTINGS
                         ACTION_REFRESH -> {
-                            screen = Screen.HOME
+                            screen = AppScreen.HOME
                             vm.refresh(force = true)
                         }
                     }
@@ -148,8 +149,8 @@ class MainActivity : ComponentActivity() {
                 }
 
                 // 系统返回键：搜索/设置页退回主屏，而不是直接退出 App（v0.0.2）
-                BackHandler(enabled = screen != Screen.HOME) {
-                    screen = if (screen == Screen.ATMOSPHERE_LAB) Screen.SETTINGS else Screen.HOME
+                BackHandler(enabled = screen != AppScreen.HOME) {
+                    screen = if (screen == AppScreen.ATMOSPHERE_LAB) AppScreen.SETTINGS else AppScreen.HOME
                 }
 
                 // 每次打开 / 回到前台都拉最新天气（10 分钟内同城不重复拉）
@@ -161,48 +162,61 @@ class MainActivity : ComponentActivity() {
                 if (standbyActive) {
                     LandscapeStandbyScreen(uiState = uiState, onRefresh = { vm.refresh() })
                 } else {
-                    AnimatedContent(
-                        targetState = screen,
-                        transitionSpec = {
-                            if (targetState == Screen.SEARCH) {
-                                (fadeIn(tween(260)) + slideInHorizontally { it / 3 }) togetherWith
-                                    (fadeOut(tween(180)) + slideOutHorizontally { -it / 3 })
-                            } else {
-                                (fadeIn(tween(260)) + slideInHorizontally { -it / 3 }) togetherWith
-                                    (fadeOut(tween(180)) + slideOutHorizontally { it / 3 })
+                    // 主屏始终留在下层。进出设置/搜索只盖一层，避免拆掉 WeatherContent
+                    // 后温度、图标再播一遍交错入场。
+                    Box(Modifier.fillMaxSize()) {
+                        HomeScreen(
+                            viewModel = vm,
+                            onSearchClick = { screen = AppScreen.SEARCH },
+                            onSettingsClick = { screen = AppScreen.SETTINGS },
+                        )
+                        val overlayVisible = screen != AppScreen.HOME
+                        var overlayScreen by rememberSaveable { mutableStateOf(AppScreen.SETTINGS) }
+                        if (overlayVisible) overlayScreen = screen
+                        AnimatedVisibility(
+                            visible = overlayVisible,
+                            enter = overlayEnter(overlayScreen),
+                            exit = overlayExit(overlayScreen),
+                            modifier = Modifier.fillMaxSize(),
+                            label = "overlay",
+                        ) {
+                            AnimatedContent(
+                                targetState = overlayScreen,
+                                transitionSpec = { screenTransition(initialState, targetState) },
+                                label = "overlay-stack",
+                            ) { dest ->
+                                when (dest) {
+                                    AppScreen.HOME -> Box(Modifier.fillMaxSize())
+                                    AppScreen.SETTINGS -> SettingsScreen(
+                                        onBack = { screen = AppScreen.HOME },
+                                        onLocate = { vm.locateCurrentCity() },
+                                        locating = uiState.locating,
+                                        locateMessage = uiState.locateMessage,
+                                        onClearLocateMessage = { vm.clearLocateMessage() },
+                                        activeSource = uiState.weather?.dataSource,
+                                        activeSupplementSources = uiState.weather?.let { weather ->
+                                            weather.blockSources.values
+                                                .filter { it.isNotBlank() && it != weather.dataSource }
+                                                .distinct()
+                                        }.orEmpty(),
+                                        activeCityName = uiState.selectedCity?.name,
+                                        sourceLoading = uiState.loading,
+                                        onAtmosphereLab = { screen = AppScreen.ATMOSPHERE_LAB },
+                                        onShowWhatsNew = { showWhatsNew = true },
+                                    )
+                                    AppScreen.ATMOSPHERE_LAB -> AtmosphereLabScreen(
+                                        initialLevel = uiState.prefs.ambience,
+                                        onBack = { screen = AppScreen.SETTINGS },
+                                    )
+                                    AppScreen.SEARCH -> SearchScreen(
+                                        onCityPicked = { city: City ->
+                                            vm.addCityAndSelect(city)
+                                            screen = AppScreen.HOME
+                                        },
+                                        onBack = { screen = AppScreen.HOME },
+                                    )
+                                }
                             }
-                        },
-                        label = "screen",
-                    ) { current ->
-                        when (current) {
-                            Screen.SETTINGS -> SettingsScreen(
-                                onBack = { screen = Screen.HOME },
-                                onLocate = { vm.locateCurrentCity() },
-                                locating = uiState.locating,
-                                locateMessage = uiState.locateMessage,
-                                onClearLocateMessage = { vm.clearLocateMessage() },
-                                activeSource = uiState.weather?.dataSource,
-                                activeCityName = uiState.selectedCity?.name,
-                                sourceLoading = uiState.loading,
-                                onAtmosphereLab = { screen = Screen.ATMOSPHERE_LAB },
-                                onShowWhatsNew = { showWhatsNew = true },
-                            )
-                            Screen.ATMOSPHERE_LAB -> AtmosphereLabScreen(
-                                initialLevel = uiState.prefs.ambience,
-                                onBack = { screen = Screen.SETTINGS },
-                            )
-                            Screen.SEARCH -> SearchScreen(
-                                onCityPicked = { city: City ->
-                                    vm.addCityAndSelect(city)
-                                    screen = Screen.HOME
-                                },
-                                onBack = { screen = Screen.HOME },
-                            )
-                            Screen.HOME -> HomeScreen(
-                                viewModel = vm,
-                                onSearchClick = { screen = Screen.SEARCH },
-                                onSettingsClick = { screen = Screen.SETTINGS },
-                            )
                         }
                     }
                 }

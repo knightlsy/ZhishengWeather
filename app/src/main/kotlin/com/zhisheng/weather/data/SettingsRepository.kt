@@ -17,10 +17,10 @@ private val Context.settingsStore: DataStore<Preferences> by preferencesDataStor
 // 数据源偏好：AUTO 默认小米→公共源；和风只在开发者模式下可锁定。
 // 装不上和风的用户锁 OPEN_METEO 即可拿到完整体验（实况/逐时/逐日/空气质量全免 key）。
 enum class SourcePref(val key: String, val cn: String, val en: String, val desc: String) {
-    AUTO("auto", "自动优选", "AUTO", "小米→公共源"),
+    AUTO("auto", "自动优选", "AUTO", "按功能优选·失败降级"),
     QWEATHER("qweather", "和风天气", "QWEATHER", "开发者·需凭据"),
     CAIYUN("caiyun", "彩云天气", "CAIYUN", "开发者·需 Token"),
-    XIAOMI("xiaomi", "小米天气", "XIAOMI", "免配置·国内"),
+    XIAOMI("xiaomi", "小米公开接口", "XIAOMI", "免配置·国内"),
     OPEN_METEO("openmeteo", "Open-Meteo", "OPEN-METEO", "免配置·全球");
 
     companion object {
@@ -98,6 +98,61 @@ enum class TelemetryMetric(val key: String, val cn: String, val en: String) {
     }
 }
 
+enum class LifeIndexMetric(val key: String, val cn: String, val en: String) {
+    CAR_WASH("car_wash", "洗车", "CAR WASH"),
+    SPORTS("sports", "运动", "SPORTS"),
+    DRESS("dress", "穿衣", "DRESS"),
+    FISHING("fishing", "钓鱼", "FISHING"),
+    UV("uv", "紫外线", "UV"),
+    TRAVEL("travel", "旅游", "TRAVEL"),
+    ALLERGY("allergy", "过敏", "ALLERGY"),
+    COMFORT("comfort", "舒适度", "COMFORT"),
+    COLD("cold", "感冒", "COLD"),
+    AIR_POLLUTION("air_pollution", "空气扩散", "AIR"),
+    AIR_CONDITIONER("air_conditioner", "空调", "A/C"),
+    SUNGLASSES("sunglasses", "太阳镜", "GLASSES"),
+    MAKEUP("makeup", "化妆", "MAKEUP"),
+    DRYING("drying", "晾晒", "DRYING"),
+    TRAFFIC("traffic", "交通", "TRAFFIC"),
+    SUNSCREEN("sunscreen", "防晒", "SPF");
+
+    companion object {
+        private const val NONE = "__none__"
+        val defaultSelection: Set<LifeIndexMetric> = entries.toSet()
+
+        fun selectionFrom(raw: String?): Set<LifeIndexMetric> = when {
+            raw == null -> defaultSelection
+            raw == NONE -> emptySet()
+            else -> raw.split(',')
+                .mapNotNull { key -> entries.firstOrNull { it.key == key.trim() } }
+                .toSet()
+        }
+
+        fun selectionKey(selection: Set<LifeIndexMetric>): String =
+            if (selection.isEmpty()) NONE else entries.filter(selection::contains).joinToString(",") { it.key }
+
+        fun fromEnglish(raw: String): LifeIndexMetric? = when (raw.trim().uppercase()) {
+            "CAR WASH" -> CAR_WASH
+            "SPORTS" -> SPORTS
+            "DRESS" -> DRESS
+            "FISHING" -> FISHING
+            "UV" -> UV
+            "TRAVEL" -> TRAVEL
+            "ALLERGY" -> ALLERGY
+            "COMFORT" -> COMFORT
+            "COLD" -> COLD
+            "AIR POLLUTION", "AIR" -> AIR_POLLUTION
+            "A/C" -> AIR_CONDITIONER
+            "SUNGLASSES", "GLASSES" -> SUNGLASSES
+            "MAKEUP" -> MAKEUP
+            "DRYING" -> DRYING
+            "TRAFFIC" -> TRAFFIC
+            "SPF" -> SUNSCREEN
+            else -> null
+        }
+    }
+}
+
 // 主题模式（v0.0.5）：默认深色保持磷光终端品牌，可切纸面浅色或跟随系统
 enum class ThemeMode(val key: String, val cn: String) {
     DARK("dark", "深色"),
@@ -116,6 +171,16 @@ enum class AccentTone(val key: String, val cn: String) {
 
     companion object {
         fun from(v: String?): AccentTone = entries.firstOrNull { it.key == v } ?: STANDARD
+    }
+}
+
+enum class AppIconStyle(val key: String, val cn: String) {
+    CHARACTER("character", "天气娘"),
+    CLASSIC("classic", "经典");
+
+    companion object {
+        fun from(v: String?): AppIconStyle =
+            entries.firstOrNull { it.key == v } ?: CHARACTER
     }
 }
 
@@ -165,10 +230,12 @@ object SettingsRepository {
     private val KEY_KEEP_SCREEN_ON = booleanPreferencesKey("keep_screen_on")
     private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
     private val KEY_ACCENT_TONE = stringPreferencesKey("accent_tone")
+    private val KEY_APP_ICON = stringPreferencesKey("app_icon")
     private val KEY_MODULE_ORDER = stringPreferencesKey("home_module_order")
     private val KEY_DEVELOPER = booleanPreferencesKey("developer_mode")
     private val KEY_LANDSCAPE_STANDBY = booleanPreferencesKey("landscape_standby")
     private val KEY_TELEMETRY_METRICS = stringPreferencesKey("telemetry_metrics")
+    private val KEY_LIFE_INDEX_METRICS = stringPreferencesKey("life_index_metrics")
 
     fun init(context: Context) {
         store = context.applicationContext.settingsStore
@@ -213,12 +280,18 @@ object SettingsRepository {
     val telemetryMetrics: Flow<Set<TelemetryMetric>> by lazy {
         store.data.map { TelemetryMetric.selectionFrom(it[KEY_TELEMETRY_METRICS]) }.distinctUntilChanged()
     }
+    val lifeIndexMetrics: Flow<Set<LifeIndexMetric>> by lazy {
+        store.data.map { LifeIndexMetric.selectionFrom(it[KEY_LIFE_INDEX_METRICS]) }.distinctUntilChanged()
+    }
     // 主题模式（v0.0.5）：默认深色
     val themeMode: Flow<ThemeMode> by lazy {
         store.data.map { ThemeMode.from(it[KEY_THEME_MODE]) }.distinctUntilChanged()
     }
     val accentTone: Flow<AccentTone> by lazy {
         store.data.map { AccentTone.from(it[KEY_ACCENT_TONE]) }.distinctUntilChanged()
+    }
+    val appIconStyle: Flow<AppIconStyle> by lazy {
+        store.data.map { AppIconStyle.from(it[KEY_APP_ICON]) }.distinctUntilChanged()
     }
     val moduleOrder: Flow<List<HomeModule>> by lazy {
         store.data.map { HomeModule.orderFrom(it[KEY_MODULE_ORDER]) }.distinctUntilChanged()
@@ -263,8 +336,12 @@ object SettingsRepository {
     suspend fun setTelemetryMetrics(selection: Set<TelemetryMetric>) = store.edit {
         it[KEY_TELEMETRY_METRICS] = TelemetryMetric.selectionKey(selection)
     }
+    suspend fun setLifeIndexMetrics(selection: Set<LifeIndexMetric>) = store.edit {
+        it[KEY_LIFE_INDEX_METRICS] = LifeIndexMetric.selectionKey(selection)
+    }
     suspend fun setThemeMode(mode: ThemeMode) = store.edit { it[KEY_THEME_MODE] = mode.key }
     suspend fun setAccentTone(tone: AccentTone) = store.edit { it[KEY_ACCENT_TONE] = tone.key }
+    suspend fun setAppIconStyle(style: AppIconStyle) = store.edit { it[KEY_APP_ICON] = style.key }
     suspend fun setModuleOrder(order: List<HomeModule>) = store.edit {
         it[KEY_MODULE_ORDER] = HomeModule.orderFrom(order.joinToString(",") { module -> module.key })
             .joinToString(",") { module -> module.key }

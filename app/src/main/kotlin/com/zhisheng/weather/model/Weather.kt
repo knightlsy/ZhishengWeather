@@ -1,6 +1,10 @@
 package com.zhisheng.weather.model
 
 import kotlinx.serialization.Serializable
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.ZoneOffset
 
 // 枳生天气 · UI 数据模型
 
@@ -187,6 +191,8 @@ data class WeatherData(
     val alerts: List<AlertInfo> = emptyList(),
     val updateTime: Long? = null,
     val rainNowcast: String? = null,
+    // 未来 24 小时变化摘要，与短时降水文案严格分开，避免放在实况下方时看似自相矛盾。
+    val forecastSummary: String? = null,
     val rainMinutes: List<MinutePrecip> = emptyList(),
     // 保留各源真实时间粒度；UI 不再把 5/15 分钟桶伪装成逐分钟数据。
     val rainMeta: RainMeta? = null,
@@ -201,7 +207,31 @@ data class WeatherData(
     val blockSources: Map<String, String> = emptyMap(),
     val utcOffsetSeconds: Int? = null,
     val error: String? = null,
-)
+) {
+    fun todayDaily(nowMillis: Long = System.currentTimeMillis()): DailyWeather? {
+        val today = cityDate(nowMillis, utcOffsetSeconds)
+        return daily.firstOrNull { cityDate(it.dateMillis, utcOffsetSeconds) == today }
+    }
+
+    fun tomorrowDaily(nowMillis: Long = System.currentTimeMillis()): DailyWeather? {
+        val tomorrow = cityDate(nowMillis, utcOffsetSeconds).plusDays(1)
+        return daily.firstOrNull { cityDate(it.dateMillis, utcOffsetSeconds) == tomorrow }
+    }
+
+    fun currentAndFutureDaily(nowMillis: Long = System.currentTimeMillis()): List<DailyWeather> {
+        val today = cityDate(nowMillis, utcOffsetSeconds)
+        return daily.filter { !cityDate(it.dateMillis, utcOffsetSeconds).isBefore(today) }
+    }
+}
+
+fun cityZone(utcOffsetSeconds: Int?): ZoneId =
+    utcOffsetSeconds
+        ?.takeIf { it in -18 * 3_600..18 * 3_600 }
+        ?.let(ZoneOffset::ofTotalSeconds)
+        ?: ZoneId.systemDefault()
+
+fun cityDate(epochMillis: Long, utcOffsetSeconds: Int?): LocalDate =
+    Instant.ofEpochMilli(epochMillis).atZone(cityZone(utcOffsetSeconds)).toLocalDate()
 
 @Serializable
 enum class WeatherCondition(val label: String) {

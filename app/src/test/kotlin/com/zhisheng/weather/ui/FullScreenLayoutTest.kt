@@ -1,6 +1,7 @@
 package com.zhisheng.weather.ui
 
 import java.io.File
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -17,5 +18,16 @@ class FullScreenLayoutTest {
         assertTrue(activity.contains("window.isNavigationBarContrastEnforced = false"))
         assertTrue(theme.contains("<item name=\"android:navigationBarColor\">@android:color/transparent</item>"))
         assertTrue(home.contains("CLEAR SIGNAL"))
+        assertTrue(home.contains("listOf(\"现在\", \"30\", \"60\", \"90\", \"120 分钟\")"))
+        assertTrue(home.contains("precipCardClearWindow"))
+        assertTrue(home.contains("WeatherConsistency.currentHourIndex"))
+        assertTrue(home.contains("Fmt.stamp"))
+        assertTrue(home.contains("Fmt.zoneId(data.utcOffsetSeconds)"))
+        assertTrue(home.contains("%.1f mm/h"))
+        assertTrue(home.contains("未来雨势暂缺"))
+        assertTrue(home.contains("Fmt.coordinates(it.latitude, it.longitude)"))
+        assertTrue(home.contains("textAlign = TextAlign.End"))
+        assertTrue(home.contains("SRC \${dataSourceShortLabel(data.dataSource)}"))
+        assertFalse(home.contains("\"\$updText // SRC"))
     }
 }

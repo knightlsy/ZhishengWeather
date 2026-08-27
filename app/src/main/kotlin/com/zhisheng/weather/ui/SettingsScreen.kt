@@ -61,10 +61,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zhisheng.weather.data.AccentTone
+import com.zhisheng.weather.data.AppIconManager
+import com.zhisheng.weather.data.AppIconStyle
 import com.zhisheng.weather.data.AmbienceLevel
 import com.zhisheng.weather.data.CaiyunApi
 import com.zhisheng.weather.data.HomeModule
 import com.zhisheng.weather.data.LocationSource
+import com.zhisheng.weather.data.LifeIndexMetric
 import com.zhisheng.weather.data.QWeatherApi
 import com.zhisheng.weather.data.SecretStore
 import com.zhisheng.weather.data.SettingsRepository
@@ -96,6 +99,7 @@ fun SettingsScreen(
     locateMessage: String?,
     onClearLocateMessage: () -> Unit,
     activeSource: String?,
+    activeSupplementSources: List<String>,
     activeCityName: String?,
     sourceLoading: Boolean,
     onAtmosphereLab: () -> Unit,
@@ -124,8 +128,10 @@ fun SettingsScreen(
     val keepScreenOn by SettingsRepository.keepScreenOn.collectAsState(initial = false)
     val landscapeStandby by SettingsRepository.landscapeStandby.collectAsState(initial = true)
     val telemetryMetrics by SettingsRepository.telemetryMetrics.collectAsState(initial = TelemetryMetric.defaultSelection)
+    val lifeIndexMetrics by SettingsRepository.lifeIndexMetrics.collectAsState(initial = LifeIndexMetric.defaultSelection)
     val themeMode by SettingsRepository.themeMode.collectAsState(initial = ThemeMode.DARK)
     val accentTone by SettingsRepository.accentTone.collectAsState(initial = AccentTone.STANDARD)
+    val appIconStyle by SettingsRepository.appIconStyle.collectAsState(initial = AppIconStyle.CHARACTER)
     val moduleOrder by SettingsRepository.moduleOrder.collectAsState(initial = HomeModule.defaultOrder)
     val qwRt by SecretStore.qwRuntimeFlow.collectAsState(initial = SecretStore.qwRuntime)
     val caiyunRt by SecretStore.caiyunRuntimeFlow.collectAsState(initial = SecretStore.caiyunRuntime)
@@ -138,9 +144,11 @@ fun SettingsScreen(
     var wizard by rememberSaveable { mutableStateOf<ProviderWizardKind?>(null) }
     var showContributors by remember { mutableStateOf(false) }
     var showCommunityGroup by remember { mutableStateOf(false) }
+    var showAppUpdate by remember { mutableStateOf(false) }
     var developerToolsExpanded by rememberSaveable { mutableStateOf(false) }
     var moduleOrderExpanded by rememberSaveable { mutableStateOf(false) }
     var telemetryItemsExpanded by rememberSaveable { mutableStateOf(false) }
+    var lifeIndexItemsExpanded by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     // 权限申请器：只在用户点「定位当前城市」时触发，App 启动/刷新绝不调用
@@ -186,7 +194,12 @@ fun SettingsScreen(
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp),
         ) {
-            SectionTitle(1, "天气来源", "DATA SOURCE", sourceHint(source, activeSource, activeCityName, sourceLoading))
+            SectionTitle(
+                1,
+                "天气来源",
+                "DATA SOURCE",
+                sourceHint(source, activeSource, activeSupplementSources, activeCityName, sourceLoading),
+            )
             CardBox {
                 listOf(SourcePref.AUTO, SourcePref.XIAOMI, SourcePref.OPEN_METEO).forEachIndexed { i, p ->
                     if (i > 0) HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
@@ -439,6 +452,46 @@ fun SettingsScreen(
                         }
                     }
                 }
+
+                Spacer(Modifier.height(8.dp))
+                InlineGroupLabel("生活指数项目", "开发者模式 · 自由选择显示内容")
+                CardBox {
+                    ActionRow(
+                        label = if (lifeIndexItemsExpanded) {
+                            "> 收起生活指数项目 · ${lifeIndexMetrics.size}/${LifeIndexMetric.entries.size}"
+                        } else {
+                            "> 选择生活指数项目 · ${lifeIndexMetrics.size}/${LifeIndexMetric.entries.size}"
+                        },
+                        enabled = showIndices,
+                        color = ZhishengCyan,
+                    ) { lifeIndexItemsExpanded = !lifeIndexItemsExpanded }
+                    if (lifeIndexItemsExpanded && showIndices) {
+                        HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                        Row(Modifier.fillMaxWidth()) {
+                            ActionRow(
+                                label = "> 全选",
+                                enabled = lifeIndexMetrics.size != LifeIndexMetric.entries.size,
+                                color = ZhishengMint,
+                                modifier = Modifier.weight(1f),
+                            ) { scope.launch { SettingsRepository.setLifeIndexMetrics(LifeIndexMetric.defaultSelection) } }
+                            ActionRow(
+                                label = "> 清空",
+                                enabled = lifeIndexMetrics.isNotEmpty(),
+                                color = ZhishengOrange,
+                                modifier = Modifier.weight(1f),
+                            ) { scope.launch { SettingsRepository.setLifeIndexMetrics(emptySet()) } }
+                        }
+                        LifeIndexMetric.entries.forEach { metric ->
+                            HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                            ToggleRow(metric.cn, metric.en, metric in lifeIndexMetrics) {
+                                val next = lifeIndexMetrics.toMutableSet().apply {
+                                    if (!add(metric)) remove(metric)
+                                }
+                                scope.launch { SettingsRepository.setLifeIndexMetrics(next) }
+                            }
+                        }
+                    }
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -489,6 +542,20 @@ fun SettingsScreen(
                 ) { v -> scope.launch { SettingsRepository.setAccentTone(AccentTone.from(v)) } }
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 SegmentRow(
+                    "应用图标",
+                    listOf("天气娘" to "character", "经典" to "classic"),
+                    appIconStyle.key,
+                    hint = "选择桌面显示的图标；切换后可能需要片刻刷新",
+                ) { value ->
+                    val selected = AppIconStyle.from(value)
+                    scope.launch {
+                        if (AppIconManager.apply(context, selected)) {
+                            SettingsRepository.setAppIconStyle(selected)
+                        }
+                    }
+                }
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                SegmentRow(
                     "天气氛围层",
                     listOf("关闭" to "off", "克制" to "subtle", "明显" to "vivid", "强烈" to "intense"),
                     ambience.key,
@@ -512,11 +579,17 @@ fun SettingsScreen(
             CardBox {
                 InfoRow(
                     "版本",
-                    "v${com.zhisheng.weather.BuildConfig.VERSION_NAME} · 查看更新",
+                    "v${com.zhisheng.weather.BuildConfig.VERSION_NAME} · 更新说明",
                     onClick = onShowWhatsNew,
                 )
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
-                InfoRow("权限", "仅网络；位置为可选且默认关闭")
+                InfoRow(
+                    "检查更新",
+                    "有新版本时再下载，不自动提醒",
+                    onClick = { showAppUpdate = true },
+                )
+                HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
+                InfoRow("权限", "网络；位置可选；检查更新时才调用系统安装")
                 HorizontalDivider(thickness = 1.dp, color = ZhishengCardBorder)
                 ActionRow(
                     label = "> 社区贡献者名单 · ${CommunityContributors.size} 位",
@@ -550,7 +623,7 @@ fun SettingsScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Text(
-                "数据来源：和风天气 / 彩云天气 / 小米天气 / Open-Meteo",
+                "数据来源：和风天气 / 彩云天气 / 小米公开接口 / Open-Meteo",
                 style = MaterialTheme.typography.labelSmall,
                 color = ZhishengTextTertiary.copy(alpha = 0.75f),
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp, bottom = 28.dp),
@@ -567,11 +640,15 @@ fun SettingsScreen(
     if (showCommunityGroup) {
         CommunityGroupDialog(onClose = { showCommunityGroup = false })
     }
+    if (showAppUpdate) {
+        AppUpdateDialog(onClose = { showAppUpdate = false })
+    }
 }
 
 private fun sourceHint(
     selected: SourcePref,
     activeSource: String?,
+    supplementSources: List<String>,
     cityName: String?,
     loading: Boolean,
 ): String {
@@ -579,18 +656,20 @@ private fun sourceHint(
     if (loading) return "正在为 $city 连接 ${selected.cn}，完成后这里会显示实际返回数据的来源。"
     val active = sourceName(activeSource)
         ?: return "$city 还没有成功返回天气数据；选择数据源后可直接看到连接结果。"
+    val supplements = supplementSources.mapNotNull(::sourceName).filter { it != active }.distinct()
+    val activeSummary = if (supplements.isEmpty()) active else "$active + ${supplements.joinToString("/")}（分项）"
     return if (selected == SourcePref.AUTO) {
-        "$city 当前实际使用：$active。自动优选会在首选源不可用时依次降级。"
+        "$city 当前实际使用：$activeSummary。自动优选会按功能选源，并在首选源不可用时降级。"
     } else {
-        "$city 当前实际使用：$active；设置已锁定为 ${selected.cn}。"
+        "$city 当前实际使用：$activeSummary；设置已锁定为 ${selected.cn}。"
     }
 }
 
 private fun sourceDescription(p: SourcePref): String = when (p) {
-    SourcePref.AUTO -> "小米 → Open-Meteo，按可用性降级"
+    SourcePref.AUTO -> "小米为主；实况与短时冲突时按完整区块优选"
     SourcePref.QWEATHER -> if (QWeatherApi.enabled) "凭据已配置·完整数据" else "在下方接入"
     SourcePref.CAIYUN -> if (CaiyunApi.enabled) "Token 已配置·本机接入" else "在下方填写 Token"
-    SourcePref.XIAOMI -> "免配置·国内城市优先"
+    SourcePref.XIAOMI -> "免配置·国内覆盖"
     SourcePref.OPEN_METEO -> "免配置·全球覆盖"
 }
 
@@ -622,7 +701,7 @@ private fun sourceMatches(pref: SourcePref, activeSource: String?): Boolean = wh
 private fun sourceName(activeSource: String?): String? = when (activeSource) {
     "QWEATHER" -> "和风天气"
     "CAIYUN" -> "彩云天气"
-    "XIAOMI" -> "小米天气"
+    "XIAOMI" -> "小米公开接口"
     "OPEN-METEO" -> "Open-Meteo"
     else -> activeSource
 }

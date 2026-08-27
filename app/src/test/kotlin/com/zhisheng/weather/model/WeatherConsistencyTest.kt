@@ -89,6 +89,7 @@ class WeatherConsistencyTest {
         val aligned = WeatherConsistency.align(data, t0)
         assertEquals(WeatherCondition.DRIZZLE, aligned.current?.condition)
         assertEquals("小雨", aligned.current?.weatherText)
+        assertEquals(0.04, aligned.current?.precipMm!!, 0.0001)
     }
 
     @Test
@@ -120,5 +121,62 @@ class WeatherConsistencyTest {
         assertEquals(WeatherCondition.DRIZZLE, aligned.hourly.first().condition)
         assertTrue(Nowcast.briefingLine(aligned, "c", t0)!!.contains("雨"))
         assertTrue(!Nowcast.briefingLine(aligned, "c", t0)!!.contains("不会下雨"))
+    }
+
+    @Test
+    fun fiftyMinutesPastTheHourOverlaysTheContainingHourNotTheNext() {
+        val hour10 = t0
+        val hour11 = t0 + 3_600_000L
+        val now = t0 + 50 * 60_000L
+        val hourly = listOf(
+            HourlyWeather(hour10, 14.0, WeatherCondition.OVERCAST),
+            HourlyWeather(hour11, 14.0, WeatherCondition.RAIN),
+        )
+        assertEquals(0, WeatherConsistency.currentHourIndex(hourly, now))
+        val aligned = WeatherConsistency.align(
+            WeatherData(
+                current = CurrentWeather(temperature = 16.0, condition = WeatherCondition.DRIZZLE, weatherText = "小雨"),
+                hourly = hourly,
+            ),
+            now,
+        )
+        assertEquals(WeatherCondition.DRIZZLE, aligned.hourly[0].condition)
+        assertEquals(16.0, aligned.hourly[0].temperature)
+        assertEquals(WeatherCondition.RAIN, aligned.hourly[1].condition)
+    }
+
+    @Test
+    fun alignStillDropsPastHoursWhenCurrentIsMissing() {
+        val data = WeatherData(
+            hourly = listOf(
+                HourlyWeather(t0 - 3 * 3_600_000L, 14.0, WeatherCondition.OVERCAST),
+                HourlyWeather(t0 + 3_600_000L, 16.0, WeatherCondition.DRIZZLE),
+            ),
+        )
+        val aligned = WeatherConsistency.align(data, t0)
+        assertEquals(1, aligned.hourly.size)
+        assertEquals(t0 + 3_600_000L, aligned.hourly[0].timeMillis)
+    }
+
+    @Test
+    fun widgetKeepsFirstFutureHourWhenThereIsNoCurrentSlot() {
+        val now = t0
+        val hourly = listOf(
+            HourlyWeather(t0 + 2 * 3_600_000L, 16.0, WeatherCondition.OVERCAST),
+            HourlyWeather(t0 + 3 * 3_600_000L, 17.0, WeatherCondition.CLEAR),
+        )
+
+        assertEquals(-1, WeatherConsistency.currentHourIndex(hourly, now))
+        assertEquals(0, WeatherConsistency.upcomingHourStartIndex(hourly, now))
+    }
+
+    @Test
+    fun widgetSkipsOnlyTheActualCurrentHour() {
+        val hourly = listOf(
+            HourlyWeather(t0, 15.0, WeatherCondition.OVERCAST),
+            HourlyWeather(t0 + 3_600_000L, 16.0, WeatherCondition.CLEAR),
+        )
+
+        assertEquals(1, WeatherConsistency.upcomingHourStartIndex(hourly, t0 + 20 * 60_000L))
     }
 }

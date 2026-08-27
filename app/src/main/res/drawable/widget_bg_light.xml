@@ -1,32 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 0.1.3Preview：浅色磨砂玻璃，维持可读性同时保留桌面壁纸层次。 -->
+<!-- Hallmark · liquid terminal glass · translucent pearl, readable over bright wallpaper. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <gradient android:angle="315" android:startColor="#E6FFFFFF" android:centerColor="#CFEAF0F4" android:endColor="#D9BBC6CF" />
-            <stroke android:width="1dp" android:color="#999DAAB5" />
-            <corners android:radius="27dp" />
+            <solid android:color="#B8E8EEF1" />
+            <stroke android:width="1dp" android:color="#B8FFFFFF" />
+            <corners android:radius="22dp" />
         </shape>
     </item>
-    <item android:left="2dp" android:top="2dp" android:right="3dp" android:bottom="4dp">
+    <item>
         <shape android:shape="rectangle">
-            <gradient android:angle="270" android:startColor="#D9FFFFFF" android:centerColor="#BFF5F8FA" android:endColor="#C9E7EDF1" />
-            <stroke android:width="1dp" android:color="#708CB4BD" />
-            <corners android:radius="24dp" />
-        </shape>
-    </item>
-    <item android:left="12dp" android:top="5dp" android:right="12dp" android:gravity="top">
-        <shape android:shape="rectangle">
-            <size android:height="1dp" />
-            <gradient android:angle="0" android:startColor="#00FFFFFF" android:centerColor="#EFFFFFFF" android:endColor="#00FFFFFF" />
-            <corners android:radius="1dp" />
-        </shape>
-    </item>
-    <item android:left="14dp" android:right="14dp" android:bottom="5dp" android:gravity="bottom">
-        <shape android:shape="rectangle">
-            <size android:height="1dp" />
-            <gradient android:angle="0" android:startColor="#6616697A" android:centerColor="#24FFFFFF" android:endColor="#66B45309" />
-            <corners android:radius="1dp" />
+            <gradient
+                android:angle="315"
+                android:startColor="#78FFFFFF"
+                android:centerColor="#24FFFFFF"
+                android:endColor="#0A8CB8C4" />
+            <corners android:radius="22dp" />
         </shape>
     </item>
 </layer-list>

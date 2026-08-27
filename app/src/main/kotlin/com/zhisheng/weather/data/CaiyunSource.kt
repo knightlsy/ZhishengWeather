@@ -36,7 +36,9 @@ interface CaiyunService {
         @Path("lat") lat: String,
         @Query("alert") alert: Boolean = true,
         @Query("dailysteps") dailySteps: Int = 15,
-        @Query("hourlysteps") hourlySteps: Int = 48,
+        // 官方允许 1..360；超出套餐上限会按套餐截断，因此直接请求最大能力，
+        // 付费用户可拿到完整时效，免费套餐也不会因此失败。
+        @Query("hourlysteps") hourlySteps: Int = 360,
         @Query("unit") unit: String = "metric:v2",
     ): CaiyunWeatherResponse
 }
@@ -71,7 +73,7 @@ object CaiyunSource {
             if (!body.status.equals("ok", true) || body.result == null) {
                 WeatherData(error = "彩云天气请求失败")
             } else {
-                map(body.result)
+                map(body.result, city)
             }
         } catch (ce: kotlinx.coroutines.CancellationException) {
             throw ce
@@ -95,11 +97,13 @@ object CaiyunSource {
         }
     }
 
-    private fun map(r: CaiyunResult): WeatherData {
+    private fun map(r: CaiyunResult, city: City): WeatherData {
         val rt = r.realtime
-        val now = System.currentTimeMillis()
+        val now = System.currentTimeMillis() / Nowcast.MINUTE_MS * Nowcast.MINUTE_MS
         val precip2h = r.minutely?.precipitation2h ?: r.minutely?.precipitation
         val minutes = precip2h?.let { Nowcast.minuteSeries(it.map { v -> v.toFloat() }, now) }.orEmpty()
+        val offsetHint = offsetSeconds(r.hourly?.temperature?.firstOrNull()?.datetime)
+            ?: offsetSeconds(r.daily?.temperature?.firstOrNull()?.date)
         return WeatherData(
             current = rt?.let {
                 CurrentWeather(
@@ -108,7 +112,7 @@ object CaiyunSource {
                     condition = skycon(it.skycon),
                     weatherText = skyconLabel(it.skycon),
                     profile = skyconProfile(it.skycon),
-                    humidity = it.humidity?.times(100.0),
+                    humidity = ratioToPercent(it.humidity),
                     // 0.0.9-debug 修复：官方单位制表 metric（默认）下 wind.speed 就是 km/h，
                     // 内部风速单位也是 km/h。原实现 ×3.6 把风速放大 3.6 倍
                     //（2 级微风显示成 7 级大风）。仅 unit=SI 时才是 m/s。
@@ -116,38 +120,67 @@ object CaiyunSource {
                     windDirectionDeg = it.wind?.direction,
                     pressure = it.pressure?.div(100.0),
                     visibility = it.visibility,
-                    cloudCover = it.cloudrate?.times(100.0),
+                    cloudCover = ratioToPercent(it.cloudrate),
                     precipMm = it.precipitation?.local?.intensity,
                 )
             },
             hourly = r.hourly?.let { h ->
-                val n = minOf(h.temperature?.size ?: 0, h.skycon?.size ?: 0, 48)
-                (0 until n).map { i ->
-                    val slot = h.temperature!![i]
+                val n = maxOf(
+                    h.temperature?.size ?: 0,
+                    h.skycon?.size ?: 0,
+                    h.wind?.size ?: 0,
+                    h.precipitation?.size ?: 0,
+                ).coerceAtMost(360)
+                (0 until n).mapNotNull { i ->
+                    val temp = h.temperature?.getOrNull(i)
+                    val sky = h.skycon?.getOrNull(i)
+                    val wind = h.wind?.getOrNull(i)
+                    val precip = h.precipitation?.getOrNull(i)
+                    val rawTime = temp?.datetime ?: sky?.datetime ?: wind?.datetime ?: precip?.datetime
+                    val timeMillis = parseTime(rawTime, offsetHint) ?: return@mapNotNull null
                     HourlyWeather(
-                        timeMillis = parseTime(slot.datetime) ?: (now + i * 3_600_000L),
-                        temperature = slot.value,
-                        condition = skycon(h.skycon?.getOrNull(i)?.value),
-                        profile = skyconProfile(h.skycon?.getOrNull(i)?.value),
-                        windSpeed = h.wind?.getOrNull(i)?.speed,
+                        timeMillis = timeMillis,
+                        temperature = temp?.value,
+                        condition = skycon(sky?.value),
+                        profile = skyconProfile(sky?.value),
+                        windSpeed = wind?.speed,
+                        precipProb = normalizeProbability(precip?.probability),
                     )
                 }
             }.orEmpty(),
-            daily = r.daily?.temperature?.mapIndexed { i, d ->
-                DailyWeather(
-                    dateMillis = parseTime(d.date) ?: (now + i * 86_400_000L),
-                    high = d.max,
-                    low = d.min,
-                    condition = skycon(r.daily.skycon?.getOrNull(i)?.value),
-                    weatherText = skyconLabel(r.daily.skycon?.getOrNull(i)?.value),
-                    profile = skyconProfile(r.daily.skycon?.getOrNull(i)?.value),
-                    sunrise = r.daily.astro?.getOrNull(i)?.sunrise?.time,
-                    sunset = r.daily.astro?.getOrNull(i)?.sunset?.time,
-                    precipProbability = normalizeProbability(
-                        r.daily.precipitation?.getOrNull(i)?.probability,
-                    ),
-                    precipMm = r.daily.precipitation?.getOrNull(i)?.max,
-                )
+            daily = r.daily?.let { daily ->
+                val n = maxOf(
+                    daily.temperature?.size ?: 0,
+                    daily.skycon?.size ?: 0,
+                    daily.skyconDay?.size ?: 0,
+                    daily.skyconNight?.size ?: 0,
+                    daily.astro?.size ?: 0,
+                    daily.precipitation?.size ?: 0,
+                ).coerceAtMost(15)
+                (0 until n).mapNotNull { i ->
+                    val temp = daily.temperature?.getOrNull(i)
+                    val sky = daily.skycon?.getOrNull(i)
+                    val daySky = daily.skyconDay?.getOrNull(i)?.value
+                    val nightSky = daily.skyconNight?.getOrNull(i)?.value
+                    val astro = daily.astro?.getOrNull(i)
+                    val precip = daily.precipitation?.getOrNull(i)
+                    val rawDate = temp?.date ?: sky?.datetime ?: sky?.date ?: astro?.date ?: precip?.date
+                    val dateMillis = parseTime(rawDate, offsetHint) ?: return@mapNotNull null
+                    val dayNight = dailyDayNight(daySky, nightSky, sky?.value)
+                    MoonCalc.enrich(DailyWeather(
+                        dateMillis = dateMillis,
+                        high = temp?.max,
+                        low = temp?.min,
+                        condition = dayNight.first,
+                        weatherText = dayNight.second,
+                        profile = skyconProfile(daySky ?: sky?.value) ?: skyconProfile(nightSky),
+                        sunrise = astro?.sunrise?.time,
+                        sunset = astro?.sunset?.time,
+                        precipProbability = normalizeProbability(precip?.probability),
+                        // metric:v2 的 daily.precipitation.max 是峰值雨强 mm/h，不是日累计。
+                        // 没有日合计就留空，不用峰值冒充全天降水量。
+                    ), city.latitude, city.longitude)
+                }
             }.orEmpty(),
             aqi = rt?.airQuality?.let { a ->
                 AqiInfo(
@@ -172,15 +205,19 @@ object CaiyunSource {
                 )
             },
             updateTime = now,
-            rainNowcast = r.minutely?.description ?: r.forecastKeypoint,
+            // 官方定义：minutely.description 是未来 2 小时短临，forecast_keypoint 是
+            // 未来 24 小时变化。两者不能塞进同一个字段，否则“实况晴”下面紧接
+            // “多云，今晚转雨”会被误读成同一时刻互相打架。
+            rainNowcast = r.minutely?.description,
+            forecastSummary = r.forecastKeypoint,
             rainMinutes = minutes,
-            rainMeta = minutes.takeIf { it.isNotEmpty() }?.let { RainMeta("CAIYUN", 1, now) },
+            rainMeta = minutes.takeIf { it.isNotEmpty() }?.let {
+                RainMeta("CAIYUN", 1, now, horizonMinutes = it.size.coerceIn(30, 180))
+            },
             extraIndices = mapLifeIndices(r.daily?.lifeIndex),
             dataSource = "CAIYUN",
             blockSources = mapOf("current" to "CAIYUN", "hourly" to "CAIYUN", "daily" to "CAIYUN", "minutely" to "CAIYUN"),
-            utcOffsetSeconds = offsetSeconds(
-                r.hourly?.temperature?.firstOrNull()?.datetime ?: r.daily?.temperature?.firstOrNull()?.date,
-            ),
+            utcOffsetSeconds = offsetHint,
         )
     }
 
@@ -211,16 +248,50 @@ object CaiyunSource {
         return LifeIndexExtra(name, en, item.desc!!.trim())
     }
 
-    private fun parseTime(raw: String?): Long? = try {
-        if (raw.isNullOrBlank()) null
-        else OffsetDateTime.parse(raw).toInstant().toEpochMilli()
-    } catch (_: Exception) {
+    internal fun parseTime(raw: String?, fallbackOffsetSeconds: Int? = null): Long? {
+        if (raw.isNullOrBlank()) return null
         try {
-            java.time.LocalDateTime.parse(raw!!.take(19)).atZone(java.time.ZoneId.systemDefault())
-                .toInstant().toEpochMilli()
+            return OffsetDateTime.parse(raw).toInstant().toEpochMilli()
+        } catch (_: Exception) {
+        }
+        return try {
+            val local = java.time.LocalDateTime.parse(raw.take(19))
+            val zone = fallbackOffsetSeconds
+                ?.takeIf { it in -18 * 3_600..18 * 3_600 }
+                ?.let { java.time.ZoneOffset.ofTotalSeconds(it) }
+                ?: java.time.ZoneOffset.ofHours(8)
+            local.atZone(zone).toInstant().toEpochMilli()
         } catch (_: Exception) {
             null
         }
+    }
+
+    internal fun ratioToPercent(value: Double?): Double? {
+        if (value == null || !value.isFinite() || value < 0.0) return null
+        val pct = if (value <= 1.0) value * 100.0 else value
+        return pct.takeIf { it <= 100.0 }
+    }
+
+    internal fun dailyDayNight(
+        daySky: String?,
+        nightSky: String?,
+        fallbackSky: String?,
+    ): Pair<WeatherCondition?, String?> {
+        val dayCondition = skycon(daySky)
+        val nightCondition = skycon(nightSky)
+        val fallbackCondition = skycon(fallbackSky)
+        val condition = when {
+            dayCondition != null && nightCondition != null ->
+                WeatherCondition.moreSignificant(dayCondition, nightCondition)
+            else -> dayCondition ?: nightCondition ?: fallbackCondition
+        }
+        val dayText = skyconLabel(daySky)
+        val nightText = skyconLabel(nightSky)
+        val text = when {
+            dayText != null && nightText != null && dayText != nightText -> "${dayText}转${nightText}"
+            else -> dayText ?: nightText ?: skyconLabel(fallbackSky)
+        }
+        return condition to text
     }
 
     internal fun skycon(code: String?): WeatherCondition? = skyconProfile(code)?.condition

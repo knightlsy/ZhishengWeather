@@ -56,6 +56,14 @@ internal val CommunityContributors = listOf(
     "紅星照耀中國",
     "我爱跑步",
     "河鱼天雁",
+    "你的心里没点高数吗",
+    "周月星斗",
+    "无敌战神暴王龙",
+    "control3",
+    "明珠有泪",
+    "Gstar_",
+    "伍拾两HZ",
+    "寡欲老公猪",
 )
 
 @Composable

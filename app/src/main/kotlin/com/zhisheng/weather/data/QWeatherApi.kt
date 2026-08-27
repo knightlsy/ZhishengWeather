@@ -27,6 +27,7 @@ interface QWeatherService {
     suspend fun hourly(
         @Path("lat") lat: String,
         @Path("lon") lon: String,
+        @Query("hours") hours: Int,
         @Query("localTime") localTime: Boolean = true,
         @Query("lang") lang: String = "zh",
     ): QwHourly

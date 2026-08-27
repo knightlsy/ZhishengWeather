@@ -60,9 +60,9 @@ Small project, simple rules — a few notes below.*
 
 ## 05// 图标与美术 ASSETS
 
-启动图标使用黑底、磷光青和信号橙。应用内 15 枚天气图标以青色为主，统一放在 `drawable-nodpi`。提交新图标时请先检查 48 px 下是否仍然清楚，并附上深色背景预览。
+默认启动图标是带经典天气发卡的天气娘头像，并保留原版天气图标作为可切换选项；两者都使用黑底、磷光青和信号橙。应用内 15 枚天气图标以青色为主，统一放在 `drawable-nodpi`。提交新图标时请先检查 48 px 下是否仍然清楚，并附上深色背景预览。
 
-*The launcher icon uses black, phosphor cyan, and signal orange. The 15 in-app weather glyphs are primarily cyan and live in `drawable-nodpi`. Check new artwork at 48 px and include a dark-background preview with the PR.*
+*The default launcher icon is the weather character portrait with the classic weather mark as a hair clip; the original icon remains selectable. Both use black, phosphor cyan, and signal orange. The 15 in-app weather glyphs are primarily cyan and live in `drawable-nodpi`. Check new artwork at 48 px and include a dark-background preview with the PR.*
 
 ## 06// 安全红线 SECURITY
 

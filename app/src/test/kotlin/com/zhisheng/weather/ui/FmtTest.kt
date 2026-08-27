@@ -84,6 +84,8 @@ class FmtTest {
         assertEquals("周二", Fmt.weekday(instant, 1, -5 * 3_600))
         assertEquals("8月26日 周三", Fmt.date(instant, 9 * 3_600))
         assertEquals("8月25日 周二", Fmt.date(instant, -5 * 3_600))
+        assertEquals("08-26 09:30", Fmt.stamp(instant, 9 * 3_600))
+        assertEquals("08-25 19:30", Fmt.stamp(instant, -5 * 3_600))
     }
 
     @Test

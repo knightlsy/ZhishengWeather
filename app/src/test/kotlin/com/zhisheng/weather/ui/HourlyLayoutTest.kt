@@ -12,5 +12,6 @@ class HourlyLayoutTest {
 
         assertTrue(home.contains("Box(Modifier.size(24.dp), contentAlignment = Alignment.Center)"))
         assertTrue(home.contains("WeatherIcon(h.condition, Modifier.fillMaxSize())"))
+        assertTrue(home.contains("WeatherConsistency.currentHourIndex(hourly, nowMs)"))
     }
 }

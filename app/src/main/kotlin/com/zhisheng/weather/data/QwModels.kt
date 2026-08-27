@@ -30,6 +30,8 @@ data class QwWind(
 @Serializable
 data class QwPrecip(
     val amount: QwVal? = null,
+    // amount 是当前数据时段累计量；intensity 才是实时雨强（通常为 mm/h）。
+    val intensity: QwVal? = null,
     // weather/v1 使用 0..1 小数；旧代码按 Int 解析会让整份逐时/逐日响应失败。
     val probability: Double? = null,
     val type: String? = null,
@@ -86,6 +88,7 @@ data class QwDay(
     val temperatureMax: QwVal? = null,
     val temperatureMin: QwVal? = null,
     val daytime: QwDayPeriod? = null,
+    val nighttime: QwDayPeriod? = null,
 )
 
 @Serializable
@@ -126,7 +129,9 @@ data class QwPrimaryPollutant(val code: String? = null, val name: String? = null
 @Serializable
 data class QwAirIndex(
     val code: String? = null,
-    val aqi: Int? = null,
+    // QAQI 使用小数值，不能按 Int 反序列化，否则海外空气质量整路会失败。
+    val aqi: Double? = null,
+    val aqiDisplay: String? = null,
     val level: String? = null,
     val category: String? = null,
     val primaryPollutant: QwPrimaryPollutant? = null,

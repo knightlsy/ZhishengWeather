@@ -1,6 +1,9 @@
 package com.zhisheng.weather.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -53,7 +56,7 @@ import com.zhisheng.weather.ui.theme.ZhishengText
 import com.zhisheng.weather.ui.theme.ZhishengTextSecondary
 import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 
-internal const val WhatsNewVersion = "0.1.3Preview"
+internal const val WhatsNewVersion = "0.1.3"
 internal const val WhatsNewPreferenceFile = "zhisheng_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
@@ -89,7 +92,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "ZHISHENG WEATHER / 0.1.3Preview",
+                            "ZHISHENG WEATHER / 0.1.3",
                             style = MaterialTheme.typography.labelSmall,
                             color = ZhishengCyan,
                             letterSpacing = 1.3.sp,
@@ -129,8 +132,11 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                     targetState = page,
                     transitionSpec = {
                         val direction = if (targetState > initialState) 1 else -1
-                        (fadeIn(tween(180)) + slideInHorizontally(tween(240)) { it * direction / 4 }) togetherWith
-                            (fadeOut(tween(130)) + slideOutHorizontally(tween(190)) { -it * direction / 4 })
+                        val enter = fadeIn(tween(140, easing = LinearOutSlowInEasing)) +
+                            slideInHorizontally(tween(220, easing = FastOutSlowInEasing)) { it * direction / 6 }
+                        val exit = fadeOut(tween(110, easing = FastOutLinearInEasing)) +
+                            slideOutHorizontally(tween(180, easing = FastOutSlowInEasing)) { -it * direction / 8 }
+                        enter togetherWith exit
                     },
                     label = "whats-new-page",
                     modifier = Modifier.weight(1f),
@@ -180,7 +186,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.3Preview ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.3 ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) ZhishengCyan else ZhishengMint,
                             fontWeight = FontWeight.Bold,
@@ -194,26 +200,31 @@ fun WhatsNewDialog(onClose: () -> Unit) {
 
 private fun androidx.compose.foundation.lazy.LazyListScope.forecastPage() {
     item {
-        UpdateTitle("01//", "从 0.1.0 升级", "WHAT'S CHANGED", ZhishengOrange)
+        UpdateTitle("01//", "天气体验升级", "WHAT'S CHANGED", ZhishengOrange)
     }
     item {
         EmphasisBlock(
-            "如果你正在使用公开版 0.1.0，这次更新覆盖了横屏、定位、预报阅读和多项显示问题。",
+            "横屏、定位、预报阅读和数据展示全面升级，日常查看更准确、更清楚。",
         )
     }
     item { FeatureBlock("横屏待机", "横放手机进入独立气象时钟；也可以在设置中关闭横屏，保持竖屏使用。") }
     item { FeatureBlock("定位更精确", "可选择精确位置并尽量显示街道；无法识别时会稳妥回退到城市。") }
     item { FeatureBlock("逐时与逐日修复", "修复预报缺失和温度曲线错位；逐日增加日号，跨月时显示月份分隔。") }
     item { FeatureBlock("短时降水重做", "直接说明何时开始或停止，显示峰值雨势和两小时时间轴；无雨时也保持完整布局。") }
+    item { FeatureBlock("同一时刻对齐", "实况、逐时「现在」和短时降水按城市当地时间说话；正在下雨时不会再出现晴窗。") }
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.sourcePage() {
     item { UpdateTitle("02//", "数据与显示升级", "DATA + DISPLAY", ZhishengCyan) }
-    item { FeatureBlock("和风接入更可靠", "保存凭据前会验证真实天气权限；手动选择和风后，不再悄悄混入其他天气源。") }
-    item { FeatureBlock("来源说明更透明", "短时降水会标出天气源、真实时间粒度和更新时间，缺失的数据不会冒充已提供。") }
-    item { FeatureBlock("遥测可以自选", "开发者模式可自由选择显示项目，项目多少变化时仍保持整齐双列。") }
+    item { FeatureBlock("和风接入更可靠", "保存凭据前会验证真实天气权限；补齐昼夜预报、降水雨强和空气质量解析，手动选择后不再混入其他天气源。") }
+    item { FeatureBlock("自动优选更稳定", "自动优选以小米天气为主，只在缺少数据时补充其他来源；手动选择时保持单一来源，并标出真实时间粒度和更新时间。") }
+    item { FeatureBlock("套餐能力不浪费", "数据源返回了更长逐时预报或更多生活指数时会完整展示；没有返回的内容不会用占位信息冒充。") }
+    item { FeatureBlock("数据口径校准", "气压按地面观测口径显示，统一一小时降水与空气污染物单位，跨源对照更直观。") }
+    item { FeatureBlock("遥测可以自选", "开发者模式可自由选择显示项目，项目数量变化时会自动排满，不再留下突兀空栏。") }
+    item { FeatureBlock("生活指数更整齐", "生活指数会按返回数量自动排满；开发者模式也可以自由选择要显示的项目。") }
     item { FeatureBlock("夜间氛围增强", "增加更明显的氛围档位，并改善夜间模式下天气效果不易看见的问题。") }
-    item { FeatureBlock("透明小组件", "桌面小组件换成分层半透明玻璃外壳，信息清楚，壁纸也能自然透出。") }
+    item { FeatureBlock("透明小组件", "桌面小组件换成分层半透明玻璃外壳，重新整理边框、字号和对齐，并补充逐时趋势与生活信息。") }
+    item { FeatureBlock("天气娘图标", "默认启用新的天气娘头像；喜欢原版时，可在设置的界面选项中随时切回经典图标。") }
     item { FeatureBlock("真正铺满屏幕", "背景和天气氛围延伸到手势导航区域，底部不再出现割裂的黑边。") }
     item {
         Text(

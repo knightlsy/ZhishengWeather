@@ -7,12 +7,14 @@ import com.zhisheng.weather.data.AmbienceLevel
 import com.zhisheng.weather.data.CityRepository
 import com.zhisheng.weather.data.HomeModule
 import com.zhisheng.weather.data.LocationSource
+import com.zhisheng.weather.data.LifeIndexMetric
 import com.zhisheng.weather.data.SettingsRepository
 import com.zhisheng.weather.data.SourcePref
 import com.zhisheng.weather.data.TelemetryMetric
 import com.zhisheng.weather.data.WeatherCache
 import com.zhisheng.weather.data.WeatherRepository
 import com.zhisheng.weather.model.City
+import com.zhisheng.weather.model.WeatherConsistency
 import com.zhisheng.weather.model.WeatherData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,6 +38,7 @@ data class DisplayPrefs(
     val bootAnim: Boolean = true,
     val moduleOrder: List<HomeModule> = HomeModule.defaultOrder,
     val telemetryMetrics: Set<TelemetryMetric> = TelemetryMetric.defaultSelection,
+    val lifeIndexMetrics: Set<LifeIndexMetric> = LifeIndexMetric.defaultSelection,
 )
 
 data class HomeUiState(
@@ -128,6 +131,8 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
         prefs.copy(moduleOrder = order)
     }.combine(SettingsRepository.telemetryMetrics) { prefs, metrics ->
         prefs.copy(telemetryMetrics = metrics)
+    }.combine(SettingsRepository.lifeIndexMetrics) { prefs, metrics ->
+        prefs.copy(lifeIndexMetrics = metrics)
     }.stateIn(viewModelScope, SharingStarted.Eagerly, DisplayPrefs())
 
     private data class WeatherCore(
@@ -232,14 +237,14 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                     throw ce
                 } catch (e: Exception) {
                     android.util.Log.w("ZhishengWeather", "抓取异常 ${target.name}", e)
-                    WeatherData(error = e.message ?: "网络错误")
+                    WeatherData(error = WeatherRepository.userFacingFetchError("天气数据"))
                 }
                 if (result.current == null) {
                     // 失败兜底：只复用同一数据源的缓存。换源失败时不能把上一源的卡片当成当前结果。
                     val cached = WeatherCache.load(getApplication(), target.locationKey)
                         ?.takeIf { requestedSource.matches(it.data.dataSource) }
                     if (cached != null) {
-                        result = cached.data
+                        result = WeatherConsistency.align(cached.data)
                         _staleAge.value = System.currentTimeMillis() - cached.savedAtMillis
                         android.util.Log.i("ZhishengWeather", "${target.name} 抓取失败，展示 ${_staleAge.value}ms 前的缓存")
                     } else {

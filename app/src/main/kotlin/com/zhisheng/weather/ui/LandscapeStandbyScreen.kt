@@ -90,7 +90,7 @@ fun LandscapeStandbyScreen(
     val clock = cityNow.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
     val seconds = cityNow.format(DateTimeFormatter.ofPattern("ss", Locale.US))
     val date = cityNow.format(DateTimeFormatter.ofPattern("M月d日 EEEE", Locale.CHINA))
-    val today = data?.daily?.firstOrNull()
+    val today = data?.todayDaily(nowMillis)
     val night = isNightAt(today?.sunrise, today?.sunset, cityNow.hour * 60 + cityNow.minute)
 
     Box(Modifier.fillMaxSize().background(ZhishengBg)) {
@@ -122,7 +122,7 @@ fun LandscapeStandbyScreen(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "ZHISHENG AMBIENT TERMINAL / 0.1.3Preview",
+                                "ZHISHENG AMBIENT TERMINAL / 0.1.3",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = ZhishengTextTertiary,
                                 letterSpacing = 2.sp,

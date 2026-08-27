@@ -147,6 +147,21 @@ class NowcastTest {
     }
 
     @Test
+    fun briefingComparesCityCalendarTodayAndTomorrowNotListIndex() {
+        val offset = 8 * 3_600
+        val now = java.time.Instant.parse("2026-08-21T06:00:00Z").toEpochMilli()
+        val data = WeatherData(
+            daily = listOf(
+                DailyWeather(dateMillis = java.time.Instant.parse("2026-08-20T14:00:00Z").toEpochMilli(), high = 30.0, low = 18.0),
+                DailyWeather(dateMillis = java.time.Instant.parse("2026-08-20T16:00:00Z").toEpochMilli(), high = 28.0, low = 16.0),
+                DailyWeather(dateMillis = java.time.Instant.parse("2026-08-21T16:00:00Z").toEpochMilli(), high = 22.0, low = 12.0),
+            ),
+            utcOffsetSeconds = offset,
+        )
+        assertEquals("明天比今天低 6°", Nowcast.briefingLine(data, "c", now))
+    }
+
+    @Test
     fun briefingIgnoresSmallTemperatureSwing() {
         val data = WeatherData(
             daily = listOf(
@@ -247,7 +262,20 @@ class NowcastTest {
     @Test
     fun nativeProviderLabelsRemainReadable() {
         assertEquals("和风", Nowcast.sourceLabel("QWEATHER"))
+        assertEquals("彩云", Nowcast.sourceLabel("CAIYUN"))
         assertEquals("小雨", Nowcast.intensityLabel(0.8f))
         assertEquals("大雨", Nowcast.intensityLabel(10f))
+    }
+
+    @Test
+    fun rainingWithEmptySeriesIsNotDrawnAsClearWindow() {
+        assertFalse(Nowcast.precipCardClearWindow(emptyList(), t0, precipNow = true))
+        assertTrue(
+            Nowcast.precipCardClearWindow(
+                Nowcast.minuteSeries(List(120) { 0f }, t0),
+                t0,
+                precipNow = false,
+            ),
+        )
     }
 }

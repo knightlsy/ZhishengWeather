@@ -22,8 +22,9 @@ object WeatherConsistency {
         data: WeatherData,
         nowMillis: Long = System.currentTimeMillis(),
     ): WeatherData {
-        if (data.error != null || data.current == null) return data
+        if (data.error != null) return dropPastHourly(data, nowMillis)
         var d = dropPastHourly(data, nowMillis)
+        if (d.current == null) return d
         d = ensureCurrentHour(d, nowMillis)
         d = syncCurrentWithNowcast(d, nowMillis)
         d = overlayCurrentOntoNowHour(d, nowMillis)
@@ -31,10 +32,36 @@ object WeatherConsistency {
         return d
     }
 
+    // 与逐时 UI 共用同一格「现在」：优先包含当前时刻的小时格（10:50 属于 10:00），
+    // 找不到时才看 10 分钟内即将开始的下一整点，或已被裁掉的过去 40 分钟格。
+    fun currentHourIndex(
+        hourly: List<HourlyWeather>,
+        nowMillis: Long,
+    ): Int {
+        if (hourly.isEmpty()) return -1
+        val containing = hourly.indexOfFirst { h ->
+            h.timeMillis <= nowMillis && nowMillis < h.timeMillis + 3_600_000L
+        }
+        if (containing >= 0) return containing
+        val upcoming = hourly.indexOfFirst { h ->
+            val delta = h.timeMillis - nowMillis
+            delta in 0..NOW_HOUR_FUTURE_MS
+        }
+        if (upcoming >= 0) return upcoming
+        return hourly.indices
+            .filter { hourly[it].timeMillis < nowMillis && nowMillis - hourly[it].timeMillis <= NOW_HOUR_PAST_MS }
+            .minByOrNull { nowMillis - hourly[it].timeMillis }
+            ?: -1
+    }
+
+    fun upcomingHourStartIndex(hourly: List<HourlyWeather>, nowMillis: Long): Int {
+        val current = currentHourIndex(hourly, nowMillis)
+        return if (current >= 0) current + 1 else 0
+    }
+
     internal fun ensureCurrentHour(data: WeatherData, nowMillis: Long): WeatherData {
         val cur = data.current ?: return data
-        val coversNow = data.hourly.any { isCurrentSlot(it.timeMillis, nowMillis) }
-        if (coversNow) return data
+        if (currentHourIndex(data.hourly, nowMillis) >= 0) return data
         val nowHour = HourlyWeather(
             timeMillis = nowMillis,
             temperature = cur.temperature,
@@ -75,13 +102,14 @@ object WeatherConsistency {
                 condition = upgraded,
                 weatherText = upgraded.label,
                 profile = profile,
+                precipMm = cur.precipMm?.takeIf { it > 0.05 } ?: intensity.toDouble(),
             ),
         )
     }
 
     internal fun overlayCurrentOntoNowHour(data: WeatherData, nowMillis: Long): WeatherData {
         val cur = data.current ?: return data
-        val idx = data.hourly.indexOfFirst { isCurrentSlot(it.timeMillis, nowMillis) }
+        val idx = currentHourIndex(data.hourly, nowMillis)
         if (idx < 0) return data
         val hour = data.hourly[idx]
         if (hour.condition == cur.condition && hour.temperature == cur.temperature) return data
@@ -107,10 +135,5 @@ object WeatherConsistency {
             return data.copy(rainNowcast = null)
         }
         return data
-    }
-
-    private fun isCurrentSlot(timeMillis: Long, nowMillis: Long): Boolean {
-        val delta = timeMillis - nowMillis
-        return delta in -NOW_HOUR_PAST_MS..NOW_HOUR_FUTURE_MS
     }
 }

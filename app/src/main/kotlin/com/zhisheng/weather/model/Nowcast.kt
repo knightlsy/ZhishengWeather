@@ -128,7 +128,7 @@ object Nowcast {
         if (api != null && looksLikeIncomingRain(api)) return api
 
         severeAlert(data.alerts)?.title?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
-        tempDeltaLine(data, unit)?.let { return it }
+        tempDeltaLine(data, unit, nowMillis)?.let { return it }
         mildAlert(data.alerts)?.title?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
         return null
     }
@@ -144,6 +144,16 @@ object Nowcast {
         if (api != null && looksLikeIncomingRain(api)) return true
         val km = data.rainDistanceKm ?: return false
         return km in 0.0..40.0
+    }
+
+    // 无柱且此刻也没雨才走晴窗；正在下雨时即使序列被裁空，也不能画成 CLEAR WINDOW。
+    fun precipCardClearWindow(
+        minutes: List<MinutePrecip>,
+        nowMillis: Long,
+        precipNow: Boolean,
+    ): Boolean {
+        val timing = rainTiming(minutes, nowMillis, currentPrecip = precipNow)
+        return precipChartCeiling(minutes) <= 0f && !timing.hasRain
     }
 
     // 任何源只要确实返回当前/未来短时序列就展示；全 0 代表“有数据且未来无雨”，
@@ -245,9 +255,9 @@ object Nowcast {
             ?: alerts.firstOrNull { it.severity == AlertLevel.BLUE }
             ?: alerts.firstOrNull()
 
-    private fun tempDeltaLine(data: WeatherData, unit: String): String? {
-        val today = data.daily.getOrNull(0)?.high ?: return null
-        val tomorrow = data.daily.getOrNull(1)?.high ?: return null
+    private fun tempDeltaLine(data: WeatherData, unit: String, nowMillis: Long): String? {
+        val today = data.todayDaily(nowMillis)?.high ?: return null
+        val tomorrow = data.tomorrowDaily(nowMillis)?.high ?: return null
         val delta = displayTemp(tomorrow, unit) - displayTemp(today, unit)
         if (abs(delta) < 3) return null
         return if (delta > 0) "明天比今天高 ${delta}°" else "明天比今天低 ${-delta}°"

@@ -11,6 +11,8 @@ local.properties
 
 # ===== IDE =====
 .idea/
+.claude/
+CLAUDE.md
 *.iml
 .DS_Store
 
@@ -25,6 +27,7 @@ DESIGN.md
 PROJECT_STRUCTURE_*.md
 icon-preview/
 icon-backup/
+widget-backup/
 docs-backup/
 HANDOFF.md
 HANDOFF_*.md

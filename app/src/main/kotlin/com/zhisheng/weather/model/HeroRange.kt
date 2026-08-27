@@ -2,6 +2,7 @@ package com.zhisheng.weather.model
 
 import kotlin.math.abs
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 
 // Hero 高低温跟时刻走（v0.0.9）：国内源白天 10:00–20:00。
@@ -26,9 +27,13 @@ object HeroTemps {
         nowMillis: Long,
         zone: ZoneId = ZoneId.systemDefault(),
     ): HeroRange {
-        val hour = Instant.ofEpochMilli(nowMillis).atZone(zone).hour
-        val today = daily.getOrNull(0)
-        val tomorrow = daily.getOrNull(1)
+        val zonedNow = Instant.ofEpochMilli(nowMillis).atZone(zone)
+        val hour = zonedNow.hour
+        val todayDate = zonedNow.toLocalDate()
+        fun dayOf(d: DailyWeather): LocalDate =
+            Instant.ofEpochMilli(d.dateMillis).atZone(zone).toLocalDate()
+        val today = daily.firstOrNull { dayOf(it) == todayDate }
+        val tomorrow = daily.firstOrNull { dayOf(it) == todayDate.plusDays(1) }
         val todayHigh = today?.high
         val todayLow = today?.low
         return when {

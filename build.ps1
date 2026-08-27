@@ -1,30 +1,27 @@
-# ZhishengWeather 0.0.4 build helper
+# ZhishengWeather build helper
 # Usage:
-#   .\build.ps1                                  # assembleRelease (full build, private signing)
+#   .\build.ps1                                  # assemblePublicRelease
 #   .\build.ps1 -Task assembleDebug
-#   .\build.ps1 -Task 'assembleRelease -PpublicBuild'   # public version, no credentials
+#   .\build.ps1 -Task assembleRelease            # maintainer-local build
 #   .\build.ps1 -Task 'testDebugUnitTest lintDebug'      # tests + lint
-#
-# Why this script exists:
-#   1. JAVA_HOME must be a pure-ASCII path. The original
-#      `D:\金川党建数据大屏项目\tools\jdk-17.0.13+11` gets mangled when gradlew.bat
-#      forwards it as an env var, and gradle rejects it as "invalid directory".
-#      We pin it to the English-only tool copy at D:\android-build-tools\...
-#   2. `--no-daemon` keeps gradle from forking a long-lived daemon that the
-#      calling shell may kill. Slightly slower on cold start, but robust.
-#   3. Log goes to build.log in the project root for later inspection.
 
 [CmdletBinding()]
 param(
-    [string]$Task = 'assembleRelease'
+    [string]$Task = 'assemblePublicRelease',
+    [string]$JdkDir = $env:JAVA_HOME
 )
 
-$ErrorActionPreference = 'Continue'
+$ErrorActionPreference = 'Stop'
 
-# Pin JAVA_HOME to the pure-ASCII JDK copy (created 2026-08-11).
-$JdkDir = 'D:\android-build-tools\jdk-17.0.13+11'
-if (-not (Test-Path (Join-Path $JdkDir 'bin\java.exe'))) {
-    Write-Error "JAVA_HOME target not found: $JdkDir`nBuild it first or copy the JDK there."
+if ([string]::IsNullOrWhiteSpace($JdkDir)) {
+    $java = Get-Command java.exe -ErrorAction SilentlyContinue
+    if ($java) {
+        $JdkDir = Split-Path -Parent (Split-Path -Parent $java.Source)
+    }
+}
+if ([string]::IsNullOrWhiteSpace($JdkDir) -or
+    -not (Test-Path -LiteralPath (Join-Path $JdkDir 'bin\java.exe') -PathType Leaf)) {
+    Write-Error 'JDK 17 not found. Set JAVA_HOME or pass -JdkDir before running this script.'
     exit 2
 }
 $env:JAVA_HOME = $JdkDir
@@ -46,9 +43,7 @@ if (-not (Test-Path $gradlew)) {
     exit 2
 }
 
-# Use cmd's native redirection so gradle's stdout+stderr land in build.log
-# byte-for-byte (PowerShell's Tee-Object/Out-File mangles native output into
-# one-char-per-line objects under PS 5.1, making the log unreadable).
+# Use cmd's native redirection so Gradle output remains readable under Windows PowerShell 5.1.
 $taskArgs = $Task -split '\s+'
 $argList = ($taskArgs + @('--no-daemon', '--console=plain')) -join ' '
 $cmdLine = "`"$gradlew`" $argList > `"$LogPath`" 2>&1"

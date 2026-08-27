@@ -93,11 +93,13 @@ data class CaiyunHourly(
 data class CaiyunTimed(
     val datetime: String? = null,
     val value: Double? = null,
+    val probability: Double? = null,
 )
 
 @Serializable
 data class CaiyunTimedStr(
     val datetime: String? = null,
+    val date: String? = null,
     val value: String? = null,
 )
 
@@ -113,6 +115,8 @@ data class CaiyunDaily(
     val status: String? = null,
     val temperature: List<CaiyunDailyTemp>? = null,
     val skycon: List<CaiyunTimedStr>? = null,
+    @SerialName("skycon_08h_20h") val skyconDay: List<CaiyunTimedStr>? = null,
+    @SerialName("skycon_20h_32h") val skyconNight: List<CaiyunTimedStr>? = null,
     val astro: List<CaiyunAstro>? = null,
     val precipitation: List<CaiyunDailyPrecip>? = null,
     @SerialName("life_index") val lifeIndex: CaiyunLifeIndex? = null,

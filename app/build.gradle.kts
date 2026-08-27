@@ -14,8 +14,7 @@ val localProps = Properties().apply {
 }
 fun lp(key: String, def: String = ""): String = localProps.getProperty(key, def)
 
-// 公开版构建开关：./gradlew assembleRelease -PpublicBuild
-// 强制和风凭据为空 + 换用随库公开证书，保证 Release 分发的 APK 不含个人凭据
+// 兼容旧命令的公开版开关；新发行流程优先使用独立的 assemblePublicRelease。
 val publicBuild = providers.gradleProperty("publicBuild").isPresent
 // 用户交流入口是公开信息，所有构建版本都必须包含。
 val communityQqGroup = "1106284779"
@@ -28,18 +27,27 @@ android {
         applicationId = "com.zhisheng.weather"
         minSdk = 26
         targetSdk = 34
-        // 20260827：0.1.3Preview 社区体验版
-        versionCode = 20260830
-        versionName = "0.1.3Preview"
+        // 20260827：0.1.3 正式版
+        versionCode = 20260831
+        versionName = "0.1.3"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
         buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid")}\"")
         buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) "" else lp("qw.private_key")}\"")
         buildConfigField("String", "COMMUNITY_QQ_GROUP", "\"$communityQqGroup\"")
+        // 只有与 GitHub 公共版同包名、同签名的构建可以直接覆盖更新。
+        buildConfigField("boolean", "CAN_SELF_UPDATE", publicBuild.toString())
     }
 
     signingConfigs {
+        create("public") {
+            // 公开证书只保证公开包可持续升级，密码本身不作为秘密。
+            storeFile = project.rootProject.file("keystore/public.jks")
+            storePassword = "public123"
+            keyAlias = "public"
+            keyPassword = "public123"
+        }
         create("release") {
             val props = Properties()
             val f = rootProject.file("local.properties")
@@ -52,9 +60,9 @@ android {
                 keyPassword = "public123"
             } else {
                 storeFile = project.rootProject.file("keystore/zhisheng.jks")
-                storePassword = props.getProperty("keystore.store_password") ?: "zhisheng123"
+                storePassword = props.getProperty("keystore.store_password")
                 keyAlias = "zhisheng"
-                keyPassword = props.getProperty("keystore.key_password") ?: "zhisheng123"
+                keyPassword = props.getProperty("keystore.key_password")
             }
         }
     }
@@ -75,8 +83,25 @@ android {
             initWith(getByName("release"))
             // 仅用于体验机并行安装：内容与公开版一致，但不覆盖手机上的满血版。
             applicationIdSuffix = ".preview"
-            resValue("string", "app_name", "枳生天气 Preview")
+            resValue("string", "app_name", "枳生天气 公开版")
+            signingConfig = signingConfigs.getByName("public")
             matchingFallbacks += listOf("release")
+            buildConfigField("String", "QW_HOST", "\"\"")
+            buildConfigField("String", "QW_PROJECT_ID", "\"\"")
+            buildConfigField("String", "QW_KID", "\"\"")
+            buildConfigField("String", "QW_PRIVATE_KEY", "\"\"")
+            buildConfigField("boolean", "CAN_SELF_UPDATE", "false")
+        }
+        create("publicRelease") {
+            initWith(getByName("release"))
+            // 面向社区的正式公开包：独立任务、公开签名、凭据硬清空，避免漏写 -PpublicBuild。
+            signingConfig = signingConfigs.getByName("public")
+            matchingFallbacks += listOf("release")
+            buildConfigField("String", "QW_HOST", "\"\"")
+            buildConfigField("String", "QW_PROJECT_ID", "\"\"")
+            buildConfigField("String", "QW_KID", "\"\"")
+            buildConfigField("String", "QW_PRIVATE_KEY", "\"\"")
+            buildConfigField("boolean", "CAN_SELF_UPDATE", "true")
         }
     }
 

@@ -32,11 +32,15 @@ data class WidgetSnapshot(
     val source: String = "",
     val utcOffsetSeconds: Int? = null,
     val hours: List<WidgetHour> = emptyList(),
+    val lifeTips: List<WidgetLifeTip> = emptyList(),
     val days: List<WidgetDay> = emptyList(),
 )
 
 @Serializable
 data class WidgetHour(val label: String, val temp: Int?, val conditionName: String)
+
+@Serializable
+data class WidgetLifeTip(val label: String, val value: String)
 
 @Serializable
 data class WidgetDay(val label: String, val high: Int?, val low: Int?, val conditionName: String)

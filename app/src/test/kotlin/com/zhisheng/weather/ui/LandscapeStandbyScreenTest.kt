@@ -16,6 +16,7 @@ class LandscapeStandbyScreenTest {
         assertTrue(activity.contains("SCREEN_ORIENTATION_PORTRAIT"))
         assertTrue(activity.contains("SCREEN_ORIENTATION_SENSOR"))
         assertTrue(screen.contains("ZHISHENG AMBIENT TERMINAL"))
+        assertTrue(screen.contains("todayDaily(nowMillis)"))
         assertTrue(settings.contains("横屏待机界面"))
     }
 }

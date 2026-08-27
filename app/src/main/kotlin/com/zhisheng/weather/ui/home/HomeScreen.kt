@@ -119,10 +119,12 @@ import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.HeroTemps
 import com.zhisheng.weather.model.TyphoonInfo
 import com.zhisheng.weather.model.WeatherCondition
+import com.zhisheng.weather.model.WeatherConsistency
 import com.zhisheng.weather.model.WeatherData
 import com.zhisheng.weather.model.YesterdayInfo
 import com.zhisheng.weather.R
 import com.zhisheng.weather.data.HomeModule
+import com.zhisheng.weather.data.LifeIndexMetric
 import com.zhisheng.weather.data.TelemetryMetric
 import com.zhisheng.weather.ui.Fmt
 import com.zhisheng.weather.ui.HomeUiState
@@ -146,9 +148,6 @@ import com.zhisheng.weather.ui.theme.ZhishengTextTertiary
 import com.zhisheng.weather.ui.theme.ZhishengWarning
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -225,7 +224,7 @@ fun HomeScreen(
     val nowMinutes = uiState.weather?.utcOffsetSeconds?.let { offset ->
         Math.floorMod(epochMinute + offset / 60L, 24L * 60L).toInt()
     } ?: java.time.LocalTime.now().run { hour * 60 + minute }
-    val todayAstro = uiState.weather?.daily?.firstOrNull()
+    val todayAstro = uiState.weather?.todayDaily(epochMinute * 60_000L)
     val night = isNightAt(todayAstro?.sunrise, todayAstro?.sunset, nowMinutes)
 
     ModalNavigationDrawer(
@@ -289,7 +288,7 @@ fun HomeScreen(
                         }
                         // Crossfade 的退出帧必须持有上一城市的完整快照。若在 lambda 内继续读取
                         // uiState.weather，selectCity() 清空天气后旧 "data" 帧仍会组合并触发 NPE。
-                        Crossfade(targetState = contentKey, animationSpec = tween(280), label = "content") { page ->
+                        Crossfade(targetState = contentKey, animationSpec = tween(200, easing = FastOutSlowInEasing), label = "content") { page ->
                             when (page) {
                                 HomeContentKey.Empty -> EmptyState(onSearchClick)
                                 is HomeContentKey.Error -> ErrorState(page.message, onSearchClick)
@@ -334,8 +333,10 @@ fun HomeScreen(
                 onPinnedDrag = { dragX ->
                     // 卡组展开后降低位移阻力；卡片自身仍用弹簧追随，保留一点硬件惯性。
                     val stepPx = with(density) { 72.dp.toPx() }
-                    cityDeckPosition = (cityDeckPosition - dragX / stepPx)
-                        .coerceIn(0f, uiState.cities.lastIndex.toFloat())
+                    cityDeckPosition = clampCityDeckPosition(
+                        cityDeckPosition - dragX / stepPx,
+                        uiState.cities.size,
+                    )
                 },
                 onPinnedDragEnd = {
                     cityDeckPosition = cityDeckPosition.roundToInt().toFloat()
@@ -385,8 +386,10 @@ fun HomeScreen(
                                 if (cityDeckVisible) {
                                     cityDeckDrag += dragAmount.x
                                     cityDeckVerticalDrag += dragAmount.y
-                                    cityDeckPosition = (cityDeckStart - cityDeckDrag / stepPx)
-                                        .coerceIn(0f, uiState.cities.lastIndex.toFloat())
+                                    cityDeckPosition = clampCityDeckPosition(
+                                        cityDeckStart - cityDeckDrag / stepPx,
+                                        uiState.cities.size,
+                                    )
                                     if (!pinnedThisGesture) {
                                         cityDeckExpansion = (-cityDeckVerticalDrag / pinThresholdPx)
                                             .coerceIn(0f, 0.76f)
@@ -988,15 +991,16 @@ private fun WeatherContent(
     val nextIndex = { ++seq }
     val nextStagger = { stagger++ }
 
+    val currentDaily = data.currentAndFutureDaily()
+    val todayDaily = data.todayDaily()
     val showHourly = data.hourly.isNotEmpty()
     val showPrecip = prefs.showPrecip && Nowcast.shouldShowPrecipModule(data, System.currentTimeMillis())
-    val showDaily = data.daily.isNotEmpty()
+    val showDaily = currentDaily.isNotEmpty()
     val showTele = prefs.showTelemetry && data.current?.let { current ->
-        prefs.telemetryMetrics.any { metric -> telemetryMetricAvailable(metric, current, data.daily.firstOrNull()) }
+        prefs.telemetryMetrics.any { metric -> telemetryMetricAvailable(metric, current, todayDaily) }
     } == true
     val showAqi = prefs.showAqi && data.aqi != null
-    val showIndices = prefs.showIndices &&
-        (data.carWashOk != null || data.sportsOk != null || data.extraIndices.isNotEmpty())
+    val showIndices = prefs.showIndices && lifeIndexItems(data, prefs.lifeIndexMetrics).isNotEmpty()
     val showYesterday = prefs.showYesterday && data.yesterday != null
     val showTy = showTyphoon && data.typhoons.isNotEmpty()
 
@@ -1033,11 +1037,11 @@ private fun WeatherContent(
                     when (module) {
                         HomeModule.HOURLY -> HourlySection(data.hourly, unit, prefs.windUnit, data.utcOffsetSeconds, m)
                         HomeModule.PRECIP -> PrecipCard(data, m)
-                        HomeModule.DAILY -> DailySection(data.daily, unit, prefs.windUnit, data.utcOffsetSeconds, m)
-                        HomeModule.TELEMETRY -> TelemetryGrid(data.current!!, data.daily.firstOrNull(), unit, prefs, m)
-                        HomeModule.AQI -> AqiCard(data.aqi!!, m)
-                        HomeModule.INDICES -> IndicesRow(data.carWashOk, data.sportsOk, data.extraIndices, m)
-                        HomeModule.YESTERDAY -> YesterdayCard(data.yesterday!!, data.daily.firstOrNull(), unit, m)
+                        HomeModule.DAILY -> DailySection(currentDaily, unit, prefs.windUnit, data.utcOffsetSeconds, m)
+                        HomeModule.TELEMETRY -> data.current?.let { TelemetryGrid(it, todayDaily, unit, prefs, m) }
+                        HomeModule.AQI -> data.aqi?.let { AqiCard(it, m) }
+                        HomeModule.INDICES -> IndicesRow(data, prefs.lifeIndexMetrics, m)
+                        HomeModule.YESTERDAY -> data.yesterday?.let { YesterdayCard(it, todayDaily, unit, m) }
                         HomeModule.TYPHOON -> TyphoonCard(data.typhoons, m)
                     }
                 }
@@ -1050,41 +1054,46 @@ private fun WeatherContent(
 // —— 状态行：坐标 / 更新时间 / 数据源 ——
 @Composable
 private fun StatusLine(city: com.zhisheng.weather.model.City?, data: WeatherData, staleAgeMillis: Long?) {
-    val coord = city?.let {
-        // 负坐标按 S/W 显示，避免出现 "-33.90N" 这种矛盾写法（v0.0.1）
-        String.format(
-            Locale.US, "%.2f%s %.2f%s",
-            Math.abs(it.latitude), if (it.latitude >= 0) "N" else "S",
-            Math.abs(it.longitude), if (it.longitude >= 0) "E" else "W",
-        )
-    } ?: "----"
+    val coord = city?.let { Fmt.coordinates(it.latitude, it.longitude) } ?: "----"
     // 离线缓存兜底时标注缓存年龄（<10 分钟不打扰，只给正常更新时间）
     val updText = if (staleAgeMillis != null && staleAgeMillis >= 10 * 60_000L) {
         "UPD ${staleAgeMillis / 60_000L}分钟前 · 缓存"
     } else {
-        "UPD ${data.updateTime?.let { formatTime(it) } ?: "--"}"
+        "UPD ${data.updateTime?.let { Fmt.stamp(it, data.utcOffsetSeconds) } ?: "--"}"
     }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    val srcText = "SRC ${dataSourceShortLabel(data.dataSource)}${supplementShortLabel(data)}"
+    Column(modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = coord,
+                style = MaterialTheme.typography.labelSmall,
+                color = ZhishengTextTertiary,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                updText,
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (staleAgeMillis != null && staleAgeMillis >= 10 * 60_000L) ZhishengOrange else ZhishengTextTertiary,
+                letterSpacing = 1.sp,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.End,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
-            text = coord,
+            srcText,
+            modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.labelSmall,
             color = ZhishengTextTertiary,
             letterSpacing = 1.sp,
             maxLines = 1,
-            softWrap = false,
-        )
-        Spacer(Modifier.weight(1f))
-        Text(
-            "$updText // SRC ${dataSourceShortLabel(data.dataSource)}${supplementShortLabel(data)}",
-            style = MaterialTheme.typography.labelSmall,
-            color = if (staleAgeMillis != null && staleAgeMillis >= 10 * 60_000L) ZhishengOrange else ZhishengTextTertiary,
-            letterSpacing = 1.sp,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
+            textAlign = TextAlign.End,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -1117,7 +1126,12 @@ private fun HeroSection(
                     )
                 }
                 Spacer(Modifier.height(2.dp))
-                val range = HeroTemps.range(data.daily, data.yesterday, System.currentTimeMillis())
+                val range = HeroTemps.range(
+                    data.daily,
+                    data.yesterday,
+                    System.currentTimeMillis(),
+                    Fmt.zoneId(data.utcOffsetSeconds),
+                )
                 Text(
                     text = buildString {
                         if (HeroTemps.showFeelsLike(cur.temperature, cur.feelsLike)) {
@@ -1181,11 +1195,16 @@ private fun HeroSection(
                 WeatherIcon(cur.condition, Modifier.size(76.dp))
             }
         }
-        Nowcast.briefingLine(data, unit, System.currentTimeMillis())?.let { raw ->
+        val nowMillis = System.currentTimeMillis()
+        val immediateBriefing = Nowcast.briefingLine(data, unit, nowMillis)
+        val futureBriefing = data.forecastSummary?.trim()?.takeIf { it.isNotEmpty() }?.let {
+            "未来24小时：${Nowcast.tidyCopy(it)}"
+        }
+        (immediateBriefing ?: futureBriefing)?.let { raw ->
             val line = Nowcast.tidyCopy(raw)
             val rain = Nowcast.rainTiming(
                 data.rainMinutes,
-                System.currentTimeMillis(),
+                nowMillis,
                 currentPrecip = cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05,
             )
             val color = if (rain.hasRain || Nowcast.looksLikeIncomingRain(line)) {
@@ -1425,11 +1444,7 @@ private fun HourlySection(
     // 10:00 格），找不到（该格已被 dropPastHourly 裁掉）再退回 40 分钟
     // 窗口内最近的一格；均无则不标。
     val nowMs = System.currentTimeMillis()
-    val nowIdx = hourly.indexOfFirst { h ->
-        h.timeMillis <= nowMs && nowMs < h.timeMillis + 3_600_000L
-    }.takeIf { it >= 0 } ?: hourly.indices
-        .filter { kotlin.math.abs(hourly[it].timeMillis - nowMs) <= 40 * 60_000L }
-        .minByOrNull { kotlin.math.abs(hourly[it].timeMillis - nowMs) } ?: -1
+    val nowIdx = WeatherConsistency.currentHourIndex(hourly, nowMs)
     HudCard(modifier = modifier.fillMaxWidth()) {
         Column {
             // key=时间戳：数据刷新时按身份复用 item，不整列重绑（v0.0.1）
@@ -1620,13 +1635,13 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
         cur != null && (cur.condition?.isPrecipitation == true || (cur.precipMm ?: 0.0) > 0.05)
     }
     val chartCeiling = Nowcast.precipChartCeiling(minutes)
-    val dry = chartCeiling <= 0f
-    val timingLabel = Nowcast.rainTimingLabel(
-        Nowcast.rainTiming(minutes, nowMillis, currentPrecip = precipNow),
-    )
+    val timing = Nowcast.rainTiming(minutes, nowMillis, currentPrecip = precipNow)
+    val dry = Nowcast.precipCardClearWindow(minutes, nowMillis, precipNow)
+    val timingLabel = Nowcast.rainTimingLabel(timing)
     val meta = data.rainMeta
     val horizonMinutes = meta?.horizonMinutes?.coerceIn(30, 180) ?: 120
     val peak = minutes.maxOfOrNull { it.precip }?.coerceAtLeast(0f) ?: 0f
+    val currentRate = data.current?.precipMm?.toFloat()?.takeIf { it > 0f }
     val distanceLabel = rainDistanceKm?.takeIf { it > 0.0 }?.let { km ->
         if (km == Math.floor(km)) km.toInt().toString() else String.format(Locale.US, "%.1f", km)
     }
@@ -1650,7 +1665,13 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
             append(Fmt.clock(it, data.utcOffsetSeconds))
         }
     }
-    val peakLabel = "峰值 ${String.format(Locale.US, "%.1f", peak)} mm/h · ${Nowcast.intensityLabel(peak)}"
+    val peakLabel = when {
+        peak <= 0f && currentRate != null ->
+            "当前 ${String.format(Locale.US, "%.1f", currentRate)} mm/h · 未来雨势暂缺"
+        peak <= 0f && precipNow -> "当前有雨 · 未来雨势暂缺"
+        peak in 0f..0.05f -> "峰值 <0.1 mm/h · ${Nowcast.intensityLabel(peak)}"
+        else -> "峰值 ${String.format(Locale.US, "%.1f", peak)} mm/h · ${Nowcast.intensityLabel(peak)}"
+    }
     // Canvas lambda 非 composable，颜色提前取值。
     val barCyan = ZhishengCyan.copy(alpha = 0.85f)
     val barBorder = ZhishengCardBorder
@@ -1719,45 +1740,53 @@ private fun PrecipCard(data: WeatherData, modifier: Modifier) {
                     }
                 }
             }
-            if (!dry) {
-                Spacer(Modifier.height(6.dp))
-                Canvas(Modifier.fillMaxWidth().height(28.dp)) {
-                    val baseline = size.height - 1.dp.toPx()
-                    drawLine(barBorder, Offset(0f, baseline), Offset(size.width, baseline), 1.dp.toPx())
-                    if (minutes.isNotEmpty()) {
-                        val horizonMs = horizonMinutes * Nowcast.MINUTE_MS
-                        val bucketWidth = (size.width * intervalMinutes / horizonMinutes.toFloat())
-                            .coerceIn(1.dp.toPx(), 18.dp.toPx())
-                        val minWetHeight = 2.dp.toPx()
-                        minutes.forEach { minute ->
-                            if (minute.precip > 0f) {
-                                val scaled = (minute.precip / chartCeiling).coerceIn(0f, 1f)
-                                val hgt = (scaled * (size.height - 2.dp.toPx())).coerceAtLeast(minWetHeight)
-                                val x = ((minute.timeMillis - nowMillis).toFloat() / horizonMs)
-                                    .coerceIn(0f, 1f) * size.width
-                                drawRect(
-                                    color = barCyan,
-                                    topLeft = Offset(x, baseline - hgt),
-                                    size = androidx.compose.ui.geometry.Size(bucketWidth * 0.82f, hgt),
-                                )
-                            }
+            Spacer(Modifier.height(6.dp))
+            Canvas(Modifier.fillMaxWidth().height(if (dry) 10.dp else 28.dp)) {
+                val baseline = size.height - 1.dp.toPx()
+                drawLine(barBorder, Offset(0f, baseline), Offset(size.width, baseline), 1.dp.toPx())
+                if (!dry && minutes.isNotEmpty() && chartCeiling > 0f) {
+                    val horizonMs = horizonMinutes * Nowcast.MINUTE_MS
+                    val bucketWidth = (size.width * intervalMinutes / horizonMinutes.toFloat())
+                        .coerceIn(1.dp.toPx(), 18.dp.toPx())
+                    val minWetHeight = 2.dp.toPx()
+                    minutes.forEach { minute ->
+                        if (minute.precip > 0f) {
+                            val scaled = (minute.precip / chartCeiling).coerceIn(0f, 1f)
+                            val hgt = (scaled * (size.height - 2.dp.toPx())).coerceAtLeast(minWetHeight)
+                            val x = ((minute.timeMillis - nowMillis).toFloat() / horizonMs)
+                                .coerceIn(0f, 1f) * size.width
+                            drawRect(
+                                color = barCyan,
+                                topLeft = Offset(x, baseline - hgt),
+                                size = androidx.compose.ui.geometry.Size(bucketWidth * 0.82f, hgt),
+                            )
                         }
                     }
+                } else if (!dry && currentRate != null) {
+                    // 分钟接口没有有效曲线时，只画一个“现在”的实况柱，不把它延伸到未来。
+                    val hgt = (size.height * 0.68f).coerceAtLeast(2.dp.toPx())
+                    drawRect(
+                        color = barCyan,
+                        topLeft = Offset(0f, baseline - hgt),
+                        size = androidx.compose.ui.geometry.Size(5.dp.toPx(), hgt),
+                    )
                 }
-                Row(Modifier.fillMaxWidth()) {
-                    listOf("现在", "30", "60", "90", "120 分钟").forEachIndexed { index, label ->
-                        Text(
-                            label,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (index == 0) ZhishengOrange else ZhishengTextTertiary,
-                            textAlign = when (index) {
-                                0 -> TextAlign.Start
-                                4 -> TextAlign.End
-                                else -> TextAlign.Center
-                            },
-                        )
-                    }
+            }
+            Row(Modifier.fillMaxWidth()) {
+                listOf("现在", "30", "60", "90", "120 分钟").forEachIndexed { index, label ->
+                    Text(
+                        label,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (index == 0) {
+                            if (dry) ZhishengMint else ZhishengOrange
+                        } else ZhishengTextTertiary,
+                        textAlign = when (index) {
+                            0 -> TextAlign.Start
+                            4 -> TextAlign.End
+                            else -> TextAlign.Center
+                        },
+                    )
                 }
             }
             Spacer(Modifier.height(if (dry) 2.dp else 5.dp))
@@ -1963,7 +1992,7 @@ private fun TelemetryGrid(
         TelemetryMetric.DEW_POINT to Triple("露点", "DEW", cur.dewPoint?.let { "${Fmt.temp(it, unit)}°" }),
         TelemetryMetric.CLOUD_COVER to Triple("云量", "CLOUD", cur.cloudCover?.let { "${it.roundToInt()}%" }),
         TelemetryMetric.WIND_GUST to Triple("阵风", "GUST", Fmt.wind(cur.windGust, prefs.windUnit)),
-        TelemetryMetric.PRECIPITATION to Triple("1时降水", "PRECIP", cur.precipMm?.let { String.format(Locale.US, "%.1f mm", it) }),
+        TelemetryMetric.PRECIPITATION to Triple("1时降水", "PRECIP", cur.precipMm?.let { String.format(Locale.US, "%.1f mm/h", it) }),
     ).filter { (metric, _) -> metric in prefs.telemetryMetrics }
         .mapNotNull { (_, item) ->
             val (cn, en, value) = item
@@ -1978,9 +2007,7 @@ private fun TelemetryGrid(
                 rowItems.forEach { (cn, en, value) ->
                     TeleCell(cn, en, value, cur, Modifier.weight(1f).fillMaxHeight())
                 }
-                if (rowItems.size == 1) {
-                    Spacer(Modifier.weight(1f).fillMaxHeight())
-                }
+                // 奇数项让最后一格占满整行，不再人为保留一个空白右栏。
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -2276,68 +2303,107 @@ private fun aqiColor(value: Int?): Color = when {
 }
 
 // —— 生活指数 ——
-@Composable
-private fun IndicesRow(carWashOk: Boolean?, sportsOk: Boolean?, extra: List<com.zhisheng.weather.model.LifeIndexExtra>, modifier: Modifier) {
-    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            carWashOk?.let { IndexChip("洗车", "CAR WASH", it, Modifier.weight(1f)) }
-            sportsOk?.let { IndexChip("运动", "SPORTS", it, Modifier.weight(1f)) }
+internal data class LifeIndexUi(
+    val name: String,
+    val en: String,
+    val value: String,
+    val positive: Boolean? = null,
+)
+
+internal fun clampCityDeckPosition(position: Float, cityCount: Int): Float {
+    if (cityCount <= 0) return 0f
+    return position.coerceIn(0f, (cityCount - 1).toFloat())
+}
+
+internal fun lifeIndexItems(data: WeatherData, selected: Set<LifeIndexMetric>): List<LifeIndexUi> = buildList {
+    data.carWashOk?.takeIf { LifeIndexMetric.CAR_WASH in selected }?.let {
+        add(LifeIndexUi(LifeIndexMetric.CAR_WASH.cn, LifeIndexMetric.CAR_WASH.en, if (it) "适宜" else "不适宜", it))
+    }
+    data.sportsOk?.takeIf { LifeIndexMetric.SPORTS in selected }?.let {
+        add(LifeIndexUi(LifeIndexMetric.SPORTS.cn, LifeIndexMetric.SPORTS.en, if (it) "适宜" else "不适宜", it))
+    }
+    data.extraIndices.forEach { index ->
+        val value = index.category.trim()
+        if (value.isEmpty()) return@forEach
+        val metric = LifeIndexMetric.fromEnglish(index.en)
+        if (metric != null) {
+            if (metric in selected) add(LifeIndexUi(metric.cn, metric.en, value))
+        } else if (index.name.isNotBlank()) {
+            add(LifeIndexUi(index.name, index.en, value))
         }
-        if (extra.isNotEmpty()) {
-            Spacer(Modifier.height(8.dp))
-            extra.chunked(2).forEach { rowItems ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rowItems.forEach { ix ->
-                        Row(
-                            Modifier.weight(1f)
-                                .clip(RectangleShape)
-                                .background(ZhishengSurface)
-                                .border(1.dp, ZhishengCardBorder, RectangleShape)
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(Modifier.weight(1f)) {
-                                TeleLabel(ix.name, ix.en)
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    ix.category.ifBlank { "--" },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = ZhishengText,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                        }
-                    }
-                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+    }
+}.distinctBy { it.name }
+
+@Composable
+private fun IndicesRow(data: WeatherData, selected: Set<LifeIndexMetric>, modifier: Modifier) {
+    val items = lifeIndexItems(data, selected)
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        items.chunked(2).forEach { rowItems ->
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowItems.forEach { item ->
+                    LifeIndexCard(item, Modifier.weight(1f).fillMaxHeight())
                 }
-                Spacer(Modifier.height(8.dp))
+                // 奇数项独占最后一行，避免人为留下半屏空栏。
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
 
 @Composable
-private fun IndexChip(cn: String, en: String, ok: Boolean, modifier: Modifier = Modifier) {
-    val c = if (ok) ZhishengMint else ZhishengOrange
-    Row(
+private fun LifeIndexCard(item: LifeIndexUi, modifier: Modifier = Modifier) {
+    val accent = when (item.positive) {
+        true -> ZhishengMint
+        false -> ZhishengOrange
+        null -> ZhishengCardBorder
+    }
+    Column(
         modifier
             .clip(RectangleShape)
             .background(ZhishengSurface)
-            .border(1.dp, c.copy(alpha = 0.5f), RectangleShape)
+            .border(1.dp, accent.copy(alpha = if (item.positive == null) 1f else 0.5f), RectangleShape)
             .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
-            TeleLabel(cn, en)
-            Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(width = 3.dp, height = 8.dp).background(ZhishengOrange))
+            Spacer(Modifier.width(6.dp))
             Text(
-                if (ok) "适宜" else "不适宜",
-                style = MaterialTheme.typography.titleMedium,
-                color = c,
-                fontWeight = FontWeight.Bold,
+                item.name,
+                style = MaterialTheme.typography.labelMedium,
+                color = ZhishengTextSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                item.en,
+                style = MaterialTheme.typography.labelSmall,
+                color = ZhishengTextTertiary,
+                letterSpacing = 0.7.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
         }
-        Text(if (ok) "[OK]" else "[NG]", style = MaterialTheme.typography.labelMedium, color = c)
+        Spacer(Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                item.value,
+                style = MaterialTheme.typography.titleMedium,
+                color = item.positive?.let { accent } ?: ZhishengText,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            item.positive?.let {
+                Spacer(Modifier.width(6.dp))
+                Text(if (it) "[OK]" else "[NG]", style = MaterialTheme.typography.labelMedium, color = accent)
+            }
+        }
     }
 }
 
@@ -2428,7 +2494,7 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
 private fun dataSourceLabel(source: String?): String = when (source) {
     "QWEATHER" -> "数据来自和风天气"
     "CAIYUN" -> "数据来自彩云天气"
-    "XIAOMI" -> "数据来自小米天气"
+    "XIAOMI" -> "数据来自小米公开接口"
     "OPEN-METEO" -> "数据来自 Open-Meteo"
     else -> "DATA ${source ?: "--"}"
 }
@@ -2439,7 +2505,7 @@ private fun dataSourceSummary(data: WeatherData): String {
         .distinct()
         .map(::dataSourceShortLabel)
     return if (supplements.isEmpty()) dataSourceLabel(data.dataSource)
-    else "${dataSourceLabel(data.dataSource)} · 部分预报由 ${supplements.joinToString("/")} 补全"
+    else "${dataSourceLabel(data.dataSource)} · 部分数据由 ${supplements.joinToString("/")} 提供"
 }
 
 private fun supplementShortLabel(data: WeatherData): String {
@@ -2668,10 +2734,6 @@ private fun CityDrawer(
         }
     }
 }
-
-private val timeFmt = DateTimeFormatter.ofPattern("MM-dd HH:mm")
-
-private fun formatTime(epoch: Long): String = timeFmt.format(Instant.ofEpochMilli(epoch).atZone(ZoneId.systemDefault()))
 
 private fun formatAlertTime(s: String): String = try {
     s.substring(0, minOf(16, s.length)).replace("T", " ")

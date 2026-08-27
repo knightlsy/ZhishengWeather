@@ -17,7 +17,7 @@ import com.zhisheng.weather.model.YesterdayInfo
 import com.zhisheng.weather.model.Nowcast
 import com.zhisheng.weather.model.WeatherConsistency
 import com.zhisheng.weather.model.alertLevelOf
-import com.zhisheng.weather.model.wmoToCondition
+import com.zhisheng.weather.model.cityZone
 import com.zhisheng.weather.model.wmoProfile
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -27,8 +27,8 @@ import java.time.format.DateTimeFormatter
 // 天气仓储：默认小米为主源，Open-Meteo 兜底；手动选择和风/彩云时保持源纯净。
 object WeatherRepository {
 
-    // AUTO/小米允许公共源补缺；手动锁定和风/彩云时不静默混入公共源，避免同一块
-    // 数据来自不同模型却被误认为指定源，出现温度、逐时和逐日互相“打架”。
+    // 只有 AUTO 允许公共源补缺；小米始终主导天气现象与降水判断。
+    // 手动锁定任一来源时保持完全纯源，让设置名称与实际数据严格一致。
     suspend fun fetchWeather(city: City, pref: SourcePref = SourcePref.AUTO): WeatherData {
         val data = when (pref) {
             SourcePref.QWEATHER -> {
@@ -36,7 +36,7 @@ object WeatherRepository {
                 if (QWeatherApi.enabled) {
                     fetchQWeather(city) ?: WeatherData(error = "和风天气请求失败（检查凭据与网络）")
                 } else {
-                    WeatherData(error = "未配置和风凭据：请在实验室里接入和风天气")
+                    WeatherData(error = "还没有配置和风天气：请在设置中打开开发者模式后接入")
                 }
             }
             SourcePref.CAIYUN -> {
@@ -58,9 +58,9 @@ object WeatherRepository {
     }
 
     internal fun shouldSupplementWithOpenMeteo(pref: SourcePref): Boolean =
-        pref == SourcePref.AUTO || pref == SourcePref.XIAOMI
+        pref == SourcePref.AUTO
 
-    // AUTO 链：小米 → Open-Meteo。和风不在默认链里。
+    // AUTO 链：小米主导；Open-Meteo 只补小米缺项，小米整源失败时才兜底。
     private suspend fun autoChain(city: City): WeatherData {
         // 0.0.9-debug 修复：原实现熔断打开时仍会再打一次小米（白等一轮超时），
         // 小米慢失败时连续两次 fetchXiaomi（内部各带 2 次重试）最坏 30s+，
@@ -139,11 +139,22 @@ object WeatherRepository {
                     ?: qwRetry { svc.daily(lat, lon, 7) }
                     ?: qwRetry { svc.daily(lat, lon, 3) }
             }
-            val hourly = async { qwRetry { svc.hourly(lat, lon) } }
+            val hourly = async {
+                // 新版接口最多 240 小时。高档套餐先取完整时效；若凭据权限只覆盖
+                // 较短时效，按档回退，不能让免费用户因为一次 4xx 丢掉整个逐时区。
+                qwRetry { svc.hourly(lat, lon, 240) }
+                    ?: qwRetry { svc.hourly(lat, lon, 168) }
+                    ?: qwRetry { svc.hourly(lat, lon, 72) }
+                    ?: qwRetry { svc.hourly(lat, lon, 24) }
+            }
             val alerts = async { qwRetry { svc.alerts(lat, lon) } }
             val air = async { qwRetry { svc.air(lat, lon) } }
             val minutely = async { qwRetry { svc.minutely(QWeatherApi.lonLat(city)) } }
-            val indices = async { qwRetry { svc.indices(QWeatherApi.lonLat(city), "1,2,3,9") } }
+            val indices = async {
+                // type=0 表示套餐允许的全部生活指数；不支持时退回基础四项。
+                qwRetry { svc.indices(QWeatherApi.lonLat(city), "0") }
+                    ?: qwRetry { svc.indices(QWeatherApi.lonLat(city), "1,2,3,9") }
+            }
             // 小米源补：昨日复盘 + 台风 + 逐日扩展（按城市名反查小米 key，取距离最近命中，
             // 防同名异地串台——v0.0.1 修复：金川区(金昌)显示四川金川县预警）
             val cur = now.await() ?: return@coroutineScope null
@@ -184,23 +195,37 @@ object WeatherRepository {
             val dailyList = buildList {
                 d?.days?.mapNotNull { dd ->
                     val t = parseTimeMillis(dd.forecastStartTime)
-                    if (t == 0L) null else DailyWeather(
-                        dateMillis = t,
-                        high = dd.temperatureMax?.value,
-                        low = dd.temperatureMin?.value,
-                        // 逐日行代表整天，固定用白天条件（不取 icon 的夜间变体）
-                        condition = WeatherCondition.fromQwCode(dd.daytime?.condition?.code),
-                        profile = WeatherCondition.qwProfile(dd.daytime?.condition?.code, null),
-                        weatherText = dd.daytime?.condition?.text,
-                        windSpeed = speedKmh(dd.daytime?.wind?.speed),
-                        precipProbability = normalizeQwProbability(dd.daytime?.precipitation?.probability),
-                        precipMm = dd.daytime?.precipitation?.amount?.value,
-                        sunrise = formatClock(dd.astro?.sunrise),
-                        sunset = formatClock(dd.astro?.sunset),
-                        moonrise = formatClock(dd.astro?.moonrise),
-                        moonset = formatClock(dd.astro?.moonset),
-                        moonPhase = dd.astro?.moonPhase,
-                    )
+                    if (t == 0L) null else {
+                        val dayCode = dd.daytime?.condition?.code
+                        val nightCode = dd.nighttime?.condition?.code
+                        val dayCondition = WeatherCondition.fromQwCode(dayCode)
+                        val nightCondition = WeatherCondition.fromQwCode(nightCode)
+                        val condition = qweatherDailyCondition(dd)
+                        val profileCode = if (condition == nightCondition && nightCondition != dayCondition) {
+                            nightCode
+                        } else {
+                            dayCode ?: nightCode
+                        }
+                        DailyWeather(
+                            dateMillis = t,
+                            high = dd.temperatureMax?.value,
+                            low = dd.temperatureMin?.value,
+                            condition = condition,
+                            profile = WeatherCondition.qwProfile(profileCode, null),
+                            weatherText = qweatherDailyText(dd),
+                            windSpeed = listOfNotNull(
+                                speedKmh(dd.daytime?.wind?.speed),
+                                speedKmh(dd.nighttime?.wind?.speed),
+                            ).maxOrNull(),
+                            precipProbability = qweatherDailyProbability(dd),
+                            precipMm = qweatherDailyPrecipMm(dd),
+                            sunrise = formatClock(dd.astro?.sunrise),
+                            sunset = formatClock(dd.astro?.sunset),
+                            moonrise = formatClock(dd.astro?.moonrise),
+                            moonset = formatClock(dd.astro?.moonset),
+                            moonPhase = dd.astro?.moonPhase,
+                        )
+                    }
                 }?.let { addAll(it) }
             }.map { dd -> MoonCalc.enrich(dd, city.latitude, city.longitude) }
 
@@ -230,7 +255,8 @@ object WeatherRepository {
                     dewPoint = cur.dewPoint?.value,
                     cloudCover = pct(cur.cloudCover),
                     windGust = speedKmh(cur.windGust),
-                    precipMm = cur.precipitation?.amount?.value,
+                    // 遥测与氛围层使用雨强；amount 是过去一小时累计量，不等同于此刻雨势。
+                    precipMm = qweatherCurrentPrecipRate(cur.precipitation),
                 ),
                 hourly = h?.hours?.mapNotNull { hh ->
                     val t = parseTimeMillis(hh.forecastTime)
@@ -244,18 +270,20 @@ object WeatherRepository {
                     )
                 } ?: emptyList(),
                 daily = dailyList,
-                aqi = a?.indexes?.firstOrNull()?.let { idx ->
-                    AqiInfo(
-                        value = idx.aqi,
-                        level = idx.category ?: idx.level,
-                        primary = idx.primaryPollutant?.name,
-                        pm25 = pollutant(a, "pm2p5"),
-                        pm10 = pollutant(a, "pm10"),
-                        o3 = pollutant(a, "o3"),
-                        no2 = pollutant(a, "no2"),
-                        so2 = pollutant(a, "so2"),
-                        co = pollutant(a, "co"),
-                    )
+                aqi = a?.let { air ->
+                    preferredAirIndex(air.indexes)?.let { idx ->
+                        AqiInfo(
+                            value = idx.aqi?.let { Math.round(it).toInt() },
+                            level = idx.category ?: idx.level,
+                            primary = idx.primaryPollutant?.name,
+                            pm25 = pollutant(air, "pm2p5"),
+                            pm10 = pollutant(air, "pm10"),
+                            o3 = pollutant(air, "o3"),
+                            no2 = pollutant(air, "no2"),
+                            so2 = pollutant(air, "so2"),
+                            co = pollutant(air, "co"),
+                        )
+                    }
                 } ?: s?.aqi?.let { sa ->
                     AqiInfo(
                         value = sa.aqi?.toIntOrNull(),
@@ -304,13 +332,7 @@ object WeatherRepository {
                 },
                 carWashOk = idxLevel("2")?.let { it <= 2 },
                 sportsOk = idxLevel("1")?.let { it <= 2 },
-                extraIndices = ix?.daily?.mapNotNull { it2 ->
-                    when (it2.type) {
-                        "3" -> LifeIndexExtra("穿衣", "DRESS", it2.category ?: "")
-                        "9" -> LifeIndexExtra("感冒", "COLD", it2.category ?: "")
-                        else -> null
-                    }
-                } ?: emptyList(),
+                extraIndices = qweatherLifeIndices(ix),
                 yesterday = s?.yesterday?.let {
                     YesterdayInfo(
                         high = it.tempMax?.toDoubleOrNull(),
@@ -341,13 +363,48 @@ object WeatherRepository {
     } catch (ce: kotlinx.coroutines.CancellationException) {
         throw ce
     } catch (e: Exception) {
-        android.util.Log.w("ZhishengWeather", "QWeather 主路径整体失败，回退小米源", e)
+        android.util.Log.w("ZhishengWeather", "QWeather 主路径整体失败", e)
         null
     }
 
     private fun pollutant(air: QwAir, code: String): String? =
         air.pollutants.firstOrNull { it.code == code }
             ?.concentration?.value?.let { if (it == it.toInt().toDouble()) it.toInt().toString() else it.toString() }
+
+    internal fun qweatherLifeIndices(indices: QwIndices?): List<LifeIndexExtra> =
+        indices?.daily.orEmpty().mapNotNull { item ->
+            val type = item.type ?: return@mapNotNull null
+            // 运动和洗车在上方已有专门的适宜/不适宜卡片，避免重复展示。
+            if (type == "1" || type == "2") return@mapNotNull null
+            val named = qweatherIndexName(type, item.name)
+            val category = item.category?.trim()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+            // 接口原名可能长达“空气污染扩散条件指数”，双列卡会被撑成竖排。
+            // 首页统一使用稳定短名，详情值仍忠实保留接口返回。
+            LifeIndexExtra(named.first, named.second, category)
+        }.distinctBy { it.name }
+
+    internal fun qweatherIndexName(type: String, apiName: String? = null): Pair<String, String> = when (type) {
+        "3" -> "穿衣" to "DRESS"
+        "4" -> "钓鱼" to "FISHING"
+        "5" -> "紫外线" to "UV"
+        "6" -> "旅游" to "TRAVEL"
+        "7" -> "过敏" to "ALLERGY"
+        "8" -> "舒适度" to "COMFORT"
+        "9" -> "感冒" to "COLD"
+        "10" -> "空气扩散" to "AIR"
+        "11" -> "空调" to "A/C"
+        "12" -> "太阳镜" to "GLASSES"
+        "13" -> "化妆" to "MAKEUP"
+        "14" -> "晾晒" to "DRYING"
+        "15" -> "交通" to "TRAFFIC"
+        "16" -> "防晒" to "SPF"
+        else -> {
+            val short = apiName?.trim()
+                ?.removeSuffix("指数")
+                ?.takeIf { it.isNotEmpty() }
+            (short ?: "生活指数") to "INDEX $type"
+        }
+    }
 
     // 和风新版单位换算：优先用 API 返回的 unit 字段判定（v0.0.1：启发式会把大雾
     // 能见度 500m 误显示成 500km），unit 缺失时才退回启发式
@@ -396,7 +453,7 @@ object WeatherRepository {
     } catch (ce: kotlinx.coroutines.CancellationException) {
         throw ce
     } catch (e: Exception) {
-        WeatherData(error = e.message ?: "网络错误")
+        WeatherData(error = userFacingFetchError("小米天气"))
     }
 
     // 小米 key 形如 "weathercn:xxx"/"accu:xxx"；和风搜索存下的是和风 id（纯数字），
@@ -413,7 +470,7 @@ object WeatherRepository {
     // v0.0.4：结果做会话级缓存——此前每次和风刷新都附带一次 searchCity 往返（15s 超时风险）
     private const val XIAOMI_MATCH_MAX_KM = 150.0
 
-    private val xiaomiKeyCache = java.util.concurrent.ConcurrentHashMap<String, String?>()
+    private val xiaomiKeyCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     private suspend fun nearestXiaomiKey(name: String, lat: Double, lon: Double): String? {
         val cacheKey = "$name|$lat|$lon"
@@ -439,7 +496,7 @@ object WeatherRepository {
         } catch (_: Exception) {
             null
         }
-        xiaomiKeyCache[cacheKey] = hit
+        if (hit != null) xiaomiKeyCache[cacheKey] = hit
         return hit
     }
 
@@ -587,6 +644,7 @@ object WeatherRepository {
             // pubTime 解析失败退回当日 0 点，避免逐日日期全部掉回 1970（v0.0.1）
             val start = parseTimeMillis(r.forecastDaily?.pubTime).takeIf { it != 0L }
                 ?: todayStartMillis()
+            val offset = offsetSeconds(r.forecastDaily?.pubTime)
             val n = minOf(highs?.size ?: 0, codes?.size ?: 0, 15)
             for (i in 0 until n) {
                 val t = highs?.getOrNull(i)
@@ -600,7 +658,7 @@ object WeatherRepository {
                 val loT = if (a != null && b != null) minOf(a, b) else b ?: a
                 add(
                     DailyWeather(
-                        dateMillis = start + i * 86400_000L,
+                        dateMillis = xiaomiDailyDateMillis(start, i, offset),
                         high = hiT,
                         low = loT,
                         condition = WeatherCondition.moreSignificant(
@@ -661,15 +719,16 @@ object WeatherRepository {
         val hourly = buildList {
             val temps = r.forecastHourly?.temperature?.value
             val codes = r.forecastHourly?.weather?.value
-            val start = parseTimeMillis(r.forecastHourly?.temperature?.pubTime
-                ?: r.forecastHourly?.pubTime).takeIf { it != 0L }
+            val pubRaw = r.forecastHourly?.temperature?.pubTime ?: r.forecastHourly?.pubTime
+            val start = parseTimeMillis(pubRaw).takeIf { it != 0L }
                 ?: (System.currentTimeMillis() / 3_600_000L * 3_600_000L)
+            val hourOffset = offsetSeconds(pubRaw)
             val n = minOf(temps?.size ?: 0, codes?.size ?: 0, 24)
             for (i in 0 until n) {
                 val profile = WeatherCondition.xiaomiProfile(codes?.getOrNull(i)?.toString(), locationKey)
                 add(
                     HourlyWeather(
-                        timeMillis = start + i * 3600_000L,
+                        timeMillis = xiaomiHourlyMillis(start, i, hourOffset),
                         temperature = temps?.getOrNull(i)?.toDouble(),
                         condition = profile.condition,
                         windSpeed = hourlyWind?.getOrNull(i)?.speed?.toDoubleOrNull(),
@@ -799,6 +858,106 @@ object WeatherRepository {
         value <= 200 -> "中度污染"
         value <= 300 -> "重度污染"
         else -> "严重污染"
+    }
+
+    // Open-Meteo 给的是 US AQI，不能套国标 HJ633 的「轻度污染」分段。
+    fun usAqiLevel(value: Int?): String? = when {
+        value == null -> null
+        value <= 50 -> "优"
+        value <= 100 -> "良"
+        value <= 150 -> "对敏感人群不健康"
+        value <= 200 -> "不健康"
+        value <= 300 -> "非常不健康"
+        else -> "有害"
+    }
+
+    internal fun qweatherCurrentPrecipRate(precip: QwPrecip?): Double? =
+        // amount 是当前统计时段的累计量，不能冒充 mm/h。只有接口明确返回
+        // intensity 时才展示实时雨强；缺失时交给天气现象和分钟序列表达降水。
+        precipToMm(precip?.intensity)
+
+    internal fun qweatherDailyCondition(day: QwDay): WeatherCondition {
+        val daytime = WeatherCondition.fromQwCode(day.daytime?.condition?.code)
+        val nighttime = WeatherCondition.fromQwCode(day.nighttime?.condition?.code)
+        return WeatherCondition.moreSignificant(daytime, nighttime)
+    }
+
+    internal fun qweatherDailyText(day: QwDay): String? {
+        val daytime = day.daytime?.condition?.text?.trim()?.takeIf { it.isNotEmpty() }
+        val nighttime = day.nighttime?.condition?.text?.trim()?.takeIf { it.isNotEmpty() }
+        return when {
+            daytime == null -> nighttime
+            nighttime == null || nighttime == daytime -> daytime
+            else -> "${daytime}转${nighttime}"
+        }
+    }
+
+    internal fun qweatherDailyProbability(day: QwDay): Int? = listOfNotNull(
+        normalizeQwProbability(day.daytime?.precipitation?.probability),
+        normalizeQwProbability(day.nighttime?.precipitation?.probability),
+    ).maxOrNull()
+
+    internal fun qweatherDailyPrecipMm(day: QwDay): Double? {
+        val periods = listOfNotNull(
+            precipToMm(day.daytime?.precipitation?.amount),
+            precipToMm(day.nighttime?.precipitation?.amount),
+        )
+        return periods.takeIf { it.isNotEmpty() }?.sum()
+    }
+
+    internal fun preferredAirIndex(indexes: List<QwAirIndex>): QwAirIndex? {
+        fun rank(code: String?): Int {
+            val c = code?.lowercase().orEmpty()
+            return when {
+                c == "cn-mee" -> 0
+                c == "cn-mee-1h" -> 1
+                c == "qaqi" -> 3
+                c.isBlank() -> 4
+                else -> 2 // 其他国家和地区的本地 AQI（us-epa、eu-eea、jp-moe 等）
+            }
+        }
+        return indexes.minByOrNull { rank(it.code) }
+    }
+
+    // 小米逐日 pubTime 经常是 22:00/07:00 这类发布时间，不是当天 0 点。
+    // 先折到城市本地日历日再按天累加，避免「今天」跳到第二天、月相时刻偏几小时。
+    internal fun xiaomiDailyDateMillis(
+        pubTimeMillis: Long,
+        dayIndex: Int,
+        utcOffsetSeconds: Int?,
+    ): Long {
+        val zone = cityZone(utcOffsetSeconds)
+        return java.time.Instant.ofEpochMilli(pubTimeMillis).atZone(zone).toLocalDate()
+            .plusDays(dayIndex.toLong())
+            .atStartOfDay(zone)
+            .toInstant()
+            .toEpochMilli()
+    }
+
+    internal fun xiaomiHourlyMillis(
+        pubTimeMillis: Long,
+        hourIndex: Int,
+        utcOffsetSeconds: Int?,
+    ): Long {
+        val zone = cityZone(utcOffsetSeconds)
+        return java.time.Instant.ofEpochMilli(pubTimeMillis).atZone(zone)
+            .withMinute(0).withSecond(0).withNano(0)
+            .plusHours(hourIndex.toLong())
+            .toInstant()
+            .toEpochMilli()
+    }
+
+    internal fun userFacingFetchError(sourceLabel: String): String =
+        "${sourceLabel}暂时无法获取，请检查网络后重试"
+
+    internal fun precipToMm(v: QwVal?): Double? {
+        val n = v?.value ?: return null
+        if (!n.isFinite() || n < 0.0) return null
+        return when (v.unit?.trim()?.lowercase()?.replace(" ", "")) {
+            "cm", "cm/h" -> n * 10.0
+            "in", "inch", "in/h", "inch/h" -> n * 25.4
+            else -> n
+        }
     }
 
     private val formatter: DateTimeFormatter = DateTimeFormatter.ISO_OFFSET_DATE_TIME
