@@ -39,5 +39,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ZhishengWeather"
+rootProject.name = "TianQiWeather"
 include(":app")

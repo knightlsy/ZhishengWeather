@@ -21,13 +21,13 @@ if (-not $versionLine -or $versionLine.Matches[0].Groups[1].Value -ne $Version) 
 }
 
 $packages = [ordered]@{
-    'app\build\outputs\apk\publicRelease\app-publicRelease.apk' = "ZhishengWeather-v$Version-public.apk"
+    'app\build\outputs\apk\publicRelease\app-publicRelease.apk' = "TianQiWeather-v$Version-public.apk"
 }
 
 if ($IncludeDevelopmentBuilds) {
-    $packages['app\build\outputs\apk\release\app-release.apk'] = "ZhishengWeather-v$Version-full-private.apk"
-    $packages['app\build\outputs\apk\performance\app-performance.apk'] = "ZhishengWeather-v$Version-owner-upgrade-private.apk"
-    $packages['app\build\outputs\apk\previewPublic\app-previewPublic.apk'] = "ZhishengWeather-v$Version-public-parallel.apk"
+    $packages['app\build\outputs\apk\release\app-release.apk'] = "TianQiWeather-v$Version-full-private.apk"
+    $packages['app\build\outputs\apk\performance\app-performance.apk'] = "TianQiWeather-v$Version-owner-upgrade-private.apk"
+    $packages['app\build\outputs\apk\previewPublic\app-previewPublic.apk'] = "TianQiWeather-v$Version-public-parallel.apk"
 }
 
 foreach ($relativeSource in $packages.Keys) {
@@ -43,7 +43,7 @@ foreach ($relativeSource in $packages.Keys) {
         -Destination (Join-Path $DistDir $packages[$relativeSource]) -Force
 }
 
-$hashLines = @("ZhishengWeather $Version", '')
+$hashLines = @("TianQiWeather $Version", '')
 $hashes = @{}
 foreach ($fileName in ($packages.Values | Sort-Object)) {
     $hash = (Get-FileHash -LiteralPath (Join-Path $DistDir $fileName) -Algorithm SHA256).Hash
@@ -55,7 +55,7 @@ $hashLines | Set-Content -LiteralPath (Join-Path $DistDir 'SHA256.txt') -Encodin
 if (-not $IncludeDevelopmentBuilds) {
     $manifestPath = Join-Path $ProjectRoot 'update.json'
     $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-    $publicFile = "ZhishengWeather-v$Version-public.apk"
+    $publicFile = "TianQiWeather-v$Version-public.apk"
     if ($manifest.versionName -ne $Version) {
         throw "update.json versionName does not match $Version"
     }
@@ -67,5 +67,5 @@ if (-not $IncludeDevelopmentBuilds) {
     }
 }
 
-Write-Host "Packaged ZhishengWeather $Version to $DistDir"
+Write-Host "Packaged TianQiWeather $Version to $DistDir"
 $hashLines | ForEach-Object { Write-Host $_ }

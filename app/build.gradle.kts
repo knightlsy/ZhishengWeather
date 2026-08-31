@@ -20,11 +20,11 @@ val publicBuild = providers.gradleProperty("publicBuild").isPresent
 val communityQqGroup = "1106284779"
 
 android {
-    namespace = "com.zhisheng.weather"
+    namespace = "com.tianqi.weather"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.zhisheng.weather"
+        applicationId = "com.tianqi.weather"
         minSdk = 26
         targetSdk = 34
         // 20260827：0.1.3 正式版
@@ -59,9 +59,9 @@ android {
                 keyAlias = "public"
                 keyPassword = "public123"
             } else {
-                storeFile = project.rootProject.file("keystore/zhisheng.jks")
+                storeFile = project.rootProject.file("keystore/tianqi.jks")
                 storePassword = props.getProperty("keystore.store_password")
-                keyAlias = "zhisheng"
+                keyAlias = "tianqi"
                 keyPassword = props.getProperty("keystore.key_password")
             }
         }
@@ -83,7 +83,7 @@ android {
             initWith(getByName("release"))
             // 仅用于体验机并行安装：内容与公开版一致，但不覆盖手机上的满血版。
             applicationIdSuffix = ".preview"
-            resValue("string", "app_name", "枳生天气 公开版")
+            resValue("string", "app_name", "天气 公开版")
             signingConfig = signingConfigs.getByName("public")
             matchingFallbacks += listOf("release")
             buildConfigField("String", "QW_HOST", "\"\"")

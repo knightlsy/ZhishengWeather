@@ -1,19 +1,19 @@
-![Zhisheng Weather · ZHISHENG WEATHER TERMINAL](assets/banner.png)
+![TianQi Weather · TIANQI WEATHER TERMINAL](assets/banner.png)
 
 <p align="center">
-  <img src="assets/app-icon.png" width="96" alt="Zhisheng Weather app icon"/><br/>
+  <img src="assets/app-icon.png" width="96" alt="TianQi Weather app icon"/><br/>
   <b>Open it and get the weather.</b><br/>
   A dense, phosphor-terminal weather app for Android. No ads, accounts, or analytics SDK.
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
+  <a href="https://github.com/tianqiplus/TianQiWeather/releases">
     <img alt="Download the public APK" src="https://img.shields.io/badge/DOWNLOAD_PUBLIC_APK_·_v0.1.3-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
+  <a href="https://github.com/tianqiplus/TianQiWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/tianqiplus/TianQiWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
   <img alt="Current version 0.1.3" src="https://img.shields.io/badge/current-0.1.3-31C9DB?style=flat-square"/>
   <img alt="No ads, accounts, or tracking" src="https://img.shields.io/badge/ads_·_accounts_·_tracking-none-31C9DB?style=flat-square"/>
@@ -30,7 +30,7 @@
 
 <table>
   <tr>
-    <td align="center"><a href="assets/screenshot-home.jpg"><img src="assets/screenshot-home.jpg" width="160" alt="Zhisheng Weather home screen"/></a></td>
+    <td align="center"><a href="assets/screenshot-home.jpg"><img src="assets/screenshot-home.jpg" width="160" alt="TianQi Weather home screen"/></a></td>
     <td align="center"><a href="assets/screenshot-details.jpg"><img src="assets/screenshot-details.jpg" width="160" alt="Telemetry and air quality"/></a></td>
     <td align="center"><a href="assets/screenshot-cities.jpg"><img src="assets/screenshot-cities.jpg" width="160" alt="Saved cities"/></a></td>
     <td align="center"><a href="assets/screenshot-add-city.jpg"><img src="assets/screenshot-add-city.jpg" width="160" alt="City search"/></a></td>
@@ -49,7 +49,7 @@
 
 ## About the project
 
-When I check the weather, I usually want four answers quickly: the current temperature, when rain is due, whether the air is decent, and whether the next few days will turn colder. Zhisheng Weather puts those answers in one vertical feed. There is no splash ad and no account screen.
+When I check the weather, I usually want four answers quickly: the current temperature, when rain is due, whether the air is decent, and whether the next few days will turn colder. TianQi Weather puts those answers in one vertical feed. There is no splash ad and no account screen.
 
 The interface uses a phosphor-terminal look: black background, thin dividers, cyan for regular data, and orange for signals that need attention. Current conditions, alerts, hourly weather, and short-term precipitation come first. Air quality, life indices, and moon data follow below.
 
@@ -92,22 +92,22 @@ QWeather requests use Ed25519-signed JWTs, or an API KEY. `assemblePublicRelease
 ## Icons
 
 <p align="center">
-  <img src="assets/app-icon.png" width="144" alt="Zhisheng Weather app icon"/>
+  <img src="assets/app-icon.png" width="144" alt="TianQi Weather app icon"/>
 </p>
 
 Version 0.1.3 uses the weather character portrait by default. Her hair clip keeps the classic sun, cloud, and rain mark, while the dark base, cyan signal color, and orange accents stay aligned with the terminal interface. The original launcher icon remains available under Settings → Interface → App icon.
 
-<p align="center"><img src="assets/icons_grid.png" width="560" alt="Zhisheng Weather icon set"/></p>
+<p align="center"><img src="assets/icons_grid.png" width="560" alt="TianQi Weather icon set"/></p>
 
 The app also includes 15 custom weather glyphs for clear, cloudy, overcast, fog, rain, thunderstorms, snow, wind, and sleet. They were drawn for this project rather than assembled from a general icon library.
 
 ## Install
 
-1. Download the latest public APK from [Releases](https://github.com/zhishengplus/ZhishengWeather/releases).
+1. Download the latest public APK from [Releases](https://github.com/tianqiplus/TianQiWeather/releases).
 2. Install it on Android 8.0 or later.
 3. The first launch shows Beijing. Use search to save your own cities.
 
-The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; Zhisheng Weather is not requesting another system permission.
+The APK is distributed through GitHub. Android may ask you to allow the current app to install unknown-source files. That prompt refers to the download channel; TianQi Weather is not requesting another system permission.
 
 ## Version 0.1.3
 
@@ -211,7 +211,7 @@ A widget polish pass: date, update time, feels-like, and hourly/daily text got a
 
 ## Contributing
 
-Report reproducible problems through [GitHub Issues](https://github.com/zhishengplus/ZhishengWeather/issues). Include the app version, phone model, Android version, active provider, and necessary screenshots; redact Tokens, API keys, and other private credentials.
+Report reproducible problems through [GitHub Issues](https://github.com/tianqiplus/TianQiWeather/issues). Include the app version, phone model, Android version, active provider, and necessary screenshots; redact Tokens, API keys, and other private credentials.
 
 Community contributors: `PPQ1028`, `Uinuan1`, `KZzzzo`, `睡觉了寂`, `微生之最`, `r1file`, `vsqesy3721`, `茉莉羽`, `陈大橙`, `飞667`, `一杯冰美式、、`, `M1ralce`, `紅星照耀中國`, `我爱跑步`, `河鱼天雁`, `你的心里没点高数吗`, `周月星斗`, `无敌战神暴王龙`, `control3`, `明珠有泪`, `Gstar_`, `伍拾两HZ`, and `寡欲老公猪`.
 
@@ -220,8 +220,8 @@ Community contributors: `PPQ1028`, `Uinuan1`, `KZzzzo`, `睡觉了寂`, `微生�
 You need JDK 17 and Android SDK 34. The Gradle Wrapper is included.
 
 ```bash
-git clone https://github.com/zhishengplus/ZhishengWeather.git
-cd ZhishengWeather
+git clone https://github.com/tianqiplus/TianQiWeather.git
+cd TianQiWeather
 ```
 
 Without credentials, the project builds the public data path. To use QWeather as the primary feed, put your SDK path and credentials in the root `local.properties`; the file is already ignored by Git.
@@ -261,7 +261,7 @@ The app uses network, update-install, and optional location permissions:
 
 There is no ad SDK, analytics, account system, or project-operated backend. Saved cities and settings stay on the device. Weather requests send the selected city's coordinates to the active provider. Location coordinates are also used to resolve a city name.
 
-After location is enabled and permission is granted, the app rechecks the city at intervals when returning to the foreground. It does not collect location in the background. Relevant code is under [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data).
+After location is enabled and permission is granted, the app rechecks the city at intervals when returning to the foreground. It does not collect location in the background. Relevant code is under [`app/src/main/kotlin/com/tianqi/weather/data`](app/src/main/kotlin/com/tianqi/weather/data).
 
 ## Known limitations
 
@@ -357,7 +357,7 @@ After location is enabled and permission is granted, the app rechecks the city a
 
 **0.0.1 Preview** was the first public build, with the phosphor-terminal interface, 15 weather glyphs, three-provider data path, and public build task.
 
-See [Releases](https://github.com/zhishengplus/ZhishengWeather/releases) for complete version notes.
+See [Releases](https://github.com/tianqiplus/TianQiWeather/releases) for complete version notes.
 
 ## License
 
@@ -368,4 +368,4 @@ See [Releases](https://github.com/zhishengplus/ZhishengWeather/releases) for com
 
 ---
 
-<p align="center"><sub>ZHISHENG WEATHER TERMINAL // PATTERN BLUE · Kotlin / Android</sub></p>
+<p align="center"><sub>TIANQI WEATHER TERMINAL // PATTERN BLUE · Kotlin / Android</sub></p>

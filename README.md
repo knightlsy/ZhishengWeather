@@ -1,19 +1,19 @@
-![枳生天气 · ZHISHENG WEATHER TERMINAL](assets/banner.png)
+![天气天气 · TIANQI WEATHER TERMINAL](assets/banner.png)
 
 <p align="center">
-  <img src="assets/app-icon.png" width="96" alt="枳生天气应用图标"/><br/>
+  <img src="assets/app-icon.png" width="96" alt="天气天气应用图标"/><br/>
   <b>打开就是天气。</b><br/>
   一款信息密度较高的 Android 天气应用，采用磷光终端风格。没有广告、账号和统计 SDK。
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhishengplus/ZhishengWeather/releases">
+  <a href="https://github.com/tianqiplus/TianQiWeather/releases">
     <img alt="下载公共版 APK" src="https://img.shields.io/badge/下载公共版_APK_·_v0.1.3-FF6F1E?style=for-the-badge&labelColor=10151C"/>
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/zhishengplus/ZhishengWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/zhishengplus/ZhishengWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
+  <a href="https://github.com/tianqiplus/TianQiWeather"><img alt="GitHub stars" src="https://img.shields.io/github/stars/tianqiplus/TianQiWeather?style=flat-square&labelColor=10151C&color=FF6F1E"/></a>
   <img alt="Android 8.0+" src="https://img.shields.io/badge/Android-8.0%2B-31C9DB?style=flat-square"/>
   <img alt="当前版本 0.1.3" src="https://img.shields.io/badge/当前版本-0.1.3-31C9DB?style=flat-square"/>
   <img alt="无广告、账号和埋点" src="https://img.shields.io/badge/广告·账号·埋点-无-31C9DB?style=flat-square"/>
@@ -30,7 +30,7 @@
 
 <table>
   <tr>
-    <td align="center"><a href="assets/screenshot-home.jpg"><img src="assets/screenshot-home.jpg" width="160" alt="枳生天气主页"/></a></td>
+    <td align="center"><a href="assets/screenshot-home.jpg"><img src="assets/screenshot-home.jpg" width="160" alt="天气天气主页"/></a></td>
     <td align="center"><a href="assets/screenshot-details.jpg"><img src="assets/screenshot-details.jpg" width="160" alt="遥测数据与空气质量"/></a></td>
     <td align="center"><a href="assets/screenshot-cities.jpg"><img src="assets/screenshot-cities.jpg" width="160" alt="城市列表"/></a></td>
     <td align="center"><a href="assets/screenshot-add-city.jpg"><img src="assets/screenshot-add-city.jpg" width="160" alt="城市搜索"/></a></td>
@@ -49,7 +49,7 @@
 
 ## 这个项目
 
-我平时打开天气 App，只想尽快确认几件事：现在多少度，什么时候下雨，空气怎么样，明后天会不会突然降温。枳生天气把这些内容放在同一条纵向信息流里，不需要先看开屏广告，也不用登录账号。
+我平时打开天气 App，只想尽快确认几件事：现在多少度，什么时候下雨，空气怎么样，明后天会不会突然降温。天气天气把这些内容放在同一条纵向信息流里，不需要先看开屏广告，也不用登录账号。
 
 界面走的是磷光终端风：黑色背景、细线分区、青色主信号和少量橙色提示。信息排得比较紧，但主次是固定的。实况、预警、逐时和短时降水在前，空气质量、生活指数、月相等内容继续往下滑就能看到。
 
@@ -94,22 +94,22 @@ GitHub Releases 只发布正式公共版 APK，这也是普通用户唯一需要
 ## 图标
 
 <p align="center">
-  <img src="assets/app-icon.png" width="144" alt="枳生天气应用图标"/>
+  <img src="assets/app-icon.png" width="144" alt="天气天气应用图标"/>
 </p>
 
 0.1.3 默认使用天气娘头像：发卡保留太阳、云和降水组成的经典标识，深色底板、青色信号和橙色提示继续沿用终端界面的视觉语言。喜欢原版图标时，可在「设置 → 界面 → 应用图标」切回经典样式。
 
-<p align="center"><img src="assets/icons_grid.png" width="560" alt="枳生天气图标组"/></p>
+<p align="center"><img src="assets/icons_grid.png" width="560" alt="天气天气图标组"/></p>
 
 应用内还有 15 枚天气图标，覆盖晴、多云、阴、雾、雨、雷暴、雪、风和霰等状态。它们单独绘制，没有从通用图标库拼接。
 
 ## 安装
 
-1. 从 [Releases](https://github.com/zhishengplus/ZhishengWeather/releases) 下载最新公共版 APK。
+1. 从 [Releases](https://github.com/tianqiplus/TianQiWeather/releases) 下载最新公共版 APK。
 2. 安装到 Android 8.0 或更高版本的设备。
 3. 首次打开默认显示北京，可通过搜索保存自己的城市。
 
-APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是枳生天气申请了额外系统权限。
+APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来源文件，这是安装渠道提示，不是天气天气申请了额外系统权限。
 
 ## 0.1.3 更新
 
@@ -215,7 +215,7 @@ APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来
 
 ## 参与项目
 
-可以通过 [GitHub Issues](https://github.com/zhishengplus/ZhishengWeather/issues) 报告可复现的问题。提问时请附上应用版本、手机型号、系统版本、数据源和必要截图，注意遮住 Token、API KEY 等个人凭据。
+可以通过 [GitHub Issues](https://github.com/tianqiplus/TianQiWeather/issues) 报告可复现的问题。提问时请附上应用版本、手机型号、系统版本、数据源和必要截图，注意遮住 Token、API KEY 等个人凭据。
 
 社区贡献者：`PPQ1028`、`Uinuan1`、`KZzzzo`、`睡觉了寂`、`微生之最`、`r1file`、`vsqesy3721`、`茉莉羽`、`陈大橙`、`飞667`、`一杯冰美式、、`、`M1ralce`、`紅星照耀中國`、`我爱跑步`、`河鱼天雁`、`你的心里没点高数吗`、`周月星斗`、`无敌战神暴王龙`、`control3`、`明珠有泪`、`Gstar_`、`伍拾两HZ`、`寡欲老公猪`。
 
@@ -224,8 +224,8 @@ APK 只在 GitHub 发布。Android 可能提示允许当前应用安装未知来
 需要 JDK 17 和 Android SDK 34。仓库包含 Gradle Wrapper。
 
 ```bash
-git clone https://github.com/zhishengplus/ZhishengWeather.git
-cd ZhishengWeather
+git clone https://github.com/tianqiplus/TianQiWeather.git
+cd TianQiWeather
 ```
 
 不填写凭据时，构建结果使用公共版数据链路。需要和风主源时，在根目录 `local.properties` 中写入 SDK 路径和个人凭据；该文件已被 Git 忽略。
@@ -265,7 +265,7 @@ qw.private_key=<Ed25519 私钥，单行>
 
 应用没有广告 SDK、统计埋点、账号系统或自建后端。城市列表和设置保存在本机。天气请求会把所选城市坐标发送给当前数据源；使用定位时，坐标还用于反查城市名。
 
-定位开启并授权后，应用回到前台会按间隔复核所在城市，不在后台持续获取位置。相关代码位于 [`app/src/main/kotlin/com/zhisheng/weather/data`](app/src/main/kotlin/com/zhisheng/weather/data)。
+定位开启并授权后，应用回到前台会按间隔复核所在城市，不在后台持续获取位置。相关代码位于 [`app/src/main/kotlin/com/tianqi/weather/data`](app/src/main/kotlin/com/tianqi/weather/data)。
 
 ## 已知限制
 
@@ -370,15 +370,15 @@ qw.private_key=<Ed25519 私钥，单行>
 
 **0.0.1 Preview**：首次公开预览，包含磷光终端界面、15 枚天气图标、三源数据链路和公共版构建方式。
 
-完整版本记录见 [Releases](https://github.com/zhishengplus/ZhishengWeather/releases)。
+完整版本记录见 [Releases](https://github.com/tianqiplus/TianQiWeather/releases)。
 
 ## 许可
 
-- 代码使用 [MIT License](LICENSE)。欢迎提交 [Issue](https://github.com/zhishengplus/ZhishengWeather/issues) 和 PR。
-- 界面、启动图标、天气图标和终端文案为枳生天气项目素材，引用时请保留来源。
+- 代码使用 [MIT License](LICENSE)。欢迎提交 [Issue](https://github.com/tianqiplus/TianQiWeather/issues) 和 PR。
+- 界面、启动图标、天气图标和终端文案为天气天气项目素材，引用时请保留来源。
 - 天气数据版权归 [和风天气](https://www.qweather.com/)、[Open-Meteo](https://open-meteo.com/) 和小米公开天气接口相关提供方，数据仅供参考。
 - 使用和风主源时请保管好个人凭据，不要提交到公开仓库。
 
 ---
 
-<p align="center"><sub>ZHISHENG WEATHER TERMINAL // PATTERN BLUE · Kotlin / Android</sub></p>
+<p align="center"><sub>TIANQI WEATHER TERMINAL // PATTERN BLUE · Kotlin / Android</sub></p>

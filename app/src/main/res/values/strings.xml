@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">枳生天气</string>
-    <string name="widget_name">枳生天气</string>
+    <string name="app_name">天气天气</string>
+    <string name="widget_name">天气天气</string>
     <string name="widget_update_placeholder">尚未同步</string>
     <string name="widget_refreshing">正在刷新…</string>
     <string name="widget_refresh_desc">刷新天气</string>
@@ -16,11 +16,11 @@
     <string name="widget_icon_desc">天气图标</string>
     <string name="widget_trend_desc">未来六小时温度变化</string>
     <string name="widget_daily_range_desc">逐日最低与最高温度范围</string>
-    <string name="widget_label_small">枳生天气 · 小</string>
-    <string name="widget_label_medium">枳生天气 · 中</string>
-    <string name="widget_label_large">枳生天气 · 大</string>
-    <string name="widget_label_nano">枳生天气 · 横向腕表</string>
-    <string name="widget_label_tower">枳生天气 · 竖向终端</string>
+    <string name="widget_label_small">天气天气 · 小</string>
+    <string name="widget_label_medium">天气天气 · 中</string>
+    <string name="widget_label_large">天气天气 · 大</string>
+    <string name="widget_label_nano">天气天气 · 横向腕表</string>
+    <string name="widget_label_tower">天气天气 · 竖向终端</string>
     <string name="widget_desc_small">大字号实况 · 日期 · 高低温 · 体感湿度</string>
     <string name="widget_desc_medium">大字号实况 · 日期 · 体感湿度 · 未来四小时</string>
     <string name="widget_desc_large">完整实况 · 六小时温度轨迹 · 生活指数 · 七日预报 · 可刷新</string>
@@ -31,5 +31,5 @@
     <string name="shortcut_search_short">搜索城市</string>
     <string name="shortcut_search_long">搜索并切换城市</string>
     <string name="shortcut_settings_short">设置</string>
-    <string name="shortcut_settings_long">打开枳生天气设置</string>
+    <string name="shortcut_settings_long">打开天气天气设置</string>
 </resources>

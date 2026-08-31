@@ -1,4 +1,4 @@
-# ZhishengWeather build helper
+# TianQiWeather build helper
 # Usage:
 #   .\build.ps1                                  # assemblePublicRelease
 #   .\build.ps1 -Task assembleDebug

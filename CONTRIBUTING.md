@@ -1,9 +1,9 @@
 # 贡献指南 // CONTRIBUTING
 
-感谢你对 **枳生天气 // ZHISHENG WEATHER TERMINAL** 的兴趣。
+感谢你对 **天气天气 // TIANQI WEATHER TERMINAL** 的兴趣。
 项目不大，规矩也简单，说几点：
 
-*Thanks for the interest in **Zhisheng Weather // ZHISHENG WEATHER TERMINAL**.
+*Thanks for the interest in **TianQi Weather // TIANQI WEATHER TERMINAL**.
 Small project, simple rules — a few notes below.*
 
 ## 01// 参与方式 WAYS TO CONTRIBUTE

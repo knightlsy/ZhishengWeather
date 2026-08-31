@@ -5,8 +5,8 @@
     <color name="widget_text_secondary">#D4E2DE</color>
     <color name="widget_text_tertiary">#AABAB8</color>
     <color name="widget_border">#9AB0BBC2</color>
-    <color name="widget_accent_cyan">#20F0FF</color>       <!-- ZhishengCyan -->
-    <color name="widget_accent_orange">#FF9830</color>     <!-- ZhishengOrange -->
+    <color name="widget_accent_cyan">#20F0FF</color>       <!-- TianQiCyan -->
+    <color name="widget_accent_orange">#FF9830</color>     <!-- TianQiOrange -->
 
     <!-- 浅色玻璃必须在亮壁纸上仍清楚，不再用接近白底的灰字。 -->
     <color name="widget_light_text_primary">#172128</color>

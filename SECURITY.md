@@ -40,4 +40,4 @@
 - 若在仓库历史中发现任何凭据痕迹，请按安全漏洞上报，勿公开扩散
   *If you ever spot credential traces in the repository history, report them as a vulnerability — don't amplify them publicly.*
 
-<!-- ZHISHENG WEATHER TERMINAL // security policy -->
+<!-- TIANQI WEATHER TERMINAL // security policy -->
