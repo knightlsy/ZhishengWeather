@@ -176,7 +176,8 @@ enum class AccentTone(val key: String, val cn: String) {
 
 enum class AppIconStyle(val key: String, val cn: String) {
     CHARACTER("character", "天气娘"),
-    CLASSIC("classic", "经典");
+    CLASSIC("classic", "经典"),
+    CUSTOM("custom", "自定义");
 
     companion object {
         fun from(v: String?): AppIconStyle =
@@ -256,9 +257,10 @@ object SettingsRepository {
     val scanlines: Flow<Boolean> by lazy { store.data.map { it[KEY_SCANLINES] ?: true } }
     // 定位总开关：应用启动时自动申请位置权限并获取当前位置（默认开）
     val locationEnabled: Flow<Boolean> by lazy { store.data.map { it[KEY_LOCATION_ENABLED] ?: true } }
-    // 街道级定位为单独的可选能力；关闭时仍只使用粗略位置。
+    // 街道级精准定位：v0.1.4 起默认开启。启动时自动申请粗略+精确位置，
+    // 拿到坐标后通过逆地理编码解析到街道级，作为首装默认城市。
     val preciseLocationEnabled: Flow<Boolean> by lazy {
-        store.data.map { it[KEY_PRECISE_LOCATION] ?: false }.distinctUntilChanged()
+        store.data.map { it[KEY_PRECISE_LOCATION] ?: true }.distinctUntilChanged()
     }
     val preciseLocationPermissionAsked: Flow<Boolean> by lazy {
         store.data.map { it[KEY_PRECISE_LOCATION_ASKED] ?: false }.distinctUntilChanged()

@@ -31,16 +31,22 @@ object CityRepository {
         store = context.applicationContext.dataStore
     }
 
-    // 首装种子默认城市（零配置体验：装好即有天气，无需手动加城市）；
+    // 首装种子默认城市：v0.1.4 起不再硬编码北京。首装时城市列表为空，
+    // 由 MainActivity 启动时自动申请位置权限，拿到街道级定位后回填；
+    // 用户在权限弹窗里拒绝、或定位失败时，才允许手动搜索添加城市。
     // 以 KEY_CITIES 是否存在判定“首装”，用户删光城市后不会重种。
-    // v0.0.4：主值 JSON 损坏时先尝试备份值；主备都坏则重种北京（此前会永久空列表且不重种）。
+    // v0.0.4：主值 JSON 损坏时先尝试备份值；主备都坏则清空，交由定位/搜索补上。
     suspend fun ensureDefaultCity() {
         val prefs = store.data.first()
         val state = prefs.decodeCities()
         when {
             state.corrupted -> {
-                android.util.Log.e("TianQiWeather", "城市数据主备均损坏，重新播种默认城市")
-                addCity(defaultCity())
+                android.util.Log.e("TianQiWeather", "城市数据主备均损坏，不再重种北京，交由定位/搜索补上")
+                // 主备都坏：清空残留坏值，首装路径由定位回填
+                store.edit { prefs ->
+                    prefs[KEY_CITIES] = ""
+                    prefs[KEY_CITIES_BACKUP] = ""
+                }
             }
             state.repairedFromBackup -> {
                 // 主值损坏、备份可用：把备份回写主值，完成自愈
@@ -49,7 +55,8 @@ object CityRepository {
                     prefs[KEY_CITIES_BACKUP]?.let { prefs[KEY_CITIES] = it }
                 }
             }
-            !prefs.contains(KEY_CITIES) -> addCity(defaultCity())
+            // 首装：不播种任何城市，交由启动时自动定位填充
+            !prefs.contains(KEY_CITIES) -> Unit
         }
     }
 

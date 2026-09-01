@@ -34,13 +34,13 @@ sealed class AppUpdateCheck {
 }
 
 object AppUpdate {
-    const val RELEASES_PAGE = "https://github.com/tianqiplus/TianQiWeather/releases"
+    const val RELEASES_PAGE = "https://github.com/knightlsy/ZhishengWeather/releases"
     private const val MANIFEST_PRIMARY =
-        "https://raw.githubusercontent.com/tianqiplus/TianQiWeather/main/update.json"
+        "https://raw.githubusercontent.com/knightlsy/ZhishengWeather/main/update.json"
     private const val MANIFEST_MIRROR =
-        "https://cdn.jsdelivr.net/gh/tianqiplus/TianQiWeather@main/update.json"
+        "https://cdn.jsdelivr.net/gh/knightlsy/ZhishengWeather@main/update.json"
     private const val GITHUB_LATEST =
-        "https://api.github.com/repos/tianqiplus/TianQiWeather/releases/latest"
+        "https://api.github.com/repos/knightlsy/ZhishengWeather/releases/latest"
 
     private val json = Json { ignoreUnknownKeys = true }
     private val http = OkHttpClient.Builder()
@@ -49,6 +49,16 @@ object AppUpdate {
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
+    // 镜像加速：直连 GitHub 经常超时，按顺序尝试镜像。
+    private val APK_MIRRORS = listOf(
+        "https://ghfast.top/{owner}/{repo}",
+        "https://ghproxy.net/{owner}/{repo}",
+        "https://gh.jesd.top/{owner}/{repo}",
+        "https://gh.horsey.top/{owner}/{repo}",
+        "https://gh.chenx264.top/{owner}/{repo}",
+    )
+    private val APK_URL_MIRROR_REGEX = Regex("^https://github\.com/([^/]+)/([^/]+)/(.+)$")
+
     private val downloadHttp = http.newBuilder()
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
@@ -84,15 +94,19 @@ object AppUpdate {
         onProgress: (Float?) -> Unit,
     ): File = withContext(Dispatchers.IO) {
         val dest = apkFile(context)
-        val request = Request.Builder()
-            .url(info.apkUrl)
-            .header("User-Agent", userAgent())
-            .build()
-        downloadHttp.newCall(request).execute().use { resp ->
+        var lastError: String? = null
+        for (url in downloadCandidates(info.apkUrl)) {
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", userAgent())
+                .build()
+            val resp = downloadHttp.newCall(request).execute()
             if (!resp.isSuccessful) {
-                error("下载失败（HTTP ${resp.code}）")
+                resp.close()
+                lastError = "HTTP ${resp.code}"
+                continue
             }
-            val body = resp.body ?: error("下载失败：空响应")
+            val body = resp.body ?: run { resp.close(); continue }
             val total = body.contentLength()
             dest.outputStream().use { out ->
                 body.byteStream().use { input ->
@@ -111,15 +125,28 @@ object AppUpdate {
                     }
                 }
             }
-        }
-        info.sha256?.trim()?.takeIf(String::isNotEmpty)?.let { expected ->
-            val actual = sha256Hex(dest)
-            if (!actual.equals(expected, ignoreCase = true)) {
-                dest.delete()
-                error("安装包校验失败，已取消安装")
+            resp.close()
+            info.sha256?.trim()?.takeIf(String::isNotEmpty)?.let { expected ->
+                val actual = sha256Hex(dest)
+                if (!actual.equals(expected, ignoreCase = true)) {
+                    dest.delete()
+                    lastError = "SHA256 校验失败"
+                    continue
+                }
             }
+            return@withContext dest
         }
-        dest
+        error("下载失败：所有镜像均不可用（$lastError）")
+    }
+
+    private fun downloadCandidates(rawUrl: String): List<String> {
+        val list = mutableListOf(rawUrl)
+        val m = APK_URL_MIRROR_REGEX.find(rawUrl) ?: return list
+        val (owner, repo, path) = m.destructured
+        for (mirror in APK_MIRRORS) {
+            list.add(mirror.replace("{owner}", owner).replace("{repo}", repo) + path)
+        }
+        return list
     }
 
     fun install(context: Context, file: File) {

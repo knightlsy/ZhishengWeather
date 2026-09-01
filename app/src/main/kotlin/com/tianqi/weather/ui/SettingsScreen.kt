@@ -74,6 +74,7 @@ import com.tianqi.weather.data.SettingsRepository
 import com.tianqi.weather.data.SourcePref
 import com.tianqi.weather.data.TelemetryMetric
 import com.tianqi.weather.data.ThemeMode
+import com.tianqi.weather.ui.CommunityGroupDialog
 import com.tianqi.weather.ui.theme.TianQiBg
 import com.tianqi.weather.ui.theme.TianQiCard
 import com.tianqi.weather.ui.theme.TianQiCardBorder
@@ -143,8 +144,9 @@ fun SettingsScreen(
     // 取消验证与 FocusRequester 步进守卫，重建路径闭环。
     var wizard by rememberSaveable { mutableStateOf<ProviderWizardKind?>(null) }
     var showContributors by remember { mutableStateOf(false) }
-    var showCommunityGroup by remember { mutableStateOf(false) }
+    var showCommunity by remember { mutableStateOf(false) }
     var showAppUpdate by remember { mutableStateOf(false) }
+    var showUploadSheet by remember { mutableStateOf(false) }
     var developerToolsExpanded by rememberSaveable { mutableStateOf(false) }
     var moduleOrderExpanded by rememberSaveable { mutableStateOf(false) }
     var telemetryItemsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -162,6 +164,20 @@ fun SettingsScreen(
                 onLocate()
             } else {
                 permDenied = true
+            }
+        }
+    }
+    // 图标上传：只在用户主动点「从相册选择」时触发，绝不静默扫描相册
+    val uploadLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContents(),
+    ) { uri ->
+        if (uri != null) {
+            val ok = AppIconCustom.saveFromUri(context, uri)
+            if (ok) {
+                scope.launch {
+                    AppIconManager.apply(context, AppIconStyle.CUSTOM)
+                    SettingsRepository.setAppIconStyle(AppIconStyle.CUSTOM)
+                }
             }
         }
     }
@@ -543,14 +559,61 @@ fun SettingsScreen(
                 HorizontalDivider(thickness = 1.dp, color = TianQiCardBorder)
                 SegmentRow(
                     "应用图标",
-                    listOf("天气娘" to "character", "经典" to "classic"),
+                    listOf("天气娘" to "character", "经典" to "classic", "自定义" to "custom"),
                     appIconStyle.key,
-                    hint = "选择桌面显示的图标；切换后可能需要片刻刷新",
+                    hint = "自定义需先从相册上传本地图片；未上传时不可选",
                 ) { value ->
                     val selected = AppIconStyle.from(value)
+                    if (selected == AppIconStyle.CUSTOM && !AppIconCustom.hasCustomIcon(context)) {
+                        showUploadSheet = true
+                        return@SegmentRow
+                    }
                     scope.launch {
                         if (AppIconManager.apply(context, selected)) {
                             SettingsRepository.setAppIconStyle(selected)
+                        }
+                    }
+                }
+                if (appIconStyle == AppIconStyle.CUSTOM) {
+                    val preview by remember {
+                        derivedStateOf { AppIconCustom.previewDrawable(context) }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (preview != null) {
+                            Icon(
+                                imageVector = Icons.Filled.Image,
+                                contentDescription = null,
+                                tint = TianQiCyan,
+                                modifier = Modifier.size(20.dp),
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "已上传自定义图标 · 点击更换",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TianQiText,
+                            )
+                        } else {
+                            Text(
+                                "未上传自定义图标",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TianQiTextTertiary,
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { showUploadSheet = true }) {
+                            Icon(Icons.Filled/photo_camera, "上传/更换图标", tint = TianQiMint)
+                        }
+                        IconButton(onClick = {
+                            if (AppIconCustom.clearCustomIcon(context)) {
+                                scope.launch { SettingsRepository.setAppIconStyle(AppIconStyle.CHARACTER) }
+                            }
+                        }) {
+                            Icon(Icons.Filled.delete, "清除自定义图标", tint = TianQiOrange)
                         }
                     }
                 }
@@ -597,10 +660,11 @@ fun SettingsScreen(
                     color = TianQiMint,
                 ) { showContributors = true }
                 HorizontalDivider(thickness = 1.dp, color = TianQiCardBorder)
-                LinkRow(
-                    "用户交流 QQ 群",
-                    "$CommunityQqGroup · 点开群二维码",
-                ) { showCommunityGroup = true }
+                ActionRow(
+                    label = "> 用户交流 QQ 群",
+                    enabled = true,
+                    color = TianQiCyan,
+                ) { showCommunity = true }
                 HorizontalDivider(thickness = 1.dp, color = TianQiCardBorder)
                 LinkRow(
                     "GitHub 仓库",
@@ -608,7 +672,7 @@ fun SettingsScreen(
                 ) {
                     runCatching {
                         context.startActivity(
-                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/tianqiplus/TianQiWeather"))
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/knightlsy/ZhishengWeather"))
                                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
                         )
                     }
@@ -637,11 +701,25 @@ fun SettingsScreen(
     if (showContributors) {
         ContributorsDialog(onClose = { showContributors = false })
     }
-    if (showCommunityGroup) {
-        CommunityGroupDialog(onClose = { showCommunityGroup = false })
-    }
     if (showAppUpdate) {
         AppUpdateDialog(onClose = { showAppUpdate = false })
+    }
+    if (showCommunity) {
+        CommunityGroupDialog(onClose = { showCommunity = false })
+    }
+    if (showUploadSheet) {
+        UploadSheetDialog(
+            onPickClick = { uploadLauncher.launch("image/*") },
+            onClear = {
+                if (AppIconCustom.clearCustomIcon(context)) {
+                    scope.launch {
+                        AppIconManager.apply(context, AppIconStyle.CHARACTER)
+                        SettingsRepository.setAppIconStyle(AppIconStyle.CHARACTER)
+                    }
+                }
+            },
+            onClose = { showUploadSheet = false },
+        )
     }
 }
 
