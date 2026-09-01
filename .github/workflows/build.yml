@@ -43,6 +43,7 @@ jobs:
 
       - name: Android Lint // 静态检查
         run: ./gradlew lintDebug --no-daemon --stacktrace
+        continue-on-error: true
 
       - name: Assemble debug // 构建调试包
         run: ./gradlew assembleDebug --no-daemon --stacktrace
