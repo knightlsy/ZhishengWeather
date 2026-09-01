@@ -384,15 +384,15 @@ private fun QweatherStep(state: ProviderSetupUiState, model: ProviderSetupViewMo
         1 -> {
             StepIntro(
                 title = "登录后先创建项目",
-                body = "网页打开后，你会先看到项目列表。本步不要找 API：先创建并打开一个名为“天气天气”的项目。已有项目可以直接打开。",
+                body = "网页打开后，你会先看到项目列表。本步不要找 API：先创建并打开一个名为“天气”的项目。已有项目可以直接打开。",
             )
             ProviderLink("打开和风项目管理", "登录 → 左侧“项目管理” → 右上角“创建项目”") {
                 openUrl(context, "https://console.qweather.com/project")
             }
             InstructionList(
                 "在项目列表右上角点“创建项目”",
-                "项目名称填写“天气天气”，然后点“保存”",
-                "保存后点击项目名称“天气天气”，进入项目详情",
+                "项目名称填写“天气”，然后点“保存”",
+                "保存后点击项目名称“天气”，进入项目详情",
             )
             FactRow("你应该看到", "项目详情页中有“项目 ID”和“凭据”两个区域")
         }
@@ -402,15 +402,15 @@ private fun QweatherStep(state: ProviderSetupUiState, model: ProviderSetupViewMo
                 body = if (state.authMode == QweatherAuthMode.JWT) {
                     "在项目的“凭据”区域添加 JSON Web Token，把下方公钥完整粘贴进去；保存后复制项目 ID 和凭据 ID。"
                 } else {
-                    "你现在应该位于“天气天气”的项目详情页。API KEY 不在账户首页，而是在这个项目的“凭据”区域里创建。"
+                    "你现在应该位于“天气”的项目详情页。API KEY 不在账户首页，而是在这个项目的“凭据”区域里创建。"
                 },
             )
-            ProviderLink("返回和风项目管理", "点击“天气天气” → 凭据 → 添加凭据") {
+            ProviderLink("返回和风项目管理", "点击“天气” → 凭据 → 添加凭据") {
                 openUrl(context, "https://console.qweather.com/project")
             }
             if (state.authMode == QweatherAuthMode.JWT) {
                 InstructionList(
-                    "点击项目名称“天气天气”，进入项目详情",
+                    "点击项目名称“天气”，进入项目详情",
                     "在“凭据”区域右侧点“添加凭据”",
                     "认证方式选择“JSON Web Token”，粘贴下方完整公钥并保存",
                     "复制项目 ID 与新凭据的 ID，返回这里填写",
@@ -449,9 +449,9 @@ private fun QweatherStep(state: ProviderSetupUiState, model: ProviderSetupViewMo
                 )
             } else {
                 InstructionList(
-                    "点击项目名称“天气天气”，进入项目详情",
+                    "点击项目名称“天气”，进入项目详情",
                     "在“凭据”区域右侧点“添加凭据”",
-                    "认证方式选择“API KEY”，名称填写“天气天气”，然后保存",
+                    "认证方式选择“API KEY”，名称填写“天气”，然后保存",
                     "打开刚创建的凭据，复制完整 API KEY，返回这里粘贴",
                 )
                 TerminalField(
@@ -495,7 +495,7 @@ private fun QweatherStep(state: ProviderSetupUiState, model: ProviderSetupViewMo
         4 -> {
             StepIntro(
                 title = "最后一步：真实验证",
-                body = "天气天气会请求一次北京城市数据。成功才覆盖本机配置；失败会指出 Host 或凭据哪一项需要改。",
+                body = "天气会请求一次北京城市数据。成功才覆盖本机配置；失败会指出 Host 或凭据哪一项需要改。",
             )
             TerminalCommand("provider test qweather --city beijing")
             FactRow("认证", if (state.authMode == QweatherAuthMode.API_KEY) "快速 API KEY" else "高级 JWT")

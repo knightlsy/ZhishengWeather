@@ -617,7 +617,7 @@ fun SettingsScreen(
 
             Spacer(Modifier.height(24.dp))
             Text(
-                "天气天气 · 数据终端",
+                "天气 · 数据终端",
                 style = MaterialTheme.typography.labelSmall,
                 color = TianQiTextTertiary,
                 modifier = Modifier.align(Alignment.CenterHorizontally),

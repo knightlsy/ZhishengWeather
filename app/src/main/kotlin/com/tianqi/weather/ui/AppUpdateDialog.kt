@@ -293,7 +293,7 @@ private fun body(ui: UpdateUi, progress: Float): String = when (ui) {
             append(ui.info.notes)
         }
     }
-    is UpdateUi.NeedPermission -> "系统要求先允许天气天气安装未知应用，然后才能打开安装页。授权后会自动继续下载。"
+    is UpdateUi.NeedPermission -> "系统要求先允许天气安装未知应用，然后才能打开安装页。授权后会自动继续下载。"
     is UpdateUi.Downloading ->
         if (progress > 0f) "下载中 ${"%d".format((progress * 100).toInt())}%" else "正在下载安装包…"
     is UpdateUi.Ready -> "请在系统安装页确认覆盖安装。如果取消了，可以再点检查更新。"

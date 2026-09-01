@@ -85,7 +85,7 @@ fun CommunityGroupDialog(onClose: () -> Unit) {
                             letterSpacing = 1.4.sp,
                         )
                         Text(
-                            "天气天气用户交流群",
+                            "天气用户交流群",
                             style = MaterialTheme.typography.titleLarge,
                             color = TianQiText,
                             fontWeight = FontWeight.Bold,
@@ -136,7 +136,7 @@ fun CommunityGroupDialog(onClose: () -> Unit) {
                     ) {
                         Image(
                             painter = painterResource(R.drawable.qq_group_qr),
-                            contentDescription = "天气天气 QQ 群二维码，群号 $CommunityQqGroup",
+                            contentDescription = "天气 QQ 群二维码，群号 $CommunityQqGroup",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Fit,
                         )

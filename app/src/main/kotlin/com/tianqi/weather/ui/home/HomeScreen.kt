@@ -153,7 +153,7 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // ═══════════════════════════════════════════════════════════
-// 天气天气 · 磷光数据终端主屏
+// 天气 · 磷光数据终端主屏
 // 布局序：状态行 → Hero → 预警 → 逐时(曲线) → 分钟降水 → 逐日(归一化温度条)
 //        → 遥测卡格 → 空气质量 → 生活指数 → 昨日复盘 → 台风 → 天气页脚
 // ═══════════════════════════════════════════════════════════
@@ -255,7 +255,7 @@ fun HomeScreen(
             )
             Column(modifier = Modifier.fillMaxSize()) {
                 TopBar(
-                    cityName = uiState.selectedCity?.displayName ?: "天气天气",
+                    cityName = uiState.selectedCity?.displayName ?: "天气",
                     loading = uiState.loading,
                     onMenu = { scope.launch { drawerState.open() } },
                     onRefresh = { viewModel.refresh() },
@@ -2483,7 +2483,7 @@ private fun Footer(data: WeatherData, modifier: Modifier) {
             letterSpacing = 1.5.sp,
         )
         Text(
-            "${dataSourceSummary(data)} · 天气天气 v${com.tianqi.weather.BuildConfig.VERSION_NAME}",
+            "${dataSourceSummary(data)} · 天气 v${com.tianqi.weather.BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.labelSmall,
             color = TianQiTextTertiary.copy(alpha = 0.7f),
             letterSpacing = 1.sp,

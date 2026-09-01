@@ -133,6 +133,9 @@ dependencies {
     implementation(libs.activity.compose)
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.lifecycle.runtime.compose)
+    // lifecycle 2.8.7 把 lifecycleScope 从 lifecycle-runtime-ktx(已置空) 移到 lifecycle-common
+    implementation(libs.lifecycle.common)
+    implementation(libs.lifecycle.runtime.ktx)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)

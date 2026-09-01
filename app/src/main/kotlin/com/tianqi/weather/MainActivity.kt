@@ -8,13 +8,14 @@ import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Build
 import android.view.WindowManager
-import androidx.core.contentCompat.ContextCompat
-import androidx.core.content.pmCompat
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.ViewModelProvider
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.compose.BackHandler
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -54,6 +55,7 @@ import com.tianqi.weather.ui.WhatsNewPreferenceFile
 import com.tianqi.weather.ui.WhatsNewSeenKey
 import com.tianqi.weather.ui.WhatsNewVersion
 import com.tianqi.weather.ui.theme.TianQiWeatherTheme
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 
 private data class ShortcutCommand(val action: String? = null, val sequence: Long = 0L)
@@ -71,8 +73,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun vmForAutoLocate(): com.tianqi.weather.ui.WeatherViewModel =
-        (application as TianQiApplication).container.weatherViewModel
+    private fun vmForAutoLocate(): WeatherViewModel =
+        ViewModelProvider(this)[WeatherViewModel::class.java]
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
