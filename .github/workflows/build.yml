@@ -5,10 +5,24 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: '构建变体 (publicRelease / debug)'
+        required: false
+        default: 'publicRelease'
+        type: choice
+        options:
+          - publicRelease
+          - debug
+
+permissions:
+  contents: read
+  actions: write
 
 jobs:
   assemble:
-    name: assembleDebug
+    name: Assemble ${{ github.event.inputs.variant || 'publicRelease' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout // 检出
@@ -34,3 +48,19 @@ jobs:
 
       - name: Assemble public release // 构建公共发布包
         run: ./gradlew assemblePublicRelease --no-daemon --stacktrace
+
+      - name: 上传 publicRelease APK
+        if: ${{ github.event.inputs.variant != 'debug' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZhishengWeather-publicRelease
+          path: app/build/outputs/apk/public/release/*.apk
+          if-no-files-found: error
+
+      - name: 上传 debug APK
+        if: ${{ github.event.inputs.variant == 'debug' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZhishengWeather-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
