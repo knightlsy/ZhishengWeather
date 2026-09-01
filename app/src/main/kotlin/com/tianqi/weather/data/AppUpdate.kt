@@ -57,7 +57,7 @@ object AppUpdate {
         "https://gh.horsey.top/{owner}/{repo}",
         "https://gh.chenx264.top/{owner}/{repo}",
     )
-    private val APK_URL_MIRROR_REGEX = Regex("^https://github\.com/([^/]+)/([^/]+)/(.+)$")
+    private val APK_URL_MIRROR_REGEX = Regex("""^https://github\.com/([^/]+)/([^/]+)/(.+)$""")
 
     private val downloadHttp = http.newBuilder()
         .readTimeout(120, TimeUnit.SECONDS)
@@ -106,7 +106,8 @@ object AppUpdate {
                 lastError = "HTTP ${resp.code}"
                 continue
             }
-            val body = resp.body ?: run { resp.close(); continue }
+            val body = resp.body ?: run { resp.close(); null }
+            if (body == null) continue
             val total = body.contentLength()
             dest.outputStream().use { out ->
                 body.byteStream().use { input ->
@@ -126,14 +127,16 @@ object AppUpdate {
                 }
             }
             resp.close()
-            info.sha256?.trim()?.takeIf(String::isNotEmpty)?.let { expected ->
+            val shaOk = info.sha256?.trim()?.takeIf(String::isNotEmpty)?.let { expected ->
                 val actual = sha256Hex(dest)
                 if (!actual.equals(expected, ignoreCase = true)) {
                     dest.delete()
                     lastError = "SHA256 校验失败"
-                    continue
+                    return@let false
                 }
-            }
+                true
+            } ?: true
+            if (!shaOk) continue
             return@withContext dest
         }
         error("下载失败：所有镜像均不可用（$lastError）")

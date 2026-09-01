@@ -5,7 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Matrix
+import android.net.Uri
 import android.graphics.PorterDuff
+import android.net.Uri
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
@@ -90,11 +92,11 @@ object AppIconCustom {
         val size = minOf(src.width, src.height)
         val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
-        val paint = android.graphics.Paint().isAntiAlias = true
+        val paint = android.graphics.Paint().apply { isAntiAlias = true }
         val rect = RectF(0f, 0f, size.toFloat(), size.toFloat())
         val radius = size * CORNER_DP / 2f
         canvas.drawRoundRect(rect, radius, radius, paint)
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        paint.blendMode = PorterDuff.Mode.SRC_IN
         val srcRect = RectF(
             ((src.width - size) / 2).toFloat(),
             ((src.height - size) / 2).toFloat(),

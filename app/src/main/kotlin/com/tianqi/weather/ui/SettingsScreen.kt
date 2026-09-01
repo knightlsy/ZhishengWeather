@@ -168,7 +168,7 @@ fun SettingsScreen(
     // 图标上传：只在用户主动点「从相册选择」时触发，绝不静默扫描相册
     val uploadLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContents(),
-    ) { uri ->
+    ) { uri: Uri? ->
         if (uri != null) {
             val ok = AppIconCustom.saveFromUri(context, uri)
             if (ok) {
