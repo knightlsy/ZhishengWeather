@@ -16,8 +16,6 @@ fun lp(key: String, def: String = ""): String = localProps.getProperty(key, def)
 
 // 兼容旧命令的公开版开关；新发行流程优先使用独立的 assemblePublicRelease。
 val publicBuild = providers.gradleProperty("publicBuild").isPresent
-// 用户交流入口是公开信息，所有构建版本都必须包含。
-val communityQqGroup = "1106284779"
 
 android {
     namespace = "com.tianqi.weather"
@@ -34,8 +32,7 @@ android {
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
         buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid")}\"")
-        buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) "" else lp("qw.private_key")}\"")
-        buildConfigField("String", "COMMUNITY_QQ_GROUP", "\"$communityQqGroup\"")
+        buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) \"\" else lp(\"qw.private_key\")}\"")
         // 只有与 GitHub 公共版同包名、同签名的构建可以直接覆盖更新。
         buildConfigField("boolean", "CAN_SELF_UPDATE", publicBuild.toString())
     }

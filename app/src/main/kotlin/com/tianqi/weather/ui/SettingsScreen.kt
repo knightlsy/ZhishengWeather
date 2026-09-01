@@ -74,7 +74,6 @@ import com.tianqi.weather.data.SettingsRepository
 import com.tianqi.weather.data.SourcePref
 import com.tianqi.weather.data.TelemetryMetric
 import com.tianqi.weather.data.ThemeMode
-import com.tianqi.weather.ui.CommunityGroupDialog
 import com.tianqi.weather.ui.theme.TianQiBg
 import com.tianqi.weather.ui.theme.TianQiCard
 import com.tianqi.weather.ui.theme.TianQiCardBorder
@@ -144,7 +143,6 @@ fun SettingsScreen(
     // 取消验证与 FocusRequester 步进守卫，重建路径闭环。
     var wizard by rememberSaveable { mutableStateOf<ProviderWizardKind?>(null) }
     var showContributors by remember { mutableStateOf(false) }
-    var showCommunity by remember { mutableStateOf(false) }
     var showAppUpdate by remember { mutableStateOf(false) }
     var showUploadSheet by remember { mutableStateOf(false) }
     var developerToolsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -660,12 +658,6 @@ fun SettingsScreen(
                     color = TianQiMint,
                 ) { showContributors = true }
                 HorizontalDivider(thickness = 1.dp, color = TianQiCardBorder)
-                ActionRow(
-                    label = "> 用户交流 QQ 群",
-                    enabled = true,
-                    color = TianQiCyan,
-                ) { showCommunity = true }
-                HorizontalDivider(thickness = 1.dp, color = TianQiCardBorder)
                 LinkRow(
                     "GitHub 仓库",
                     "开源主页 · 欢迎 star",
@@ -703,9 +695,6 @@ fun SettingsScreen(
     }
     if (showAppUpdate) {
         AppUpdateDialog(onClose = { showAppUpdate = false })
-    }
-    if (showCommunity) {
-        CommunityGroupDialog(onClose = { showCommunity = false })
     }
     if (showUploadSheet) {
         UploadSheetDialog(
