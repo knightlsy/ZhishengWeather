@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 0.1.3 腕表玻璃小组件：高对比读数 + 克制的青橙终端信号。 -->
+<!-- 1.0.0 腕表玻璃小组件：高对比读数 + 克制的青橙终端信号。 -->
 <resources>
     <color name="widget_text_primary">#F3FAF7</color>
     <color name="widget_text_secondary">#D4E2DE</color>

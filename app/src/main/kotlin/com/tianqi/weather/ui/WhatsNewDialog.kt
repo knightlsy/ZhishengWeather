@@ -56,7 +56,7 @@ import com.tianqi.weather.ui.theme.TianQiText
 import com.tianqi.weather.ui.theme.TianQiTextSecondary
 import com.tianqi.weather.ui.theme.TianQiTextTertiary
 
-internal const val WhatsNewVersion = "0.1.3"
+internal const val WhatsNewVersion = "1.0.0"
 internal const val WhatsNewPreferenceFile = "tianqi_whats_new"
 internal const val WhatsNewSeenKey = "last_seen_version"
 
@@ -92,7 +92,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.weight(1f).padding(vertical = 14.dp)) {
                         Text(
-                            "TIANQI WEATHER / 0.1.3",
+                            "TIANQI WEATHER / 1.0.0",
                             style = MaterialTheme.typography.labelSmall,
                             color = TianQiCyan,
                             letterSpacing = 1.3.sp,
@@ -186,7 +186,7 @@ fun WhatsNewDialog(onClose: () -> Unit) {
                         contentAlignment = Alignment.CenterEnd,
                     ) {
                         Text(
-                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 0.1.3 ]",
+                            if (page < pageCount - 1) "[ 下一步 ]" else "[ 进入 1.0.0 ]",
                             style = MaterialTheme.typography.labelLarge,
                             color = if (page < pageCount - 1) TianQiCyan else TianQiMint,
                             fontWeight = FontWeight.Bold,

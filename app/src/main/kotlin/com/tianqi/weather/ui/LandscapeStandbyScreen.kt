@@ -122,7 +122,7 @@ fun LandscapeStandbyScreen(
                                 fontWeight = FontWeight.Bold,
                             )
                             Text(
-                                "TIANQI AMBIENT TERMINAL / 0.1.3",
+                                "TIANQI AMBIENT TERMINAL / 1.0.0",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = TianQiTextTertiary,
                                 letterSpacing = 2.sp,

@@ -28,7 +28,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// 磷光腕表玻璃桌面小组件（0.1.3）
+// 磷光腕表玻璃桌面小组件（1.0.0）
 // 五个 Provider = 桌面选择器里五个独立条目（4x1 / 2x2 / 4x2 / 2x4 / 4x4）；
 // 每个仍可拉伸，布局按实际尺寸自适应。
 // 数据来自 WidgetCache（主 App 抓取后写入），小组件本身不发网络请求。
