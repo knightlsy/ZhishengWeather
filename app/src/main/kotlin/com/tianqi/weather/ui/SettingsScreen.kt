@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tianqi.weather.data.AccentTone
+import com.tianqi.weather.data.AppIconCustom
 import com.tianqi.weather.data.AppIconManager
 import com.tianqi.weather.data.AppIconStyle
 import com.tianqi.weather.data.AmbienceLevel
@@ -166,7 +167,7 @@ fun SettingsScreen(
         }
     }
     // 图标上传：只在用户主动点「从相册选择」时触发，绝不静默扫描相册
-    val uploadLauncher = rememberLauncherForActivityResult(
+    val uploadLauncher = rememberLauncherForActivityResult<Uri?, Uri?>(
         ActivityResultContracts.GetContents(),
     ) { uri: Uri? ->
         if (uri != null) {

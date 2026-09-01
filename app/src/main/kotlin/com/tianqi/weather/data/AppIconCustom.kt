@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.net.Uri
 import android.graphics.PorterDuff
-import android.net.Uri
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
@@ -96,14 +95,17 @@ object AppIconCustom {
         val rect = RectF(0f, 0f, size.toFloat(), size.toFloat())
         val radius = size * CORNER_DP / 2f
         canvas.drawRoundRect(rect, radius, radius, paint)
-        paint.blendMode = PorterDuff.Mode.SRC_IN
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
         val srcRect = RectF(
             ((src.width - size) / 2).toFloat(),
             ((src.height - size) / 2).toFloat(),
             ((src.width - size) / 2 + size).toFloat(),
             ((src.height - size) / 2 + size).toFloat(),
         )
-        canvas.drawBitmap(src, srcRect, rect, paint)
+        canvas.save()
+        canvas.clipRect(rect)
+        canvas.drawBitmap(src, srcRect.left, srcRect.top, paint)
+        canvas.restore()
         return output
     }
 }
