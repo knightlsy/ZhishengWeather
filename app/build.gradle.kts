@@ -32,7 +32,7 @@ android {
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
         buildConfigField("String", "QW_KID", "\"${if (publicBuild) "" else lp("qw.kid")}\"")
-        buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) \"\" else lp(\"qw.private_key\")}\"")
+        buildConfigField("String", "QW_PRIVATE_KEY", "\"${if (publicBuild) "" else lp("qw.private_key")}\"")
         // 只有与 GitHub 公共版同包名、同签名的构建可以直接覆盖更新。
         buildConfigField("boolean", "CAN_SELF_UPDATE", publicBuild.toString())
     }
