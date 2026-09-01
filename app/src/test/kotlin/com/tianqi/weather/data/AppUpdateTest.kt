@@ -23,20 +23,20 @@ class AppUpdateTest {
             """.trimIndent(),
         )
         assertEquals(20260901, info.versionCode)
-        assertEquals("0.1.4", info.versionName)
+        assertEquals("1.0.1", info.versionName)
         assertEquals("https://example.test/TianQiWeather-v0.1.4-public.apk", info.apkUrl)
         assertEquals("abc", info.sha256)
-        assertTrue(AppUpdate.isNewer(info, 20260831, "0.1.3"))
-        assertFalse(AppUpdate.isNewer(info, 20260901, "0.1.4"))
+        assertTrue(AppUpdate.isNewer(info, 1000000, "1.0.0"))
+        assertFalse(AppUpdate.isNewer(info, 20260901, "1.0.1"))
     }
 
     @Test
     fun sameOrOlderVersionIsNotAnUpdate() {
-        val same = AppUpdateInfo(versionCode = 20260831, versionName = "0.1.3", apkUrl = "https://example.test/app.apk")
+        val same = AppUpdateInfo(versionCode = 1000000, versionName = "1.0.0", apkUrl = "https://example.test/app.apk")
         val olderName = AppUpdateInfo(versionName = "0.1.0", apkUrl = "https://example.test/app.apk")
-        assertFalse(AppUpdate.isNewer(same, 20260831, "0.1.3"))
-        assertFalse(AppUpdate.isNewer(olderName, 20260831, "0.1.3"))
-        assertTrue(AppUpdate.isNewer(AppUpdateInfo(versionName = "0.1.4", apkUrl = "https://example.test/app.apk"), 20260831, "0.1.3"))
+        assertFalse(AppUpdate.isNewer(same, 1000000, "1.0.0"))
+        assertFalse(AppUpdate.isNewer(olderName, 1000000, "1.0.0"))
+        assertTrue(AppUpdate.isNewer(AppUpdateInfo(versionName = "1.0.1", apkUrl = "https://example.test/app.apk"), 1000000, "1.0.0"))
     }
 
     @Test
@@ -44,19 +44,19 @@ class AppUpdateTest {
         val info = AppUpdate.parseGithubLatest(
             """
             {
-              "tag_name": "v0.1.3",
+              "tag_name": "v1.0.0",
               "draft": false,
               "prerelease": false,
-              "html_url": "https://github.com/tianqiplus/TianQiWeather/releases/tag/v0.1.3",
+              "html_url": "https://github.com/tianqiplus/TianQiWeather/releases/tag/v1.0.0",
               "body": "正式版",
               "assets": [
-                {"name": "TianQiWeather-v0.1.3-full-private.apk", "state": "uploaded", "browser_download_url": "https://example.test/private.apk"},
-                {"name": "TianQiWeather-v0.1.3-public.apk", "state": "uploaded", "digest": "sha256:deadbeef", "browser_download_url": "https://example.test/public.apk"}
+                {"name": "TianQiWeather-v1.0.0-full-private.apk", "state": "uploaded", "browser_download_url": "https://example.test/private.apk"},
+                {"name": "TianQiWeather-v1.0.0-public.apk", "state": "uploaded", "digest": "sha256:deadbeef", "browser_download_url": "https://example.test/public.apk"}
               ]
             }
             """.trimIndent(),
         )
-        assertEquals("0.1.3", info?.versionName)
+        assertEquals("1.0.0", info?.versionName)
         assertEquals("https://example.test/public.apk", info?.apkUrl)
         assertEquals("deadbeef", info?.sha256)
     }
@@ -83,10 +83,10 @@ class AppUpdateTest {
     @Test
     fun publicApkNameAcceptsLegacyAndCurrentReleaseFiles() {
         assertTrue(AppUpdate.isPublicApkName("tianqi-weather-v0.1.0.apk"))
-        assertTrue(AppUpdate.isPublicApkName("TianQiWeather-v0.1.3-public.apk"))
-        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v0.1.3-full-private.apk"))
-        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v0.1.3-public-parallel.apk"))
-        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v0.1.3-owner-upgrade-private.apk"))
+        assertTrue(AppUpdate.isPublicApkName("TianQiWeather-v1.0.0-public.apk"))
+        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v1.0.0-full-private.apk"))
+        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v1.0.0-public-parallel.apk"))
+        assertFalse(AppUpdate.isPublicApkName("TianQiWeather-v1.0.0-owner-upgrade-private.apk"))
     }
 
     @Test
@@ -96,11 +96,11 @@ class AppUpdateTest {
             File("../update.json"),
         ).first { it.isFile }.readText()
         val info = AppUpdate.parseManifest(manifest)
-        assertEquals(20260831, info.versionCode)
-        assertEquals("0.1.3", info.versionName)
-        assertTrue(info.apkUrl.endsWith("TianQiWeather-v0.1.3-public.apk"))
+        assertEquals(1000000, info.versionCode)
+        assertEquals("1.0.0", info.versionName)
+        assertTrue(info.apkUrl.endsWith("TianQiWeather-v1.0.0-public.apk"))
         assertTrue(info.sha256?.matches(Regex("[0-9a-fA-F]{64}")) == true)
-        assertFalse(AppUpdate.isNewer(info, 20260831, "0.1.3"))
+        assertFalse(AppUpdate.isNewer(info, 1000000, "1.0.0"))
     }
 
     @Test
