@@ -168,7 +168,7 @@ fun SettingsScreen(
     }
     // 图标上传：只在用户主动点「从相册选择」时触发，绝不静默扫描相册
     val uploadLauncher = rememberLauncherForActivityResult<Uri?, Uri?>(
-        ActivityResultContracts.GetContents(),
+        ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         if (uri != null) {
             val ok = AppIconCustom.saveFromUri(context, uri)
@@ -575,7 +575,7 @@ fun SettingsScreen(
                 }
                 if (appIconStyle == AppIconStyle.CUSTOM) {
                     val preview by remember {
-                        derivedStateOf { AppIconCustom.previewDrawable(context) }
+                        derivedStateOf<android.graphics.drawable.BitmapDrawable?> { AppIconCustom.previewDrawable(context) }
                     }
                     Row(
                         modifier = Modifier
@@ -584,12 +584,7 @@ fun SettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (preview != null) {
-                            Icon(
-                                imageVector = Icons.Filled.Image,
-                                contentDescription = null,
-                                tint = TianQiCyan,
-                                modifier = Modifier.size(20.dp),
-                            )
+                            Text("✓", color = TianQiCyan, fontSize = 16.sp)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "已上传自定义图标 · 点击更换",
@@ -605,14 +600,14 @@ fun SettingsScreen(
                         }
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { showUploadSheet = true }) {
-                            Icon(Icons.Filled/photo_camera, "上传/更换图标", tint = TianQiMint)
+                            Text("📷", color = TianQiMint)
                         }
                         IconButton(onClick = {
                             if (AppIconCustom.clearCustomIcon(context)) {
                                 scope.launch { SettingsRepository.setAppIconStyle(AppIconStyle.CHARACTER) }
                             }
                         }) {
-                            Icon(Icons.Filled.delete, "清除自定义图标", tint = TianQiOrange)
+                            Text("✕", color = TianQiOrange)
                         }
                     }
                 }

@@ -30,7 +30,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil.compose.AsyncImage
 import com.tianqi.weather.R
 import com.tianqi.weather.data.AppIconCustom
 import com.tianqi.weather.ui.theme.TianQiBg
@@ -64,7 +63,7 @@ fun UploadSheetDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(TianQiSurface, RoundedCornerShape(16.dp))
+                .background(TianQiSurface).clip(RoundedCornerShape(16.dp))
                 .border(1.dp, TianQiCardBorder, RoundedCornerShape(16.dp))
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -77,13 +76,25 @@ fun UploadSheetDialog(
                 fontWeight = FontWeight.Bold,
             )
             if (preview != null) {
-                AsyncImage(
-                    model = AppIconCustom.customIconFile(context),
+                Box(
+                    modifier = Modifier
+                        .size(128.dp)
+                        .background(TianQiSurface)
+                        .clip(RoundedCornerShape(24.dp))
+                        .border(2.dp, TianQiCardBorder, RoundedCornerShape(24.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_launcher_character_foreground),
+                        contentDescription = "预览",
+                        modifier = Modifier.size(64.dp),
+                    )
+                },
                     contentDescription = "当前自定义图标预览",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(128.dp)
-                        .background(TianQiSurface, RoundedCornerShape(24.dp))
+                        .background(TianQiSurface).clip(RoundedCornerShape(24.dp))
                         .border(2.dp, TianQiCardBorder, RoundedCornerShape(24.dp)),
                 )
                 Text(
@@ -95,12 +106,12 @@ fun UploadSheetDialog(
                 Box(
                     modifier = Modifier
                         .size(128.dp)
-                        .background(TianQiSurface, RoundedCornerShape(24.dp))
+                        .background(TianQiSurface).clip(RoundedCornerShape(24.dp))
                         .border(2.dp, TianQiCardBorder, RoundedCornerShape(24.dp)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_launcher_character),
+                        painter = painterResource(id = R.drawable.ic_launcher_character_foreground),
                         contentDescription = null,
                         tint = TianQiTextSecondary,
                         modifier = Modifier.size(48.dp),
@@ -123,7 +134,7 @@ fun UploadSheetDialog(
                     ),
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_launcher_character),
+                        painter = painterResource(id = R.drawable.ic_launcher_character_foreground),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
@@ -136,8 +147,7 @@ fun UploadSheetDialog(
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = TianQiOrange,
                         ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = Brush.verticalGradient(0f to TianQiOrange, 1f to TianQiOrange),
+                        border = BorderStroke(1.dp, TianQiOrange),
                             width = 1.dp,
                             shape = RoundedCornerShape(8.dp),
                         ),
@@ -149,7 +159,7 @@ fun UploadSheetDialog(
             Spacer(Modifier.weight(1f))
             androidx.compose.material3.IconButton(onClick = onClose) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_launcher_character),
+                    painter = painterResource(id = R.drawable.ic_launcher_character_foreground),
                     contentDescription = "关闭",
                     tint = TianQiTextTertiary,
                 )

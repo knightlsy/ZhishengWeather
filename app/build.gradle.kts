@@ -19,15 +19,15 @@ val publicBuild = providers.gradleProperty("publicBuild").isPresent
 
 android {
     namespace = "com.tianqi.weather"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.tianqi.weather"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         // 20260827：0.1.3 正式版
-        versionCode = 1000000
-        versionName = "1.0.0"
+        versionCode = 1000004
+        versionName = "1.0.4"
 
         buildConfigField("String", "QW_HOST", "\"${if (publicBuild) "" else lp("qw.host")}\"")
         buildConfigField("String", "QW_PROJECT_ID", "\"${if (publicBuild) "" else lp("qw.project_id")}\"")
@@ -91,6 +91,7 @@ android {
         }
         create("publicRelease") {
             initWith(getByName("release"))
+            isMinifyEnabled = true
             // 面向社区的正式公开包：独立任务、公开签名、凭据硬清空，避免漏写 -PpublicBuild。
             signingConfig = signingConfigs.getByName("public")
             matchingFallbacks += listOf("release")
