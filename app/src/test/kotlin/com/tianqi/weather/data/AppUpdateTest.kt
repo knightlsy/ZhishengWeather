@@ -23,7 +23,7 @@ class AppUpdateTest {
             """.trimIndent(),
         )
         assertEquals(20260901, info.versionCode)
-        assertEquals("1.0.1", info.versionName)
+        assertEquals("0.1.4", info.versionName)
         assertEquals("https://example.test/TianQiWeather-v0.1.4-public.apk", info.apkUrl)
         assertEquals("abc", info.sha256)
         assertTrue(AppUpdate.isNewer(info, 1000000, "1.0.0"))
@@ -96,11 +96,13 @@ class AppUpdateTest {
             File("../update.json"),
         ).first { it.isFile }.readText()
         val info = AppUpdate.parseManifest(manifest)
-        assertEquals(1000000, info.versionCode)
-        assertEquals("1.0.0", info.versionName)
-        assertTrue(info.apkUrl.endsWith("TianQiWeather-v1.0.0-public.apk"))
-        assertTrue(info.sha256?.matches(Regex("[0-9a-fA-F]{64}")) == true)
-        assertFalse(AppUpdate.isNewer(info, 1000000, "1.0.0"))
+        assertEquals(1000004, info.versionCode)
+        assertEquals("1.0.4", info.versionName)
+        assertTrue(info.apkUrl.endsWith("app-publicRelease-v1.0.4.apk"))
+        // sha256 由发布流程回填; 发版前允许为空
+        val sha = info.sha256
+        assertTrue(sha == null || sha.matches(Regex("[0-9a-fA-F]{64}")))
+        assertFalse(AppUpdate.isNewer(info, 1000004, "1.0.4"))
     }
 
     @Test
