@@ -51,12 +51,12 @@ object AppUpdate {
         .followSslRedirects(true)
         .build()
     // 镜像加速：直连 GitHub 经常超时，按顺序尝试镜像。
+    // 镜像前缀直接拼完整 GitHub URL（2026-09-23 实测可用性后更新，
+    // 顺序 = 优先级：gh-proxy.com 实测完整下载校验通过，ghproxy.net 次之）。
     private val APK_MIRRORS = listOf(
-        "https://ghfast.top/{owner}/{repo}",
-        "https://ghproxy.net/{owner}/{repo}",
-        "https://gh.jesd.top/{owner}/{repo}",
-        "https://gh.horsey.top/{owner}/{repo}",
-        "https://gh.chenx264.top/{owner}/{repo}",
+        "https://gh-proxy.com/https://github.com",
+        "https://ghproxy.net/https://github.com",
+        "https://ghproxy.link/https://github.com",
     )
     private val APK_URL_MIRROR_REGEX = Regex("""^https://github\.com/([^/]+)/([^/]+)/(.+)$""")
 
@@ -166,7 +166,7 @@ object AppUpdate {
         val m = APK_URL_MIRROR_REGEX.find(rawUrl) ?: return list
         val (owner, repo, path) = m.destructured
         for (mirror in APK_MIRRORS) {
-            list.add(mirror.replace("{owner}", owner).replace("{repo}", repo) + path)
+            list.add("$mirror/$owner/$repo/$path")
         }
         return list
     }
