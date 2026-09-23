@@ -1,8 +1,8 @@
 {
-  "versionCode": 1000000,
-  "versionName": "1.0.0",
-  "apkUrl": "https://github.com/knightlsy/ZhishengWeather/releases/download/v1.0.0/ZhishengWeather-v1.0.0-public.apk",
-  "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-  "notes": "1.0.0 首个正式版：移除用户交流 QQ 群入口，版本号统一从 1.0.0 起步。",
-  "pageUrl": "https://github.com/knightlsy/ZhishengWeather/releases/tag/v1.0.0"
+  "versionCode": 1000004,
+  "versionName": "1.0.4",
+  "apkUrl": "https://github.com/knightlsy/ZhishengWeather/releases/download/v1.0.4/app-publicRelease-v1.0.4.apk",
+  "sha256": "",
+  "notes": "v1.0.4 更新说明：\n- 修复自定义图标上传功能的编译错误\n- 接入 GitHub Releases 检查更新，支持镜像加速",
+  "pageUrl": "https://github.com/knightlsy/ZhishengWeather/releases/tag/v1.0.4"
 }

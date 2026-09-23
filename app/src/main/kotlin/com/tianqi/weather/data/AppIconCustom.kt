@@ -66,15 +66,34 @@ object AppIconCustom {
 
     /**
      * 从相册选择的 Uri 读取图片并保存为自定义图标。
+     * 两遍解码：先读尺寸，再按 2 的幂采样解码（最大边 ≤ 2×MAX_PX），
+     * 避免整张 48MP 照片全尺寸解码导致 ~400MB 内存峰值（OOM/ANR 风险）。
      * 返回是否成功；失败时已清理残留文件。
      */
     fun saveFromUri(context: Context, uri: Uri): Boolean {
+        val cr = context.contentResolver
+        // 第一遍：只读尺寸
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching {
+            cr.openInputStream(uri)?.use { input ->
+                android.graphics.BitmapFactory.decodeStream(input, null, bounds)
+            }
+        }
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return false
+        // 2 的幂采样：解码结果最大边不超过 2×MAX_PX，交给 saveCustomIcon 精缩
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= MAX_PX) sample *= 2
         val bmp = runCatching {
-            val cr = context.contentResolver
-            val input = cr.openInputStream(uri) ?: return false
-            android.graphics.BitmapFactory.decodeStream(input).also { input.close() }
+            val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+            cr.openInputStream(uri)?.use { input ->
+                android.graphics.BitmapFactory.decodeStream(input, null, opts)
+            }
         }.getOrNull() ?: return false
-        return saveCustomIcon(context, bmp)
+        return try {
+            saveCustomIcon(context, bmp)
+        } finally {
+            bmp.recycle()
+        }
     }
 
     private fun scaleToMax(src: Bitmap, maxPx: Int): Bitmap {

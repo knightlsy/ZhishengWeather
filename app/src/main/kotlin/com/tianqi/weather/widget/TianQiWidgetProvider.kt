@@ -41,6 +41,12 @@ open class TianQiWidgetProvider : AppWidgetProvider() {
         renderAsync(context, manager, ids)
     }
 
+    override fun onDisabled(context: Context) {
+        // 最后一个小组件被移除：停掉小时级后台刷新，避免无实例的网络请求与广播
+        WidgetSyncWorker.cancel(context)
+        super.onDisabled(context)
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_REFRESH) {
             val widgetId = intent.getIntExtra(

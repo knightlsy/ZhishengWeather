@@ -45,24 +45,12 @@ jobs:
         run: ./gradlew lintDebug --no-daemon --stacktrace
         continue-on-error: true
 
-      - name: Assemble debug // 构建调试包
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
-
       - name: Assemble public release // 构建公共发布包
         run: ./gradlew assemblePublicRelease --no-daemon --stacktrace
 
       - name: 上传 publicRelease APK
-        if: ${{ github.event.inputs.variant != 'debug' }}
         uses: actions/upload-artifact@v4
         with:
           name: ZhishengWeather-publicRelease
-          path: app/build/outputs/apk/public/release/*.apk
-          if-no-files-found: error
-
-      - name: 上传 debug APK
-        if: ${{ github.event.inputs.variant == 'debug' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ZhishengWeather-debug
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/publicRelease/*.apk
           if-no-files-found: error

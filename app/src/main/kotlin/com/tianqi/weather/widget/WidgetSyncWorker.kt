@@ -68,6 +68,11 @@ class WidgetSyncWorker(
         private const val UNIQUE_NAME = "tianqi_widget_sync"
         private const val UNIQUE_REFRESH_NAME = "tianqi_widget_refresh_now"
 
+        /** 取消周期刷新（最后一个小组件被移除时由 onDisabled 调用，省电省流量）。 */
+        fun cancel(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
+        }
+
         // 每小时拉一次（系统下限 15 分钟；配合 widget_info 的 30 分钟重绘，
         // 桌面最多约 1 小时滞后，远好于此前「永远停在最后一次开 App」）。
         // KEEP：已存在任务则保留原计划，不因每次启动重置周期。

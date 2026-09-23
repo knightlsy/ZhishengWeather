@@ -17,6 +17,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
 
 data class AppUpdateInfo(
     val versionCode: Int? = null,
@@ -95,47 +96,65 @@ object AppUpdate {
     ): File = withContext(Dispatchers.IO) {
         val dest = apkFile(context)
         var lastError: String? = null
-        for (url in downloadCandidates(info.apkUrl)) {
+        // 无 sha256 时不走第三方镜像，只允许 GitHub 官方直链（供应链防护）。
+        val expectedSha = info.sha256?.trim()?.takeIf(String::isNotEmpty)
+        val candidates = if (expectedSha != null) {
+            downloadCandidates(info.apkUrl)
+        } else {
+            listOf(info.apkUrl)
+        }
+        for (url in candidates) {
             val request = Request.Builder()
                 .url(url)
                 .header("User-Agent", userAgent())
                 .build()
-            val resp = downloadHttp.newCall(request).execute()
-            if (!resp.isSuccessful) {
-                resp.close()
-                lastError = "HTTP ${resp.code}"
-                continue
-            }
-            val body = resp.body ?: run { resp.close(); null }
-            if (body == null) continue
-            val total = body.contentLength()
-            dest.outputStream().use { out ->
-                body.byteStream().use { input ->
-                    val buf = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var read = 0L
-                    while (true) {
-                        val n = input.read(buf)
-                        if (n <= 0) break
-                        out.write(buf, 0, n)
-                        read += n
-                        if (total > 0) {
-                            withContext(Dispatchers.Main.immediate) {
-                                onProgress(read.toFloat() / total.toFloat())
+            // 捕获网络异常继续下一个候选；CancellationException 不继承 IOException，取消不受影响。
+            val ok = try {
+                downloadHttp.newCall(request).execute().use { resp ->
+                    if (!resp.isSuccessful) {
+                        lastError = "HTTP ${resp.code}"
+                        return@use false
+                    }
+                    val body = resp.body ?: run { lastError = "empty body"; return@use false }
+                    val total = body.contentLength()
+                    dest.outputStream().use { out ->
+                        body.byteStream().use { input ->
+                            val buf = ByteArray(DEFAULT_BUFFER_SIZE)
+                            var read = 0L
+                            while (true) {
+                                val n = input.read(buf)
+                                if (n <= 0) break
+                                out.write(buf, 0, n)
+                                read += n
+                                if (total > 0) {
+                                    withContext(Dispatchers.Main.immediate) {
+                                        onProgress(read.toFloat() / total.toFloat())
+                                    }
+                                }
                             }
                         }
                     }
+                    true
                 }
+            } catch (e: IOException) {
+                lastError = e.message ?: e.javaClass.simpleName
+                dest.delete() // 清掉半截 APK，防止残留损坏文件进入安装流程
+                continue
             }
-            resp.close()
-            val shaOk = info.sha256?.trim()?.takeIf(String::isNotEmpty)?.let { expected ->
+            if (!ok) continue
+            val shaOk = if (expectedSha != null) {
                 val actual = sha256Hex(dest)
-                if (!actual.equals(expected, ignoreCase = true)) {
+                if (!actual.equals(expectedSha, ignoreCase = true)) {
                     dest.delete()
                     lastError = "SHA256 校验失败"
-                    return@let false
+                    false
+                } else {
+                    true
                 }
-                true
-            } ?: true
+            } else {
+                // 无 hash 时仅官方直链可达这里（candidates 已限制）
+                url.startsWith("https://github.com/")
+            }
             if (!shaOk) continue
             return@withContext dest
         }

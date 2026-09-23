@@ -85,6 +85,7 @@ import com.tianqi.weather.ui.theme.TianQiSurface
 import com.tianqi.weather.ui.theme.TianQiText
 import com.tianqi.weather.ui.theme.TianQiTextSecondary
 import com.tianqi.weather.ui.theme.TianQiTextTertiary
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 // ═══════════════════════════════════════════════════════════
@@ -171,9 +172,10 @@ fun SettingsScreen(
         ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         if (uri != null) {
-            val ok = AppIconCustom.saveFromUri(context, uri)
-            if (ok) {
-                scope.launch {
+            // 解码+压缩+写盘是重 IO/位图操作，全部移入 IO 线程，避免主线程 ANR
+            scope.launch(Dispatchers.IO) {
+                val ok = AppIconCustom.saveFromUri(context, uri)
+                if (ok) {
                     AppIconManager.apply(context, AppIconStyle.CUSTOM)
                     SettingsRepository.setAppIconStyle(AppIconStyle.CUSTOM)
                 }
