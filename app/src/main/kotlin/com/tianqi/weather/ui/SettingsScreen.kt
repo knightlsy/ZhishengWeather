@@ -168,7 +168,7 @@ fun SettingsScreen(
         }
     }
     // 图标上传：只在用户主动点「从相册选择」时触发，绝不静默扫描相册
-    val uploadLauncher = rememberLauncherForActivityResult<Uri?, Uri?>(
+    val uploadLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
     ) { uri: Uri? ->
         if (uri != null) {
@@ -576,9 +576,7 @@ fun SettingsScreen(
                     }
                 }
                 if (appIconStyle == AppIconStyle.CUSTOM) {
-                    val preview by remember {
-                        derivedStateOf<android.graphics.drawable.BitmapDrawable?> { AppIconCustom.previewDrawable(context) }
-                    }
+                    val preview = remember(appIconStyle) { AppIconCustom.previewDrawable(context) }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -696,7 +694,7 @@ fun SettingsScreen(
     }
     if (showUploadSheet) {
         UploadSheetDialog(
-            onPickClick = { uploadLauncher.launch("image/*") },
+            onPickClick = { uploadLauncher.launch("image/*") },  // GetContent: 输入 String, 输出 Uri?
             onClear = {
                 if (AppIconCustom.clearCustomIcon(context)) {
                     scope.launch {

@@ -2,6 +2,9 @@ package com.tianqi.weather.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +23,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -86,17 +90,10 @@ fun UploadSheetDialog(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_launcher_character_foreground),
-                        contentDescription = "预览",
+                        contentDescription = "当前自定义图标预览",
                         modifier = Modifier.size(64.dp),
                     )
-                },
-                    contentDescription = "当前自定义图标预览",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(128.dp)
-                        .background(TianQiSurface).clip(RoundedCornerShape(24.dp))
-                        .border(2.dp, TianQiCardBorder, RoundedCornerShape(24.dp)),
-                )
+                }
                 Text(
                     "已保存到应用私有目录，不上传任何服务器",
                     style = MaterialTheme.typography.labelSmall,
@@ -148,9 +145,6 @@ fun UploadSheetDialog(
                             contentColor = TianQiOrange,
                         ),
                         border = BorderStroke(1.dp, TianQiOrange),
-                            width = 1.dp,
-                            shape = RoundedCornerShape(8.dp),
-                        ),
                     ) {
                         Text("清除")
                     }

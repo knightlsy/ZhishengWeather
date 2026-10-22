@@ -45,3 +45,7 @@ RESEARCH_*.md
 # 真机截图与调试目录（不入库）
 .device-screenshots/
 shots/
+
+# 构建产物不入库
+*.apk
+!keystore/public.jks
