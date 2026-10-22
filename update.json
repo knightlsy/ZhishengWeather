@@ -2,7 +2,7 @@
   "versionCode": 1000005,
   "versionName": "1.0.5",
   "apkUrl": "https://github.com/knightlsy/ZhishengWeather/releases/download/v1.0.5/app-publicRelease-v1.0.5.apk",
-  "sha256": "",
+  "sha256": "a3dff2dc9ba271cc806048752f28f0bba77d1aa37d1926feee28b4e6bfba61e5",
   "notes": "v1.0.5 更新说明：\n- 修复自定义图标上传页的编译错误（此前 CI 构建一直在此失败）\n- 图标预览改用 remember(appIconStyle) 取一次，避免不必要的重组\n- 清理误入库的构建产物，仓库体积更干净",
   "pageUrl": "https://github.com/knightlsy/ZhishengWeather/releases/tag/v1.0.5"
 }
